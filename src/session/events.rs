@@ -14,6 +14,8 @@ pub type Timestamp = u64;
 pub enum SessionEvent {
     /// The embedded agent or user submitted a line of input.
     UserInput { text: String, ts: Timestamp },
+    /// Output text produced by a command dispatch.
+    CommandOutput { text: String, is_error: bool, ts: Timestamp },
     /// Output text produced by an embedded agent.
     AgentOutput { text: String, ts: Timestamp },
     /// A command was dispatched through the ROY runtime.
@@ -39,6 +41,7 @@ impl SessionEvent {
     pub fn timestamp(&self) -> Timestamp {
         match self {
             Self::UserInput      { ts, .. }
+            | Self::CommandOutput    { ts, .. }
             | Self::AgentOutput      { ts, .. }
             | Self::CommandInvoked   { ts, .. }
             | Self::CommandDenied    { ts, .. }
@@ -56,6 +59,7 @@ impl SessionEvent {
     pub fn kind_str(&self) -> &'static str {
         match self {
             Self::UserInput { .. }      => "user_input",
+            Self::CommandOutput { .. }  => "command_output",
             Self::AgentOutput { .. }    => "agent_output",
             Self::CommandInvoked { .. } => "command_invoked",
             Self::CommandDenied { .. }  => "command_denied",
@@ -85,6 +89,14 @@ mod tests {
         }
     }
 
+    fn cmd_output(ts: Timestamp) -> SessionEvent {
+        SessionEvent::CommandOutput {
+            text: "output".to_string(),
+            is_error: false,
+            ts,
+        }
+    }
+
     #[test]
     fn timestamp_round_trips_user_input() {
         assert_eq!(user_input(42).timestamp(), 42);
@@ -109,6 +121,11 @@ mod tests {
     #[test]
     fn kind_str_command_denied() {
         assert_eq!(cmd_denied(0).kind_str(), "command_denied");
+    }
+
+    #[test]
+    fn kind_str_command_output() {
+        assert_eq!(cmd_output(0).kind_str(), "command_output");
     }
 
     #[test]

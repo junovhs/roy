@@ -24,7 +24,7 @@ pub(super) fn PanelHeader(title: &'static str) -> Element {
 // ── field ─────────────────────────────────────────────────────────────────────
 
 #[component]
-pub(super) fn Field(label: &'static str, value: &'static str) -> Element {
+pub(super) fn Field(label: &'static str, value: String) -> Element {
     rsx! {
         div {
             style: "display: flex; flex-direction: column; gap: 1px;",
@@ -78,7 +78,7 @@ pub(super) fn PlaceholderLine(
 // ── diag line ─────────────────────────────────────────────────────────────────
 
 #[component]
-pub(super) fn DiagLine(tag: &'static str, text: &'static str) -> Element {
+pub(super) fn DiagLine(tag: &'static str, text: String) -> Element {
     rsx! {
         div {
             style: "display: flex; gap: 8px; align-items: baseline;",
@@ -89,6 +89,36 @@ pub(super) fn DiagLine(tag: &'static str, text: &'static str) -> Element {
             span {
                 style: "color: {TEXT_DIM}; font-size: 11px;",
                 "{text}"
+            }
+        }
+    }
+}
+
+#[component]
+pub(super) fn StatCard(label: &'static str, value: String, detail: String) -> Element {
+    rsx! {
+        div {
+            style: "
+                min-width: 180px;
+                padding: 8px 12px;
+                border: 1px solid {super::BORDER};
+                border-radius: 6px;
+                background: #11161d;
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+            ",
+            span {
+                style: "color: {TEXT_DIM}; font-size: 10px; letter-spacing: 0.08em;",
+                "{label}"
+            }
+            span {
+                style: "color: {TEXT_PRIMARY}; font-size: 16px; font-weight: bold;",
+                "{value}"
+            }
+            span {
+                style: "color: {TEXT_DIM}; font-size: 11px;",
+                "{detail}"
             }
         }
     }

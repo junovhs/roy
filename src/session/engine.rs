@@ -112,9 +112,9 @@ mod tests {
     fn events_returns_ordered_slice() {
         let mut s = session();
         s.push(SessionEvent::UserInput { text: "a".to_string(), ts: 1 });
-        s.push(SessionEvent::AgentOutput { text: "b".to_string(), ts: 2 });
+        s.push(SessionEvent::CommandOutput { text: "b".to_string(), is_error: false, ts: 2 });
         let kinds: Vec<&str> = s.events().iter().map(|e| e.kind_str()).collect();
-        assert_eq!(kinds, &["session_started", "user_input", "agent_output"]);
+        assert_eq!(kinds, &["session_started", "user_input", "command_output"]);
     }
 
     // ── filter ────────────────────────────────────────────────────────────────

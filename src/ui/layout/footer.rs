@@ -1,16 +1,42 @@
 use dioxus::prelude::*;
 
-use super::{BG_PANEL, BORDER, TEXT_DIM};
-use super::atoms::DiagLine;
+use crate::session::{Session, SessionEvent};
+use crate::shell::ShellRuntime;
+
+use super::{short_path_label, BG_PANEL, BORDER, TEXT_DIM};
+use super::atoms::{DiagLine, StatCard};
 
 // ── artifacts row ─────────────────────────────────────────────────────────────
 
 #[component]
-pub(super) fn ArtifactsRow() -> Element {
+pub(super) fn ArtifactsRow(session: Signal<Session>) -> Element {
+    let session = session.read();
+    let denied_count = session.events_of_kind("command_denied").len();
+    let output_count = session.events_of_kind("command_output").len();
+    let cwd_changes = session.events_of_kind("cwd_changed").len();
+    let last_denial = session
+        .events()
+        .iter()
+        .rev()
+        .find_map(|event| match event {
+            SessionEvent::CommandDenied { command, .. } => Some(command.clone()),
+            _ => None,
+        })
+        .unwrap_or_else(|| "none yet".to_string());
+    let last_cwd = session
+        .events()
+        .iter()
+        .rev()
+        .find_map(|event| match event {
+            SessionEvent::CwdChanged { to, .. } => Some(short_path_label(to)),
+            _ => None,
+        })
+        .unwrap_or_else(|| "workspace root".to_string());
+
     rsx! {
         div {
             style: "
-                height: 80px;
+                min-height: 88px;
                 flex-shrink: 0;
                 background: {BG_PANEL};
                 border-top: 1px solid {BORDER};
@@ -41,12 +67,26 @@ pub(super) fn ArtifactsRow() -> Element {
                 style: "
                     flex: 1;
                     display: flex;
-                    align-items: center;
-                    padding: 0 16px;
-                    color: {TEXT_DIM};
-                    font-size: 11px;
+                    align-items: stretch;
+                    gap: 10px;
+                    padding: 10px 16px;
+                    overflow-x: auto;
                 ",
-                "no artifacts \u{2014} pending ART-01"
+                StatCard {
+                    label: "DENIED TRACES",
+                    value: denied_count.to_string(),
+                    detail: format!("latest: {last_denial}"),
+                }
+                StatCard {
+                    label: "SHELL OUTPUT",
+                    value: output_count.to_string(),
+                    detail: "transcript is live in-session".to_string(),
+                }
+                StatCard {
+                    label: "WORKSPACE MOVES",
+                    value: cwd_changes.to_string(),
+                    detail: format!("latest: {last_cwd}"),
+                }
             }
         }
     }
@@ -55,9 +95,31 @@ pub(super) fn ArtifactsRow() -> Element {
 // ── diagnostics pane (collapsible) ───────────────────────────────────────────
 
 #[component]
-pub(super) fn DiagnosticsPane(mut open: Signal<bool>) -> Element {
+pub(super) fn DiagnosticsPane(
+    mut open: Signal<bool>,
+    runtime: Signal<ShellRuntime>,
+    session: Signal<Session>,
+) -> Element {
     let is_open = open.read();
     let height = if *is_open { "160px" } else { "28px" };
+    let runtime = runtime.read();
+    let session = session.read();
+    let denied_count = session.events_of_kind("command_denied").len();
+    let output_count = session.events_of_kind("command_output").len();
+    let last_exit = runtime
+        .last_exit_status()
+        .map(|code| code.to_string())
+        .unwrap_or_else(|| "none".to_string());
+    let shell_line = format!("runtime online · cwd {}", runtime.env().cwd().display());
+    let resolve_line = format!(
+        "{} public / {} total commands",
+        runtime.public_command_count(),
+        runtime.command_count()
+    );
+    let policy_line = format!("profile {} · pending approvals 0", runtime.policy_name());
+    let session_line = format!("session #{} · {} events", session.id, session.len());
+    let storage_line = format!("SQLite pending DB-01 · last exit {last_exit}");
+    let trace_line = format!("{denied_count} denied traces · {output_count} output lines");
 
     rsx! {
         div {
@@ -107,12 +169,13 @@ pub(super) fn DiagnosticsPane(mut open: Signal<bool>) -> Element {
                         flex-direction: column;
                         gap: 4px;
                     ",
-                    DiagLine { tag: "shell",   text: "runtime offline \u{2014} SHEL-01"          }
-                    DiagLine { tag: "resolve", text: "command registry offline \u{2014} TOOL-01"  }
-                    DiagLine { tag: "policy",  text: "engine offline \u{2014} POL-01"             }
-                    DiagLine { tag: "agents",  text: "adapter offline \u{2014} AGEN-01"           }
-                    DiagLine { tag: "session", text: "ledger offline \u{2014} SES-01"             }
-                    DiagLine { tag: "storage", text: "SQLite offline \u{2014} DB-01"              }
+                    DiagLine { tag: "shell", text: shell_line }
+                    DiagLine { tag: "resolve", text: resolve_line }
+                    DiagLine { tag: "policy", text: policy_line }
+                    DiagLine { tag: "agents", text: "embedded adapters pending AGEN-01".to_string() }
+                    DiagLine { tag: "session", text: session_line }
+                    DiagLine { tag: "storage", text: storage_line }
+                    DiagLine { tag: "traces", text: trace_line }
                 }
             }
         }

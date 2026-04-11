@@ -1,6 +1,9 @@
 // API is live in tests and wired into Cockpit prompt; full wiring pending SHEL-02.
 #![allow(dead_code)]
 
+#[path = "runtime_builtins.rs"]
+mod builtins;
+
 use std::path::PathBuf;
 
 use crate::commands::CommandRegistry;
@@ -51,6 +54,21 @@ impl ShellRuntime {
     /// Workspace root for this runtime session.
     pub fn workspace_root(&self) -> &std::path::Path {
         self.workspace.root()
+    }
+
+    /// Name of the active policy profile.
+    pub fn policy_name(&self) -> &str {
+        self.policy.profile_name()
+    }
+
+    /// Total number of commands known to the registry.
+    pub fn command_count(&self) -> usize {
+        self.registry.len()
+    }
+
+    /// Number of commands shown in public help listings.
+    pub fn public_command_count(&self) -> usize {
+        self.registry.public_commands().len()
     }
 
     /// Replace the active policy profile.
@@ -167,108 +185,6 @@ impl ShellRuntime {
                 DispatchResult::NotFound { command: command.to_string() }
             }
         }
-    }
-
-    // ── built-in handlers ────────────────────────────────────────────────────
-
-    fn dispatch_cd(&mut self, args: &[&str]) -> DispatchResult {
-        let Some(&raw) = args.first() else {
-            return DispatchResult::CwdChanged { to: self.env.cwd().to_path_buf() };
-        };
-
-        // Workspace boundary check: resolve target path and validate it stays
-        // within the declared workspace root before the OS-level chdir.
-        let raw_path = std::path::Path::new(raw);
-        let absolute = if raw_path.is_absolute() {
-            raw_path.to_path_buf()
-        } else {
-            self.env.cwd().join(raw_path)
-        };
-        // Only enforce boundary if the target exists (non-existent → ShellError below).
-        if absolute.exists() && !self.workspace.contains(&absolute) {
-            let msg = format!(
-                "cd: {} escapes workspace boundary (root: {})",
-                absolute.display(),
-                self.workspace.root().display()
-            );
-            self.io.write_error(&msg);
-            self.last_exit_status = Some(1);
-            return DispatchResult::Executed { output: msg, exit_code: 1 };
-        }
-
-        match self.env.chdir(std::path::Path::new(raw)) {
-            Ok(()) => {
-                self.last_exit_status = Some(0);
-                DispatchResult::CwdChanged { to: self.env.cwd().to_path_buf() }
-            }
-            Err(ShellError::DirNotFound(p)) => {
-                let msg = format!("cd: {}: no such directory", p.display());
-                self.io.write_error(&msg);
-                self.last_exit_status = Some(1);
-                DispatchResult::Executed { output: msg, exit_code: 1 }
-            }
-            Err(ShellError::NotADirectory(p)) => {
-                let msg = format!("cd: {}: not a directory", p.display());
-                self.io.write_error(&msg);
-                self.last_exit_status = Some(1);
-                DispatchResult::Executed { output: msg, exit_code: 1 }
-            }
-            Err(e) => {
-                let msg = format!("cd: {e}");
-                self.io.write_error(&msg);
-                self.last_exit_status = Some(1);
-                DispatchResult::Executed { output: msg, exit_code: 1 }
-            }
-        }
-    }
-
-    fn dispatch_pwd(&mut self) -> DispatchResult {
-        let output = self.env.cwd().display().to_string();
-        self.io.write_line(&output);
-        self.last_exit_status = Some(0);
-        DispatchResult::Executed { output, exit_code: 0 }
-    }
-
-    fn dispatch_env(&mut self, args: &[&str]) -> DispatchResult {
-        let snap = self.env.snapshot();
-        let filter = args.first().copied();
-        let mut lines: Vec<String> = snap
-            .iter()
-            .filter(|(k, _)| filter.is_none_or(|f| k.contains(f)))
-            .map(|(k, v)| format!("{k}={v}"))
-            .collect();
-        lines.sort();
-        let output = lines.join("\n");
-        self.io.write_line(&output);
-        self.last_exit_status = Some(0);
-        DispatchResult::Executed { output, exit_code: 0 }
-    }
-
-    fn dispatch_exit(&mut self, args: &[&str]) -> DispatchResult {
-        let code: i32 = args.first().and_then(|s| s.parse().ok()).unwrap_or(0);
-        self.last_exit_status = Some(code);
-        DispatchResult::Exit { code }
-    }
-
-    fn dispatch_help(&mut self) -> DispatchResult {
-        let output = [
-            "ROY \u{2014} controlled shell host",
-            "",
-            "Built-in commands:",
-            "  cd [path]    change working directory",
-            "  pwd          print working directory",
-            "  env [key]    print environment (filtered by key substring if given)",
-            "  exit [n]     exit session with code n (default 0)",
-            "  help         show this help",
-            "",
-            "ROY-native commands: pending TOOL-02",
-            "Policy engine:       pending POL-01",
-            "Embedded agents:     pending AGEN-01",
-        ]
-        .join("\n");
-        self.io.write_line(&output);
-        self.last_exit_status = Some(0);
-        DispatchResult::Executed { output, exit_code: 0 }
     }
 }
 

@@ -1,12 +1,39 @@
 use dioxus::prelude::*;
 
-use super::{BORDER, TEXT_ACCENT, TEXT_DIM, TEXT_YELLOW};
+use crate::session::{Session, SessionEvent};
+use crate::shell::ShellRuntime;
+
+use super::{short_path_label, BORDER, TEXT_ACCENT, TEXT_DIM, TEXT_PRIMARY};
+
+const STATUS_ACTIVE: &str = "#3fb950";
+const STATUS_IDLE: &str = "#d29922";
+const STATUS_DONE: &str = "#6e7681";
 
 // ── header ───────────────────────────────────────────────────────────────────
 
 #[component]
-pub(super) fn Header() -> Element {
+pub(super) fn Header(runtime: Signal<ShellRuntime>, session: Signal<Session>) -> Element {
     use super::BG_HEADER;
+
+    let runtime = runtime.read();
+    let session = session.read();
+    let workspace = short_path_label(runtime.workspace_root());
+    let policy = runtime.policy_name().to_string();
+    let active = !matches!(
+        session.events().last(),
+        Some(SessionEvent::SessionEnded { .. })
+    );
+    let status_color = if active {
+        if session.len() > 1 { STATUS_ACTIVE } else { STATUS_IDLE }
+    } else {
+        STATUS_DONE
+    };
+    let status_text = if active {
+        format!("session #{} · {} events", session.id, session.len())
+    } else {
+        format!("session #{} ended", session.id)
+    };
+
     rsx! {
         div {
             style: "
@@ -33,17 +60,17 @@ pub(super) fn Header() -> Element {
 
             div {
                 style: "display: flex; align-items: center; gap: 12px;",
-                Badge { label: "workspace", value: "\u{2014}", color: TEXT_DIM }
-                Badge { label: "policy",    value: "none",     color: TEXT_DIM }
-                Badge { label: "agent",     value: "none",     color: TEXT_DIM }
+                Badge { label: "workspace", value: workspace, color: TEXT_PRIMARY }
+                Badge { label: "policy", value: policy, color: TEXT_PRIMARY }
+                Badge { label: "agent", value: "local shell".to_string(), color: TEXT_DIM }
             }
 
             div {
                 style: "display: flex; align-items: center; gap: 8px;",
-                StatusDot { color: TEXT_YELLOW }
+                StatusDot { color: status_color }
                 span {
                     style: "color: {TEXT_DIM}; font-size: 11px;",
-                    "no session"
+                    "{status_text}"
                 }
             }
         }
@@ -53,7 +80,7 @@ pub(super) fn Header() -> Element {
 // ── badge ─────────────────────────────────────────────────────────────────────
 
 #[component]
-fn Badge(label: &'static str, value: &'static str, color: &'static str) -> Element {
+fn Badge(label: &'static str, value: String, color: &'static str) -> Element {
     rsx! {
         div {
             style: "
