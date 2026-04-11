@@ -3,15 +3,19 @@
 
 use std::path::PathBuf;
 
+use crate::commands::CommandRegistry;
+
+use super::resolve::{resolve_command, ResolveOutcome};
 use super::result::DispatchResult;
-use super::traps::COMPAT_TRAPS;
 use super::{BufferedIo, ShellEnv, ShellError, ShellIo};
 
 /// ROY shell runtime.
 ///
 /// Owns the controlled shell environment, a session transcript buffer,
-/// and the command dispatch table. TOOL-01 will wire the command registry
-/// between the built-ins and compatibility traps.
+/// and the command registry. Dispatches commands through three layers:
+/// 1. Built-in handlers (cd, pwd, env, exit, help)
+/// 2. `CommandRegistry` → compat traps, ROY-native (pending), denied
+/// 3. NotFound fallback
 ///
 /// The `io` field is a [`BufferedIo`] that accumulates all output lines
 /// for the session transcript. The UI drains it via [`drain_output`] /
@@ -20,6 +24,7 @@ pub struct ShellRuntime {
     env: ShellEnv,
     io: BufferedIo,
     last_exit_status: Option<i32>,
+    registry: CommandRegistry,
 }
 
 impl ShellRuntime {
@@ -29,6 +34,7 @@ impl ShellRuntime {
             env: ShellEnv::new(workspace_root),
             io: BufferedIo::new(),
             last_exit_status: None,
+            registry: CommandRegistry::new(),
         }
     }
 
@@ -79,9 +85,8 @@ impl ShellRuntime {
     ///
     /// Resolution order:
     /// 1. ROY built-ins: `cd`, `pwd`, `env`/`printenv`, `exit`/`quit`, `help`/`roy`
-    /// 2. *(TOOL-01 inserts the ROY-native command registry here)*
-    /// 3. Compatibility traps → `Denied` with a helpful suggestion
-    /// 4. Everything else → `NotFound`
+    /// 2. `CommandRegistry`: compat traps → `Denied`; ROY-native → pending (TOOL-02)
+    /// 3. Everything else → `NotFound`
     ///
     /// Output is written to the internal [`BufferedIo`] transcript AND
     /// returned in the [`DispatchResult`] for immediate UI rendering.
@@ -92,14 +97,30 @@ impl ShellRuntime {
             "env" | "printenv"   => self.dispatch_env(args),
             "exit" | "quit"      => self.dispatch_exit(args),
             "help" | "roy" | "?" => self.dispatch_help(),
-            _ => {
-                if let Some(&(_, msg)) = COMPAT_TRAPS.iter().find(|&&(n, _)| n == command) {
+            _                    => self.dispatch_via_registry(command),
+        }
+    }
+
+    /// Resolve a non-builtin command through the command registry.
+    fn dispatch_via_registry(&mut self, command: &str) -> DispatchResult {
+        match resolve_command(&self.registry, command) {
+            ResolveOutcome::Denied { suggestion } => {
+                let suggestion_owned = suggestion.map(ToString::to_string);
+                if let Some(msg) = suggestion {
                     self.io.write_error(msg);
-                    return DispatchResult::Denied {
-                        command: command.to_string(),
-                        suggestion: Some(msg.to_string()),
-                    };
                 }
+                DispatchResult::Denied {
+                    command: command.to_string(),
+                    suggestion: suggestion_owned,
+                }
+            }
+            ResolveOutcome::RoyNative => {
+                // Execution pending TOOL-02; treat as not-yet-implemented.
+                let msg = format!("roy: {command}: native command not yet implemented");
+                self.io.write_error(&msg);
+                DispatchResult::NotFound { command: command.to_string() }
+            }
+            ResolveOutcome::Builtin | ResolveOutcome::NotFound => {
                 let msg = format!("roy: {command}: command not found");
                 self.io.write_error(&msg);
                 DispatchResult::NotFound { command: command.to_string() }
@@ -179,7 +200,7 @@ impl ShellRuntime {
             "  exit [n]     exit session with code n (default 0)",
             "  help         show this help",
             "",
-            "ROY-native commands: pending TOOL-01",
+            "ROY-native commands: pending TOOL-02",
             "Policy engine:       pending POL-01",
             "Embedded agents:     pending AGEN-01",
         ]

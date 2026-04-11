@@ -15,6 +15,7 @@
 
 pub mod env;
 pub mod io;
+pub mod resolve;
 pub mod result;
 pub mod runtime;
 pub mod traps;
