@@ -1,25 +1,18 @@
 use dioxus::prelude::*;
 
-use crate::session::{Session, SessionEvent};
-use crate::shell::{DispatchResult, ShellRuntime};
-
-#[path = "command_line.rs"]
-mod command_line;
-
-use command_line::parse_command_line;
+use crate::session::Session;
+use crate::shell::ShellRuntime;
 
 use super::super::atoms::PanelHeader;
 use super::super::{
-    is_session_active, now_millis, BG_PANEL, BG_SHELL, BORDER, TEXT_ACCENT, TEXT_DIM, TEXT_PRIMARY,
+    is_session_active, BG_PANEL, BG_SHELL, BORDER, TEXT_ACCENT, TEXT_DIM, TEXT_PRIMARY,
 };
-use super::terminal_model::{
-    flatten_chunks, initial_shell_lines, record_session_outcome, ShellLine, TEXT_ERROR,
-};
+use super::terminal_model::{handle_submit, initial_shell_lines, ShellLine, SubmitContext, TEXT_ERROR};
 
 #[component]
 pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>) -> Element {
     let mut input_text = use_signal(String::new);
-    let mut lines: Signal<Vec<ShellLine>> = use_signal(initial_shell_lines);
+    let lines: Signal<Vec<ShellLine>> = use_signal(initial_shell_lines);
 
     use_effect(|| {
         let _ = document::eval(
@@ -126,76 +119,16 @@ pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>)
                             }
 
                             let pre_prompt = runtime.read().prompt();
-
-                            {
-                                let mut session = session.write();
-                                let ts = now_millis();
-                                session.push(SessionEvent::UserInput { text: raw.clone(), ts });
-                            }
-
-                            let parsed = match parse_command_line(&raw) {
-                                Ok(parsed) => parsed,
-                                Err(message) => {
-                                    let error_text = format!("parse error: {message}");
-                                    let ts = now_millis();
-
-                                    session.write().push(SessionEvent::CommandOutput {
-                                        text: error_text.clone(),
-                                        is_error: true,
-                                        ts,
-                                    });
-
-                                    lines.write().extend([
-                                        ShellLine::echo(pre_prompt, raw.clone()),
-                                        ShellLine::error(error_text),
-                                    ]);
-
-                                    input_text.set(String::new());
-                                    return;
-                                }
-                            };
-
-                            {
-                                let mut session = session.write();
-                                let ts = now_millis();
-                                session.push(SessionEvent::CommandInvoked {
-                                    command: parsed.command.clone(),
-                                    args: parsed.args.clone(),
-                                    ts,
-                                });
-                            }
-
-                            let arg_refs: Vec<&str> = parsed.args.iter().map(String::as_str).collect();
-
-                            let (result, out, err) = {
-                                let mut runtime = runtime.write();
-                                let result = runtime.dispatch(&parsed.command, &arg_refs);
-                                let out = runtime.drain_output();
-                                let err = runtime.drain_errors();
-                                (result, out, err)
-                            };
-
-                            let mut new_lines = vec![ShellLine::echo(pre_prompt, raw.clone())];
-                            let output_lines = flatten_chunks(out);
-                            let error_lines = flatten_chunks(err);
-
-                            for line in &output_lines {
-                                new_lines.push(ShellLine::output(line.clone()));
-                            }
-                            for line in &error_lines {
-                                new_lines.push(ShellLine::error(line.clone()));
-                            }
-
-                            record_session_outcome(&mut session.write(), &result, &output_lines, &error_lines);
-
-                            if let DispatchResult::Exit { code } = result {
-                                new_lines.push(ShellLine::output(
-                                    format!("[session ended — exit code {code}]")
-                                ));
-                            }
-
-                            lines.write().extend(new_lines);
-                            input_text.set(String::new());
+                            handle_submit(
+                                raw,
+                                pre_prompt,
+                                SubmitContext {
+                                    runtime,
+                                    session,
+                                    lines,
+                                    input_text,
+                                },
+                            );
                         },
                     }
                 }

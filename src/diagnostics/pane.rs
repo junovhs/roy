@@ -113,14 +113,17 @@ fn entry_from_event(event: &SessionEvent, registry: &CommandRegistry) -> Option<
             Some(DiagEntry::info("agent", truncated))
         }
 
+        SessionEvent::ArtifactCreated { artifact, .. } => {
+            Some(DiagEntry::info("artifact", format!("{}: {}", artifact.kind_str(), artifact.name)))
+        }
+
         // These events are already visible in other panes or are noise.
         SessionEvent::SessionStarted { .. }
         | SessionEvent::SessionEnded { .. }
         | SessionEvent::UserInput { .. }
         | SessionEvent::CommandOutput { .. }
         | SessionEvent::CwdChanged { .. }
-        | SessionEvent::HostNotice { .. }
-        | SessionEvent::ArtifactCreated { .. } => None,
+        | SessionEvent::HostNotice { .. } => None,
     }
 }
 

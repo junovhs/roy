@@ -13,9 +13,12 @@
 
 pub mod engine;
 pub mod events;
+pub mod artifacts;
 
 // Used by tests; binary wiring pending SES-02.
 #[allow(unused_imports)]
 pub use engine::Session;
 #[allow(unused_imports)]
 pub use events::{SessionEvent, Timestamp};
+#[allow(unused_imports)]
+pub use artifacts::{ArtifactBody, ArtifactKind, SessionArtifact};

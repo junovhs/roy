@@ -1,99 +1,11 @@
 use dioxus::prelude::*;
 
 use crate::diagnostics::build_trace;
-use crate::session::{Session, SessionEvent};
+use crate::session::Session;
 use crate::shell::ShellRuntime;
 
-use super::{short_path_label, BG_PANEL, BORDER, TEXT_DIM};
-use super::atoms::{DiagLine, StatCard};
-
-// ── artifacts row ─────────────────────────────────────────────────────────────
-
-#[component]
-pub(super) fn ArtifactsRow(session: Signal<Session>) -> Element {
-    let session = session.read();
-    let denied_count = session.events_of_kind("command_denied").len();
-    let output_count = session.events_of_kind("command_output").len();
-    let cwd_changes = session.events_of_kind("cwd_changed").len();
-    let last_denial = session
-        .events()
-        .iter()
-        .rev()
-        .find_map(|event| match event {
-            SessionEvent::CommandDenied { command, .. } => Some(command.clone()),
-            _ => None,
-        })
-        .unwrap_or_else(|| "none yet".to_string());
-    let last_cwd = session
-        .events()
-        .iter()
-        .rev()
-        .find_map(|event| match event {
-            SessionEvent::CwdChanged { to, .. } => Some(short_path_label(to)),
-            _ => None,
-        })
-        .unwrap_or_else(|| "workspace root".to_string());
-
-    rsx! {
-        div {
-            style: "
-                min-height: 88px;
-                flex-shrink: 0;
-                background: {BG_PANEL};
-                border-top: 1px solid {BORDER};
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
-            ",
-
-            div {
-                style: "
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    padding: 4px 12px;
-                    border-bottom: 1px solid {BORDER};
-                ",
-                span {
-                    style: "color: {TEXT_DIM}; font-size: 10px; letter-spacing: 0.1em;",
-                    "ARTIFACTS"
-                }
-                span {
-                    style: "color: {TEXT_DIM}; font-size: 10px;",
-                    "diffs \u{00b7} validation runs \u{00b7} denied traces"
-                }
-            }
-
-            div {
-                style: "
-                    flex: 1;
-                    display: flex;
-                    align-items: stretch;
-                    gap: 10px;
-                    padding: 10px 16px;
-                    overflow-x: auto;
-                ",
-                StatCard {
-                    label: "DENIED TRACES",
-                    value: denied_count.to_string(),
-                    detail: format!("latest: {last_denial}"),
-                }
-                StatCard {
-                    label: "SHELL OUTPUT",
-                    value: output_count.to_string(),
-                    detail: "transcript is live in-session".to_string(),
-                }
-                StatCard {
-                    label: "WORKSPACE MOVES",
-                    value: cwd_changes.to_string(),
-                    detail: format!("latest: {last_cwd}"),
-                }
-            }
-        }
-    }
-}
-
-// ── diagnostics pane (collapsible) ───────────────────────────────────────────
+use super::{BORDER, TEXT_DIM};
+use super::atoms::DiagLine;
 
 #[component]
 pub(super) fn DiagnosticsPane(
@@ -120,7 +32,8 @@ pub(super) fn DiagnosticsPane(
     let policy_line = format!("profile {} · pending approvals 0", runtime.policy_name());
     let agents_line = "adapter contract ready (AGEN-01) · concrete adapters pending AGEN-02".to_string();
     let session_line = format!("session #{} · {} events", session.id, session.len());
-    let storage_line = format!("SQLite pending DB-01 · last exit {last_exit}");
+    let artifact_count = session.artifacts().len();
+    let storage_line = format!("SQLite session store ready · {artifact_count} artifact refs · last exit {last_exit}");
     let trace_line = format!("{denied_count} denied traces · {output_count} output lines");
     let event_trace = build_trace(session.events(), runtime.registry(), 8);
 

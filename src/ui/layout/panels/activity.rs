@@ -2,6 +2,8 @@ use dioxus::prelude::*;
 
 use crate::session::{Session, SessionEvent};
 
+use crate::ui::artifacts::{artifact_kind_color, artifact_kind_label};
+
 use super::super::atoms::PanelHeader;
 use super::super::{BG_PANEL, BORDER, TEXT_ACCENT, TEXT_DIM, TEXT_PRIMARY};
 
@@ -132,10 +134,10 @@ fn render_event(event: &SessionEvent) -> Option<(String, String, &'static str)> 
             message.clone(),
             TEXT_DIM,
         )),
-        SessionEvent::ArtifactCreated { name, kind, .. } => Some((
-            "ARTIFACT".to_string(),
-            format!("{kind}: {name}"),
-            TEXT_ACCENT,
+        SessionEvent::ArtifactCreated { artifact, .. } => Some((
+            artifact_kind_label(&artifact.kind).to_string(),
+            format!("{} · {}", artifact.name, artifact.summary),
+            artifact_kind_color(&artifact.kind),
         )),
         SessionEvent::AgentOutput { text, .. } => Some((
             "AGENT".to_string(),

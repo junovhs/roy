@@ -3,6 +3,7 @@
 
 use std::path::PathBuf;
 
+use super::artifacts::SessionArtifact;
 use super::events::{SessionEvent, Timestamp};
 
 /// A ROY shell session — owns the ordered event ledger.
@@ -48,6 +49,17 @@ impl Session {
         self.events.iter().filter(|e| e.kind_str() == kind).collect()
     }
 
+    /// All promoted artifacts in chronological order.
+    pub fn artifacts(&self) -> Vec<&SessionArtifact> {
+        self.events
+            .iter()
+            .filter_map(|event| match event {
+                SessionEvent::ArtifactCreated { artifact, .. } => Some(artifact),
+                _ => None,
+            })
+            .collect()
+    }
+
     /// Iterator over all events in chronological order — for replay.
     pub fn replay(&self) -> impl Iterator<Item = &SessionEvent> {
         self.events.iter()
@@ -73,6 +85,7 @@ impl Session {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+    use crate::session::{ArtifactBody, ArtifactKind};
 
     fn tmp() -> PathBuf { std::env::temp_dir() }
 
@@ -141,6 +154,27 @@ mod tests {
     fn events_of_kind_returns_empty_for_no_match() {
         let s = session();
         assert!(s.events_of_kind("artifact_created").is_empty());
+    }
+
+    #[test]
+    fn artifacts_returns_promoted_items_only() {
+        let mut s = session();
+        s.push(SessionEvent::ArtifactCreated {
+            artifact: SessionArtifact {
+                name: "check".to_string(),
+                kind: ArtifactKind::ValidationRun,
+                summary: "cargo check passed".to_string(),
+                body: ArtifactBody::Note {
+                    text: "ok".to_string(),
+                },
+            },
+            ts: 1,
+        });
+        s.push(SessionEvent::HostNotice { message: "ready".to_string(), ts: 2 });
+
+        let artifacts = s.artifacts();
+        assert_eq!(artifacts.len(), 1);
+        assert_eq!(artifacts[0].name, "check");
     }
 
     // ── replay ───────────────────────────────────────────────────────────────

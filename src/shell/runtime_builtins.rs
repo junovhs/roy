@@ -20,6 +20,7 @@ impl ShellRuntime {
         if absolute.exists() && !self.workspace.contains(&absolute) {
             return self.deny(
                 "cd",
+                args,
                 format!(
                     "cd: {} escapes workspace boundary (root: {})",
                     absolute.display(),
@@ -44,6 +45,7 @@ impl ShellRuntime {
                 DispatchResult::Executed {
                     output: msg,
                     exit_code: 1,
+                    artifacts: Vec::new(),
                 }
             }
         }
@@ -56,6 +58,7 @@ impl ShellRuntime {
         DispatchResult::Executed {
             output,
             exit_code: 0,
+            artifacts: Vec::new(),
         }
     }
 
@@ -74,6 +77,7 @@ impl ShellRuntime {
         DispatchResult::Executed {
             output,
             exit_code: 0,
+            artifacts: Vec::new(),
         }
     }
 
@@ -122,6 +126,7 @@ impl ShellRuntime {
         DispatchResult::Executed {
             output,
             exit_code: 0,
+            artifacts: Vec::new(),
         }
     }
 
@@ -138,6 +143,7 @@ impl ShellRuntime {
         DispatchResult::Executed {
             output,
             exit_code: 0,
+            artifacts: Vec::new(),
         }
     }
 
@@ -148,6 +154,7 @@ impl ShellRuntime {
         DispatchResult::Executed {
             output: msg,
             exit_code: 1,
+            artifacts: Vec::new(),
         }
     }
 }

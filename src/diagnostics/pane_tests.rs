@@ -1,7 +1,7 @@
 //! Tests for diagnostics::pane — build_trace and DiagSeverity.
 
 use crate::commands::CommandRegistry;
-use crate::session::SessionEvent;
+use crate::session::{ArtifactBody, ArtifactKind, SessionArtifact, SessionEvent};
 use super::{build_trace, DiagSeverity};
 
 fn reg() -> CommandRegistry { CommandRegistry::new() }
@@ -24,6 +24,20 @@ fn denied(command: &str, suggestion: Option<&str>) -> SessionEvent {
 
 fn not_found(command: &str) -> SessionEvent {
     SessionEvent::CommandNotFound { command: command.to_string(), ts: 0 }
+}
+
+fn artifact(name: &str) -> SessionEvent {
+    SessionEvent::ArtifactCreated {
+        artifact: SessionArtifact {
+            name: name.to_string(),
+            kind: ArtifactKind::ValidationRun,
+            summary: "cargo check passed".to_string(),
+            body: ArtifactBody::Note {
+                text: "ok".to_string(),
+            },
+        },
+        ts: 0,
+    }
 }
 
 // ── builtin resolution ────────────────────────────────────────────────────────
@@ -110,6 +124,13 @@ fn trace_is_newest_first() {
     let trace = build_trace(&events, &reg(), 10);
     assert!(trace[0].text.starts_with("ls"), "got: {}", trace[0].text);
     assert!(trace[1].text.starts_with("pwd"), "got: {}", trace[1].text);
+}
+
+#[test]
+fn artifacts_are_visible_in_trace() {
+    let trace = build_trace(&[artifact("check")], &reg(), 10);
+    assert_eq!(trace[0].tag, "artifact");
+    assert!(trace[0].text.contains("check"));
 }
 
 // ── DiagSeverity ──────────────────────────────────────────────────────────────

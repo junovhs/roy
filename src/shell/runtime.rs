@@ -12,6 +12,7 @@ use crate::commands::schema::Backend;
 use crate::commands::{parse_native_request, CommandRegistry};
 use crate::capabilities::CapabilityRuntime;
 use crate::policy::{PolicyEngine, PolicyOutcome};
+use crate::session::SessionArtifact;
 use crate::workspace::WorkspaceBoundary;
 
 use super::result::DispatchResult;
@@ -147,15 +148,15 @@ impl ShellRuntime {
         };
 
         match self.policy.evaluate(command, schema.risk_level) {
-            PolicyOutcome::Deny { reason } => return self.deny(command, reason),
-            PolicyOutcome::ApprovalPending { reason, .. } => return self.deny(command, reason),
+            PolicyOutcome::Deny { reason } => return self.deny(command, args, reason),
+            PolicyOutcome::ApprovalPending { reason, .. } => return self.deny(command, args, reason),
             PolicyOutcome::Allow => {}
         }
 
         match schema.backend {
             Backend::Builtin => self.dispatch_builtin(command, args),
-            Backend::CompatTrap { suggestion } => self.deny(command, suggestion),
-            Backend::Blocked { reason } => self.deny(command, reason),
+            Backend::CompatTrap { suggestion } => self.deny(command, args, suggestion),
+            Backend::Blocked { reason } => self.deny(command, args, reason),
             Backend::RoyNative => self.dispatch_native(command, args),
         }
     }
@@ -172,13 +173,15 @@ impl ShellRuntime {
         }
     }
 
-    fn deny(&mut self, command: &str, message: impl Into<String>) -> DispatchResult {
+    fn deny(&mut self, command: &str, args: &[&str], message: impl Into<String>) -> DispatchResult {
         let message = message.into();
         self.io.write_error(&message);
         self.last_exit_status = Some(126);
+        let artifact = SessionArtifact::denied_command(command, args, message.clone());
         DispatchResult::Denied {
             command: command.to_string(),
             suggestion: Some(message),
+            artifacts: vec![artifact],
         }
     }
 

@@ -1,3 +1,4 @@
+mod artifacts_row;
 mod atoms;
 mod chrome;
 mod footer;
@@ -8,7 +9,8 @@ use dioxus::prelude::*;
 use crate::session::{Session, SessionEvent, Timestamp};
 use crate::shell::ShellRuntime;
 use chrome::Header;
-use footer::{ArtifactsRow, DiagnosticsPane};
+use artifacts_row::ArtifactsRow;
+use footer::DiagnosticsPane;
 use panels::{ActivityPanel, ShellPane, WorkspacePanel};
 
 // ── palette ──────────────────────────────────────────────────────────────────

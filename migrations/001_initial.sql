@@ -60,5 +60,6 @@ CREATE TABLE IF NOT EXISTS artifacts (
     session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
     name       TEXT    NOT NULL,
     kind       TEXT    NOT NULL,   -- diff | validation | denied_trace | …
+    summary    TEXT    NOT NULL DEFAULT '',
     created_at INTEGER NOT NULL
 );

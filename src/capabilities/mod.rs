@@ -46,6 +46,8 @@ pub enum CapabilityOutput {
     FileWritten {
         path: PathBuf,
         bytes_written: usize,
+        previous_contents: Option<String>,
+        contents: String,
     },
     ValidationRun {
         command: String,
@@ -81,6 +83,7 @@ impl CapabilityOutput {
             Self::FileWritten {
                 path,
                 bytes_written,
+                ..
             } => format!("wrote {bytes_written} bytes to {}", path.display()),
             Self::ValidationRun {
                 command,

@@ -75,12 +75,24 @@ impl CapabilityRuntime {
             )));
         }
 
+        let previous_contents = if target.exists() {
+            Some(String::from_utf8_lossy(
+                &std::fs::read(&target)
+                    .map_err(|err| CapabilityError::new(format!("write: {err}")))?,
+            )
+            .into_owned())
+        } else {
+            None
+        };
+
         std::fs::write(&target, contents)
             .map_err(|err| CapabilityError::new(format!("write: {err}")))?;
 
         Ok(CapabilityOutput::FileWritten {
             path: target,
             bytes_written: contents.len(),
+            previous_contents,
+            contents: contents.to_string(),
         })
     }
 
