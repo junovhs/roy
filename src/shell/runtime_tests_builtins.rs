@@ -35,13 +35,13 @@ fn pwd_writes_to_transcript() {
 
 #[test]
 fn cd_absolute_path_changes_cwd() {
-    let mut rt = rt();
-    let root = std::env::temp_dir();
-    let parent = root.parent().unwrap().canonicalize().unwrap();
-    match rt.dispatch("cd", &[parent.to_str().unwrap()]) {
+    // cd to the workspace root itself — always a valid within-workspace move.
+    let root = std::env::temp_dir().canonicalize().unwrap();
+    let mut rt = ShellRuntime::new(root.clone());
+    match rt.dispatch("cd", &[root.to_str().unwrap()]) {
         DispatchResult::CwdChanged { to } => {
-            assert_eq!(to, parent);
-            assert_eq!(rt.env().cwd(), parent.as_path());
+            assert_eq!(to, root);
+            assert_eq!(rt.env().cwd(), root.as_path());
             assert_eq!(rt.last_exit_status(), Some(0));
         }
         other => panic!("expected CwdChanged, got {other:?}"),

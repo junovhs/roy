@@ -116,6 +116,38 @@ fn prompt_contains_cwd() {
     assert!(rt.prompt().contains(root.to_str().unwrap()));
 }
 
+// ── workspace boundary enforcement ───────────────────────────────────────────
+
+#[test]
+fn cd_outside_workspace_is_denied() {
+    // Runtime workspace = /tmp; parent of /tmp is outside the boundary.
+    let root = std::env::temp_dir().canonicalize().unwrap();
+    let mut rt = ShellRuntime::new(root.clone());
+    let outside = root.parent().unwrap().to_path_buf();
+    // dispatch cd to outside path — should be denied, not CwdChanged
+    let result = rt.dispatch("cd", &[outside.to_str().unwrap()]);
+    assert!(
+        !matches!(result, DispatchResult::CwdChanged { .. }),
+        "cd outside workspace must not produce CwdChanged"
+    );
+}
+
+#[test]
+fn cd_outside_workspace_writes_error_to_transcript() {
+    let root = std::env::temp_dir().canonicalize().unwrap();
+    let mut rt = ShellRuntime::new(root.clone());
+    let outside = root.parent().unwrap().to_path_buf();
+    rt.dispatch("cd", &[outside.to_str().unwrap()]);
+    assert!(!rt.drain_errors().is_empty(), "boundary violation must write to error transcript");
+}
+
+#[test]
+fn workspace_root_accessible_via_runtime() {
+    let root = std::env::temp_dir().canonicalize().unwrap();
+    let rt = ShellRuntime::new(root.clone());
+    assert_eq!(rt.workspace_root(), root.as_path());
+}
+
 // ── policy gate integration ───────────────────────────────────────────────────
 
 #[test]

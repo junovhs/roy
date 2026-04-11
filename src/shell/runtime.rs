@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use crate::commands::CommandRegistry;
 use crate::policy::{PolicyEngine, PolicyOutcome};
+use crate::workspace::WorkspaceBoundary;
 
 use super::resolve::{resolve_command, ResolveOutcome};
 use super::result::DispatchResult;
@@ -27,6 +28,7 @@ pub struct ShellRuntime {
     last_exit_status: Option<i32>,
     registry: CommandRegistry,
     policy: PolicyEngine,
+    workspace: WorkspaceBoundary,
 }
 
 impl ShellRuntime {
@@ -35,13 +37,20 @@ impl ShellRuntime {
     /// Uses the permissive policy profile by default — policy is in-path
     /// but transparent until explicitly configured (see `set_policy`).
     pub fn new(workspace_root: PathBuf) -> Self {
+        let workspace = WorkspaceBoundary::new(workspace_root.clone());
         Self {
             env: ShellEnv::new(workspace_root),
             io: BufferedIo::new(),
             last_exit_status: None,
             registry: CommandRegistry::new(),
             policy: PolicyEngine::default(),
+            workspace,
         }
+    }
+
+    /// Workspace root for this runtime session.
+    pub fn workspace_root(&self) -> &std::path::Path {
+        self.workspace.root()
     }
 
     /// Replace the active policy profile.
@@ -166,6 +175,26 @@ impl ShellRuntime {
         let Some(&raw) = args.first() else {
             return DispatchResult::CwdChanged { to: self.env.cwd().to_path_buf() };
         };
+
+        // Workspace boundary check: resolve target path and validate it stays
+        // within the declared workspace root before the OS-level chdir.
+        let raw_path = std::path::Path::new(raw);
+        let absolute = if raw_path.is_absolute() {
+            raw_path.to_path_buf()
+        } else {
+            self.env.cwd().join(raw_path)
+        };
+        // Only enforce boundary if the target exists (non-existent → ShellError below).
+        if absolute.exists() && !self.workspace.contains(&absolute) {
+            let msg = format!(
+                "cd: {} escapes workspace boundary (root: {})",
+                absolute.display(),
+                self.workspace.root().display()
+            );
+            self.io.write_error(&msg);
+            self.last_exit_status = Some(1);
+            return DispatchResult::Executed { output: msg, exit_code: 1 };
+        }
 
         match self.env.chdir(std::path::Path::new(raw)) {
             Ok(()) => {
