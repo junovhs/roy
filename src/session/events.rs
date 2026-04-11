@@ -5,6 +5,8 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use super::artifacts::SessionArtifact;
+
 /// Milliseconds since UNIX epoch — simple, copy-friendly, SQLite-friendly.
 pub type Timestamp = u64;
 
@@ -29,7 +31,7 @@ pub enum SessionEvent {
     /// The working directory changed.
     CwdChanged { to: PathBuf, ts: Timestamp },
     /// A significant output was promoted to an artifact.
-    ArtifactCreated { name: String, kind: String, ts: Timestamp },
+    ArtifactCreated { artifact: SessionArtifact, ts: Timestamp },
     /// A host-level lifecycle or informational notice.
     HostNotice { message: String, ts: Timestamp },
     /// Emitted once when a session opens.
@@ -67,7 +69,7 @@ impl SessionEvent {
             Self::CommandDenied { .. }  => "command_denied",
             Self::CommandNotFound { .. }=> "command_not_found",
             Self::CwdChanged { .. }     => "cwd_changed",
-            Self::ArtifactCreated { .. }=> "artifact_created",
+            Self::ArtifactCreated { .. } => "artifact_created",
             Self::HostNotice { .. }     => "host_notice",
             Self::SessionStarted { .. } => "session_started",
             Self::SessionEnded { .. }   => "session_ended",
@@ -78,6 +80,7 @@ impl SessionEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::session::{ArtifactBody, ArtifactKind};
 
     fn user_input(ts: Timestamp) -> SessionEvent {
         SessionEvent::UserInput { text: "ls".to_string(), ts }
@@ -145,8 +148,14 @@ mod tests {
     #[test]
     fn kind_str_artifact_created() {
         let ev = SessionEvent::ArtifactCreated {
-            name: "patch.diff".to_string(),
-            kind: "diff".to_string(),
+            artifact: SessionArtifact {
+                name: "patch.diff".to_string(),
+                kind: ArtifactKind::Diff,
+                summary: "updated src/lib.rs".to_string(),
+                body: ArtifactBody::Note {
+                    text: "placeholder".to_string(),
+                },
+            },
             ts: 0,
         };
         assert_eq!(ev.kind_str(), "artifact_created");

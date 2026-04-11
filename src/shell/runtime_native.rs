@@ -1,4 +1,6 @@
 use super::*;
+use crate::capabilities::CapabilityOutput;
+use crate::session::SessionArtifact;
 
 impl ShellRuntime {
     pub(super) fn dispatch_native(&mut self, command: &str, args: &[&str]) -> DispatchResult {
@@ -13,6 +15,7 @@ impl ShellRuntime {
             Ok(output) => {
                 let primary = output.primary_text();
                 let exit_code = output.exit_code();
+                let artifacts = promoted_artifacts(&output);
 
                 if !primary.is_empty() {
                     if exit_code == 0 {
@@ -32,6 +35,7 @@ impl ShellRuntime {
                 DispatchResult::Executed {
                     output: primary,
                     exit_code,
+                    artifacts,
                 }
             }
             Err(err) => {
@@ -41,6 +45,7 @@ impl ShellRuntime {
                 DispatchResult::Executed {
                     output: message,
                     exit_code: 1,
+                    artifacts: Vec::new(),
                 }
             }
         }
@@ -53,6 +58,34 @@ impl ShellRuntime {
         DispatchResult::Executed {
             output: message,
             exit_code: 2,
+            artifacts: Vec::new(),
         }
+    }
+}
+
+fn promoted_artifacts(output: &CapabilityOutput) -> Vec<SessionArtifact> {
+    match output {
+        CapabilityOutput::ValidationRun {
+            command,
+            cwd,
+            exit_code,
+            stdout,
+            stderr,
+        } => vec![SessionArtifact::validation_run(
+            command.clone(),
+            cwd.clone(),
+            *exit_code,
+            stdout.clone(),
+            stderr.clone(),
+        )],
+        CapabilityOutput::FileWritten {
+            path,
+            previous_contents,
+            contents,
+            ..
+        } => SessionArtifact::diff(path.clone(), previous_contents.clone(), contents.clone())
+            .into_iter()
+            .collect(),
+        _ => Vec::new(),
     }
 }

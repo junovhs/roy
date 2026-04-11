@@ -1,4 +1,5 @@
 mod activity;
+mod command_line;
 mod terminal;
 mod terminal_model;
 mod workspace;

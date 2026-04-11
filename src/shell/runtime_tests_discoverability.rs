@@ -46,14 +46,14 @@ fn help_groups_shell_builtins_and_native_commands() {
 #[test]
 fn help_aliases_roy_and_question_mark_produce_same_output() {
     let out_roy = match ShellRuntime::new(std::env::temp_dir()).dispatch("roy", &[]) {
-        DispatchResult::Executed { output, exit_code } => {
+        DispatchResult::Executed { output, exit_code, .. } => {
             assert_eq!(exit_code, 0);
             output
         }
         other => panic!("expected Executed, got {other:?}"),
     };
     let out_q = match ShellRuntime::new(std::env::temp_dir()).dispatch("?", &[]) {
-        DispatchResult::Executed { output, exit_code } => {
+        DispatchResult::Executed { output, exit_code, .. } => {
             assert_eq!(exit_code, 0);
             output
         }
@@ -68,7 +68,7 @@ fn help_aliases_roy_and_question_mark_produce_same_output() {
 fn commands_lists_public_names_one_per_line() {
     let mut rt = rt();
     match rt.dispatch("commands", &[]) {
-        DispatchResult::Executed { output, exit_code } => {
+        DispatchResult::Executed { output, exit_code, .. } => {
             assert_eq!(exit_code, 0);
             let names: Vec<&str> = output.lines().collect();
             for required in &[

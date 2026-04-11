@@ -16,7 +16,7 @@ fn pwd_returns_cwd_with_exit_zero() {
     let mut rt = rt();
     let expected = std::env::temp_dir().display().to_string();
     match rt.dispatch("pwd", &[]) {
-        DispatchResult::Executed { output, exit_code } => {
+        DispatchResult::Executed { output, exit_code, .. } => {
             assert_eq!(exit_code, 0);
             assert_eq!(output, expected);
         }
@@ -85,7 +85,7 @@ fn cd_no_args_returns_cwd_unchanged() {
 fn env_output_contains_path_and_shell() {
     let mut rt = rt();
     match rt.dispatch("env", &[]) {
-        DispatchResult::Executed { output, exit_code } => {
+        DispatchResult::Executed { output, exit_code, .. } => {
             assert_eq!(exit_code, 0);
             assert!(output.contains("PATH="), "env must include PATH");
             assert!(output.contains("SHELL=roy"), "env must include SHELL=roy");
@@ -98,7 +98,7 @@ fn env_output_contains_path_and_shell() {
 fn env_filter_narrows_output() {
     let mut rt = rt();
     match rt.dispatch("env", &["SHELL"]) {
-        DispatchResult::Executed { output, exit_code } => {
+        DispatchResult::Executed { output, exit_code, .. } => {
             assert_eq!(exit_code, 0);
             assert!(output.contains("SHELL=roy"));
             assert!(!output.contains("PATH="), "filter should exclude PATH");
@@ -135,7 +135,7 @@ fn quit_alias_exits() {
 fn help_lists_builtins_and_exits_zero() {
     let mut rt = rt();
     match rt.dispatch("help", &[]) {
-        DispatchResult::Executed { output, exit_code } => {
+        DispatchResult::Executed { output, exit_code, .. } => {
             assert_eq!(exit_code, 0);
             assert!(output.contains("ROY"));
             assert!(output.contains("cd"));

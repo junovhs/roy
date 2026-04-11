@@ -15,10 +15,11 @@ fn rt() -> ShellRuntime {
 fn bash_denied_with_suggestion() {
     let mut rt = rt();
     match rt.dispatch("bash", &[]) {
-        DispatchResult::Denied { command, suggestion } => {
+        DispatchResult::Denied { command, suggestion, artifacts } => {
             assert_eq!(command, "bash");
             let msg = suggestion.expect("bash denial must include a suggestion");
             assert!(msg.contains("ROY"), "suggestion must mention ROY");
+            assert_eq!(artifacts.len(), 1, "denials should promote a trace artifact");
         }
         other => panic!("expected Denied, got {other:?}"),
     }

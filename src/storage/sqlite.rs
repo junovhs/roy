@@ -7,7 +7,7 @@ use std::path::Path;
 
 use rusqlite::{params, Connection};
 
-use crate::session::{Session, SessionEvent};
+use crate::session::{Session, SessionArtifact, SessionEvent};
 
 /// Error returned by storage operations.
 #[derive(Debug)]
@@ -49,6 +49,14 @@ pub struct RoyStore {
     conn: Connection,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredArtifactRef {
+    pub name: String,
+    pub kind: String,
+    pub summary: String,
+    pub created_at: u64,
+}
+
 impl RoyStore {
     /// Open (or create) the database at `path`, applying all pending migrations.
     pub fn open(path: &Path) -> Result<Self, StoreError> {
@@ -85,6 +93,14 @@ impl RoyStore {
                 session.workspace_root.display().to_string(),
                 session.id as i64,
             ],
+        )?;
+        self.conn.execute(
+            "DELETE FROM session_events WHERE session_id = ?1",
+            params![session.id as i64],
+        )?;
+        self.conn.execute(
+            "DELETE FROM artifacts WHERE session_id = ?1",
+            params![session.id as i64],
         )?;
         for event in session.events() {
             self.insert_event(session.id, event)?;
@@ -140,6 +156,27 @@ impl RoyStore {
             .collect()
     }
 
+    pub fn load_artifact_refs(&self, session_id: u64) -> Result<Vec<StoredArtifactRef>, StoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT name, kind, summary, created_at
+             FROM artifacts
+             WHERE session_id = ?1
+             ORDER BY created_at, id",
+        )?;
+        let rows = stmt
+            .query_map(params![session_id as i64], |row| {
+                Ok(StoredArtifactRef {
+                    name: row.get(0)?,
+                    kind: row.get(1)?,
+                    summary: row.get(2)?,
+                    created_at: row.get::<_, i64>(3)? as u64,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(rows)
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     fn insert_event(&self, session_id: u64, event: &SessionEvent) -> Result<(), StoreError> {
@@ -152,6 +189,29 @@ impl RoyStore {
                 event.kind_str(),
                 payload,
                 event.timestamp() as i64,
+            ],
+        )?;
+        if let SessionEvent::ArtifactCreated { artifact, ts } = event {
+            self.insert_artifact(session_id, artifact, *ts)?;
+        }
+        Ok(())
+    }
+
+    fn insert_artifact(
+        &self,
+        session_id: u64,
+        artifact: &SessionArtifact,
+        created_at: u64,
+    ) -> Result<(), StoreError> {
+        self.conn.execute(
+            "INSERT INTO artifacts (session_id, name, kind, summary, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                session_id as i64,
+                artifact.name.as_str(),
+                artifact.kind_str(),
+                artifact.summary.as_str(),
+                created_at as i64,
             ],
         )?;
         Ok(())
