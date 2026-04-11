@@ -57,8 +57,10 @@ impl PolicyEngine {
         // 1. Hard-deny list
         if self.profile.is_blocked(command) {
             return PolicyOutcome::Deny {
-                reason: format!("'{command}' is blocked by the '{name}' policy profile",
-                    name = self.profile.name),
+                reason: format!(
+                    "'{command}' is blocked by the '{name}' policy profile",
+                    name = self.profile.name
+                ),
             };
         }
 

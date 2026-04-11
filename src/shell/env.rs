@@ -26,7 +26,10 @@ impl ShellEnv {
         vars.insert("PATH".to_string(), Self::roy_path());
         vars.insert("SHELL".to_string(), "roy".to_string());
         vars.insert("TERM".to_string(), "roy-term".to_string());
-        Self { vars, cwd: workspace_root }
+        Self {
+            vars,
+            cwd: workspace_root,
+        }
     }
 
     /// ROY-controlled PATH entries.
@@ -114,9 +117,15 @@ mod tests {
         let path = env.get("PATH").expect("PATH must be set");
         let entries: Vec<&str> = path.split(':').collect();
         // These are the OS PATH entries ROY must never expose.
-        assert!(!entries.contains(&"/usr/bin"), "ROY must not expose /usr/bin");
+        assert!(
+            !entries.contains(&"/usr/bin"),
+            "ROY must not expose /usr/bin"
+        );
         assert!(!entries.contains(&"/bin"), "ROY must not expose /bin");
-        assert!(!entries.contains(&"/usr/local/bin"), "ROY must not expose /usr/local/bin");
+        assert!(
+            !entries.contains(&"/usr/local/bin"),
+            "ROY must not expose /usr/local/bin"
+        );
     }
 
     #[test]

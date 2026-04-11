@@ -7,7 +7,9 @@ use super::super::atoms::PanelHeader;
 use super::super::{
     is_session_active, BG_PANEL, BG_SHELL, BORDER, TEXT_ACCENT, TEXT_DIM, TEXT_PRIMARY,
 };
-use super::terminal_model::{handle_submit, initial_shell_lines, ShellLine, SubmitContext, TEXT_ERROR};
+use super::terminal_model::{
+    handle_submit, initial_shell_lines, ShellLine, SubmitContext, TEXT_ERROR,
+};
 
 #[component]
 pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>) -> Element {

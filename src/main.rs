@@ -1,5 +1,5 @@
-mod app;
 mod agents;
+mod app;
 mod capabilities;
 mod commands;
 mod diagnostics;
@@ -13,6 +13,8 @@ mod workspace;
 use tracing_subscriber::EnvFilter;
 
 fn main() {
+    let window_title = format!("ROY v{} - controlled shell host", env!("CARGO_PKG_VERSION"));
+
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .init();
@@ -22,7 +24,7 @@ fn main() {
             dioxus::desktop::Config::new()
                 .with_window(
                     dioxus::desktop::WindowBuilder::new()
-                        .with_title("ROY — controlled shell host")
+                        .with_title(window_title)
                         .with_inner_size(dioxus::desktop::LogicalSize::new(1280.0, 800.0))
                         .with_min_inner_size(dioxus::desktop::LogicalSize::new(900.0, 600.0)),
                 )

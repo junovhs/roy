@@ -1,10 +1,12 @@
 //! Tests for diagnostics::pane — build_trace and DiagSeverity.
 
+use super::{build_trace, DiagSeverity};
 use crate::commands::CommandRegistry;
 use crate::session::{ArtifactBody, ArtifactKind, SessionArtifact, SessionEvent};
-use super::{build_trace, DiagSeverity};
 
-fn reg() -> CommandRegistry { CommandRegistry::new() }
+fn reg() -> CommandRegistry {
+    CommandRegistry::new()
+}
 
 fn invoked(command: &str, args: Vec<&str>) -> SessionEvent {
     SessionEvent::CommandInvoked {
@@ -23,7 +25,10 @@ fn denied(command: &str, suggestion: Option<&str>) -> SessionEvent {
 }
 
 fn not_found(command: &str) -> SessionEvent {
-    SessionEvent::CommandNotFound { command: command.to_string(), ts: 0 }
+    SessionEvent::CommandNotFound {
+        command: command.to_string(),
+        ts: 0,
+    }
 }
 
 fn artifact(name: &str) -> SessionEvent {
@@ -48,7 +53,11 @@ fn builtin_command_shows_builtin_backend() {
     let trace = build_trace(&events, &reg(), 10);
     assert_eq!(trace.len(), 1);
     assert_eq!(trace[0].tag, "resolve");
-    assert!(trace[0].text.contains("[builtin]"), "got: {}", trace[0].text);
+    assert!(
+        trace[0].text.contains("[builtin]"),
+        "got: {}",
+        trace[0].text
+    );
     assert_eq!(trace[0].severity, DiagSeverity::Info);
 }
 
@@ -81,7 +90,11 @@ fn denied_command_shows_error_severity() {
 fn denied_without_suggestion_shows_fallback_reason() {
     let events = vec![denied("bash", None)];
     let trace = build_trace(&events, &reg(), 10);
-    assert!(trace[0].text.contains("policy denied"), "got: {}", trace[0].text);
+    assert!(
+        trace[0].text.contains("policy denied"),
+        "got: {}",
+        trace[0].text
+    );
 }
 
 #[test]
@@ -97,7 +110,10 @@ fn not_found_shows_warn_severity() {
 
 #[test]
 fn user_input_events_are_excluded() {
-    let events = vec![SessionEvent::UserInput { text: "pwd".to_string(), ts: 0 }];
+    let events = vec![SessionEvent::UserInput {
+        text: "pwd".to_string(),
+        ts: 0,
+    }];
     assert!(build_trace(&events, &reg(), 10).is_empty());
 }
 

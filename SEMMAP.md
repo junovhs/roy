@@ -203,10 +203,10 @@ Touch: Contains inline Rust tests alongside runtime code.
 Semantic: pure computation
 
 `src/session/artifacts.rs`
-High-value output classes that ROY promotes above transcript text. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:mixed] [BEHAVIOR:panics-on-error] [QUALITY:undocumented]
+High-value output classes that ROY promotes above transcript text. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure] [QUALITY:undocumented]
 Exports: SessionArtifact.denied_command, SessionArtifact.validation_run, ArtifactKind.as_str, SessionArtifact.diff
 Touch: Contains inline Rust tests alongside runtime code.
-Semantic: side-effecting that panics on error
+Semantic: pure computation
 
 `src/session/engine.rs`
 A ROY shell session — owns the ordered event ledger. [COUPLING:mixed] [BEHAVIOR:panics-on-error]
@@ -295,13 +295,9 @@ Semantic: side-effecting that panics on error
 Implements terminal functionality. [COUPLING:mixed] [BEHAVIOR:persists,sync-primitives]
 Semantic: synchronized side-effecting adapter
 
-`src/ui/layout/panels/terminal_actions.rs`
-Implements terminal actions. [COUPLING:mixed] [BEHAVIOR:persists,sync-primitives] [QUALITY:syntax-degraded]
-Semantic: synchronized side-effecting adapter
-
 `src/ui/layout/panels/terminal_model.rs`
-Module definitions for terminal_model. [TYPE] [COUPLING:mixed] [BEHAVIOR:owns-state]
-Semantic: side-effecting stateful module
+Module definitions for terminal_model. [TYPE] [COUPLING:mixed] [BEHAVIOR:owns-state,persists,sync-primitives] [QUALITY:syntax-degraded]
+Semantic: synchronized side-effecting stateful adapter
 
 `src/ui/layout/panels/workspace.rs`
 Implements workspace functionality. [COUPLING:mixed] [BEHAVIOR:persists,sync-primitives]
@@ -412,6 +408,10 @@ Semantic: pure computation
 Tests for crate. [COUPLING:mixed] [BEHAVIOR:persists]
 Semantic: side-effecting adapter
 
+`src/session/artifacts_tests.rs`
+Tests for super. [COUPLING:mixed] [BEHAVIOR:panics-on-error]
+Semantic: side-effecting that panics on error
+
 `src/shell/runtime_tests_builtins.rs`
 Tests for ShellRuntime built-in command handlers: pwd, cd, env, exit, help, and the transcript drain. [COUPLING:mixed] [BEHAVIOR:panics-on-error] [QUALITY:error-boundary]
 Semantic: side-effecting that panics on error
@@ -444,7 +444,7 @@ DependencyGraph:
   # --- High Fan-In Hotspots ---
   boundary.rs:
     Imports: [workspace/mod.rs]
-    ImportedBy: [adapter.rs, adapter_tests.rs, capabilities/fs.rs, capabilities/validation.rs, capability_tests.rs, claude_code.rs, command_line.rs, cwd.rs, engine_tests.rs, env.rs, io.rs, layout/mod.rs, main.rs, pane.rs, pane_tests.rs, policy/engine.rs, profile.rs, registry.rs, resolve.rs, runtime.rs, runtime_builtins.rs, runtime_native.rs, runtime_tests_builtins.rs, runtime_tests_discoverability.rs, runtime_tests_native.rs, runtime_tests_policy.rs, session.rs, session/artifacts.rs, session/engine.rs, sqlite.rs, store_tests.rs, terminal_actions.rs, terminal_model.rs, traps.rs, workspace/mod.rs]
+    ImportedBy: [adapter.rs, adapter_tests.rs, capabilities/fs.rs, capabilities/validation.rs, capability_tests.rs, claude_code.rs, command_line.rs, cwd.rs, engine_tests.rs, env.rs, io.rs, layout/mod.rs, main.rs, pane.rs, pane_tests.rs, policy/engine.rs, profile.rs, registry.rs, resolve.rs, runtime.rs, runtime_builtins.rs, runtime_native.rs, runtime_tests_builtins.rs, runtime_tests_discoverability.rs, runtime_tests_native.rs, runtime_tests_policy.rs, session.rs, session/artifacts.rs, session/engine.rs, sqlite.rs, store_tests.rs, terminal_model.rs, traps.rs, workspace/mod.rs]
   capabilities/mod.rs:
     Imports: [capabilities/fs.rs, capabilities/validation.rs, registry.rs, workspace/mod.rs]
     ImportedBy: [commands/fs.rs, commands/mod.rs, commands/validation.rs, main.rs, runtime.rs, runtime_native.rs]
@@ -468,13 +468,13 @@ DependencyGraph:
     ImportedBy: [activity.rs, artifacts_row.rs, capabilities/mod.rs, claude_code_tests.rs, command_line.rs, commands/mod.rs, commands/validation.rs, layout/mod.rs, pane.rs, runtime.rs, runtime_builtins.rs, runtime_native.rs, session/artifacts.rs, session/engine.rs, ui/artifacts.rs]
   session/artifacts.rs:
     Imports: [boundary.rs, registry.rs]
-    ImportedBy: [adapter.rs, runtime.rs, runtime_native.rs, session/mod.rs]
+    ImportedBy: [adapter.rs, artifacts_tests.rs, runtime.rs, runtime_native.rs, session/mod.rs]
   session/mod.rs:
     Imports: [events.rs, session/artifacts.rs, session/engine.rs]
-    ImportedBy: [activity.rs, artifacts_row.rs, chrome.rs, events.rs, footer.rs, layout/mod.rs, main.rs, pane.rs, pane_tests.rs, result.rs, runtime.rs, runtime_native.rs, session/engine.rs, sqlite.rs, store_tests.rs, terminal.rs, terminal_actions.rs, terminal_model.rs, ui/artifacts.rs, workspace.rs]
+    ImportedBy: [activity.rs, artifacts_row.rs, chrome.rs, events.rs, footer.rs, layout/mod.rs, main.rs, pane.rs, pane_tests.rs, result.rs, runtime.rs, runtime_native.rs, session/engine.rs, sqlite.rs, store_tests.rs, terminal.rs, terminal_model.rs, ui/artifacts.rs, workspace.rs]
   shell/mod.rs:
     Imports: [env.rs, io.rs, resolve.rs, result.rs, runtime.rs, traps.rs]
-    ImportedBy: [chrome.rs, footer.rs, layout/mod.rs, main.rs, runtime_builtins.rs, runtime_tests_builtins.rs, runtime_tests_discoverability.rs, runtime_tests_native.rs, runtime_tests_policy.rs, terminal.rs, terminal_actions.rs, terminal_model.rs, workspace.rs]
+    ImportedBy: [chrome.rs, footer.rs, layout/mod.rs, main.rs, runtime_builtins.rs, runtime_tests_builtins.rs, runtime_tests_discoverability.rs, runtime_tests_native.rs, runtime_tests_policy.rs, terminal.rs, terminal_model.rs, workspace.rs]
   ui/mod.rs:
     Imports: [layout/mod.rs, ui/artifacts.rs]
     ImportedBy: [activity.rs, app/mod.rs, artifacts_row.rs, main.rs]
@@ -512,7 +512,7 @@ DependencyGraph:
     ImportedBy: [agents/mod.rs, claude_code_tests.rs]
   command_line.rs:
     Imports: [boundary.rs, registry.rs]
-    ImportedBy: []
+    ImportedBy: [panels/mod.rs]
   commands/fs.rs:
     Imports: [capabilities/mod.rs]
     ImportedBy: [commands/mod.rs]
@@ -564,9 +564,6 @@ DependencyGraph:
   terminal.rs:
     Imports: [session/mod.rs, shell/mod.rs]
     ImportedBy: [panels/mod.rs]
-  terminal_actions.rs:
-    Imports: [boundary.rs, session/mod.rs, shell/mod.rs]
-    ImportedBy: []
   terminal_model.rs:
     Imports: [boundary.rs, session/mod.rs, shell/mod.rs]
     ImportedBy: [panels/mod.rs]
@@ -591,7 +588,7 @@ DependencyGraph:
     Imports: [artifacts_row.rs, atoms.rs, boundary.rs, chrome.rs, footer.rs, panels/mod.rs, registry.rs, session/mod.rs, shell/mod.rs]
     ImportedBy: [ui/mod.rs]
   panels/mod.rs:
-    Imports: [activity.rs, terminal.rs, terminal_model.rs, workspace.rs]
+    Imports: [activity.rs, command_line.rs, terminal.rs, terminal_model.rs, workspace.rs]
     ImportedBy: [layout/mod.rs]
   storage/mod.rs:
     Imports: [sqlite.rs]
@@ -599,6 +596,9 @@ DependencyGraph:
   # --- Tests ---
   adapter_tests.rs:
     Imports: [adapter.rs, boundary.rs]
+    ImportedBy: []
+  artifacts_tests.rs:
+    Imports: [session/artifacts.rs]
     ImportedBy: []
   capability_tests.rs:
     Imports: [boundary.rs]

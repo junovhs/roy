@@ -84,7 +84,9 @@ mod tests {
             help_text: "Not available in ROY.",
             risk_level: RiskLevel::Critical,
             visibility: Visibility::Hidden,
-            backend: Backend::CompatTrap { suggestion: "Use ROY-native commands." },
+            backend: Backend::CompatTrap {
+                suggestion: "Use ROY-native commands.",
+            },
         }
     }
 

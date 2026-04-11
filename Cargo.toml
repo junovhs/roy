@@ -1,6 +1,6 @@
 [package]
 name = "roy"
-version = "0.1.1"
+version = "0.1.4"
 edition = "2021"
 description = "ROY — a controlled shell host for terminal-native agents"
 

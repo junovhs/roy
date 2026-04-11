@@ -8,8 +8,8 @@ use dioxus::prelude::*;
 
 use crate::session::{Session, SessionEvent, Timestamp};
 use crate::shell::ShellRuntime;
-use chrome::Header;
 use artifacts_row::ArtifactsRow;
+use chrome::Header;
 use footer::DiagnosticsPane;
 use panels::{ActivityPanel, ShellPane, WorkspacePanel};
 
@@ -67,8 +67,7 @@ pub(crate) fn is_session_active(session: &Session) -> bool {
 #[component]
 pub fn Cockpit() -> Element {
     let diag_open = use_signal(|| false);
-    let workspace_root =
-        std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let workspace_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
 
     let runtime_root = workspace_root.clone();
     let runtime = use_signal(move || ShellRuntime::new(runtime_root.clone()));

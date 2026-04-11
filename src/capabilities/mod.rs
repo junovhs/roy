@@ -101,7 +101,10 @@ impl CapabilityOutput {
                 } else if !stderr.trim().is_empty() {
                     stderr.clone()
                 } else {
-                    format!("{command} failed with exit code {exit_code} in {}", cwd.display())
+                    format!(
+                        "{command} failed with exit code {exit_code} in {}",
+                        cwd.display()
+                    )
                 }
             }
         }
@@ -115,9 +118,7 @@ impl CapabilityOutput {
                 stderr,
                 stdout,
                 ..
-            } if *exit_code != 0 && !stderr.trim().is_empty() && stderr != stdout => {
-                Some(stderr)
-            }
+            } if *exit_code != 0 && !stderr.trim().is_empty() && stderr != stdout => Some(stderr),
             _ => None,
         }
     }

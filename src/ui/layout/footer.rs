@@ -4,8 +4,8 @@ use crate::diagnostics::build_trace;
 use crate::session::Session;
 use crate::shell::ShellRuntime;
 
-use super::{BORDER, TEXT_DIM};
 use super::atoms::DiagLine;
+use super::{BORDER, TEXT_DIM};
 
 #[component]
 pub(super) fn DiagnosticsPane(
@@ -30,10 +30,14 @@ pub(super) fn DiagnosticsPane(
         runtime.command_count()
     );
     let policy_line = format!("profile {} · pending approvals 0", runtime.policy_name());
-    let agents_line = "adapter contract ready (AGEN-01) · concrete adapters pending AGEN-02".to_string();
+    let agents_line =
+        "Claude Code adapter shipped · cockpit still defaults to local shell · Codex adapter pending"
+            .to_string();
     let session_line = format!("session #{} · {} events", session.id, session.len());
     let artifact_count = session.artifacts().len();
-    let storage_line = format!("SQLite session store ready · {artifact_count} artifact refs · last exit {last_exit}");
+    let storage_line = format!(
+        "SQLite session store ready · {artifact_count} artifact refs · last exit {last_exit}"
+    );
     let trace_line = format!("{denied_count} denied traces · {output_count} output lines");
     let event_trace = build_trace(session.events(), runtime.registry(), 8);
 

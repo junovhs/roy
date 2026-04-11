@@ -93,8 +93,8 @@ impl AgentSession {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::adapter::AgentKind;
+    use super::*;
 
     fn meta() -> AgentMeta {
         AgentMeta {

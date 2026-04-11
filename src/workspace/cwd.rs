@@ -47,18 +47,20 @@ impl WorkspaceCwd {
             self.cwd.join(path)
         };
 
-        let canonical = target
-            .canonicalize()
-            .map_err(|_| WorkspaceError::Io(
-                std::io::Error::new(std::io::ErrorKind::NotFound, target.display().to_string())
-            ))?;
+        let canonical = target.canonicalize().map_err(|_| {
+            WorkspaceError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                target.display().to_string(),
+            ))
+        })?;
 
         self.boundary.validate_cwd(&canonical)?;
 
         if !canonical.is_dir() {
-            return Err(WorkspaceError::Io(std::io::Error::other(
-                format!("{} is not a directory", canonical.display()),
-            )));
+            return Err(WorkspaceError::Io(std::io::Error::other(format!(
+                "{} is not a directory",
+                canonical.display()
+            ))));
         }
 
         self.cwd = canonical;

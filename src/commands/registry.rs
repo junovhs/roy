@@ -142,7 +142,9 @@ mod tests {
     fn public_commands_includes_cd_pwd_env_exit_help() {
         let r = reg();
         let names: Vec<&str> = r.public_commands().iter().map(|s| s.name).collect();
-        for must_be_public in &["cd", "pwd", "env", "exit", "help", "ls", "read", "write", "check"] {
+        for must_be_public in &[
+            "cd", "pwd", "env", "exit", "help", "ls", "read", "write", "check",
+        ] {
             assert!(
                 names.contains(must_be_public),
                 "{must_be_public} must be public"

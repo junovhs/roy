@@ -21,7 +21,9 @@ fn allow_is_allowed() {
 
 #[test]
 fn deny_is_blocked() {
-    let d = PolicyOutcome::Deny { reason: "test".to_string() };
+    let d = PolicyOutcome::Deny {
+        reason: "test".to_string(),
+    };
     assert!(!d.is_allowed());
     assert!(d.is_blocked());
 }

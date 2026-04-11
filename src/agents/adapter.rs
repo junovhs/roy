@@ -100,7 +100,13 @@ pub struct AgentHandle {
 impl AgentHandle {
     /// Create a handle for a newly-started agent process.
     pub fn new(meta: AgentMeta, session_id: u64) -> Self {
-        Self { meta, session_id, events: Vec::new(), exit_code: None, pending: None }
+        Self {
+            meta,
+            session_id,
+            events: Vec::new(),
+            exit_code: None,
+            pending: None,
+        }
     }
 
     /// Record a supervision event; exit codes from ProcessExited are captured.
@@ -177,15 +183,24 @@ impl AgentError {
     }
 
     pub fn launch_failed(message: impl Into<String>) -> Self {
-        Self { kind: AgentErrorKind::LaunchFailed, message: message.into() }
+        Self {
+            kind: AgentErrorKind::LaunchFailed,
+            message: message.into(),
+        }
     }
 
     pub fn auth_required(message: impl Into<String>) -> Self {
-        Self { kind: AgentErrorKind::AuthRequired, message: message.into() }
+        Self {
+            kind: AgentErrorKind::AuthRequired,
+            message: message.into(),
+        }
     }
 
     pub fn io_error(message: impl Into<String>) -> Self {
-        Self { kind: AgentErrorKind::IoError, message: message.into() }
+        Self {
+            kind: AgentErrorKind::IoError,
+            message: message.into(),
+        }
     }
 
     /// Classification of this error.

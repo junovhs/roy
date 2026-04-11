@@ -45,15 +45,27 @@ pub struct DiagEntry {
 
 impl DiagEntry {
     fn info(tag: &'static str, text: String) -> Self {
-        Self { tag, text, severity: DiagSeverity::Info }
+        Self {
+            tag,
+            text,
+            severity: DiagSeverity::Info,
+        }
     }
 
     fn warn(tag: &'static str, text: String) -> Self {
-        Self { tag, text, severity: DiagSeverity::Warn }
+        Self {
+            tag,
+            text,
+            severity: DiagSeverity::Warn,
+        }
     }
 
     fn error(tag: &'static str, text: String) -> Self {
-        Self { tag, text, severity: DiagSeverity::Error }
+        Self {
+            tag,
+            text,
+            severity: DiagSeverity::Error,
+        }
     }
 }
 
@@ -95,14 +107,19 @@ fn entry_from_event(event: &SessionEvent, registry: &CommandRegistry) -> Option<
             ))
         }
 
-        SessionEvent::CommandDenied { command, suggestion, .. } => {
+        SessionEvent::CommandDenied {
+            command,
+            suggestion,
+            ..
+        } => {
             let reason = suggestion.as_deref().unwrap_or("policy denied");
             Some(DiagEntry::error("blocked", format!("{command}: {reason}")))
         }
 
-        SessionEvent::CommandNotFound { command, .. } => {
-            Some(DiagEntry::warn("notfound", format!("{command}: not in ROY command world")))
-        }
+        SessionEvent::CommandNotFound { command, .. } => Some(DiagEntry::warn(
+            "notfound",
+            format!("{command}: not in ROY command world"),
+        )),
 
         SessionEvent::AgentOutput { text, .. } => {
             let truncated = if text.len() > 80 {
@@ -113,9 +130,10 @@ fn entry_from_event(event: &SessionEvent, registry: &CommandRegistry) -> Option<
             Some(DiagEntry::info("agent", truncated))
         }
 
-        SessionEvent::ArtifactCreated { artifact, .. } => {
-            Some(DiagEntry::info("artifact", format!("{}: {}", artifact.kind_str(), artifact.name)))
-        }
+        SessionEvent::ArtifactCreated { artifact, .. } => Some(DiagEntry::info(
+            "artifact",
+            format!("{}: {}", artifact.kind_str(), artifact.name),
+        )),
 
         // These events are already visible in other panes or are noise.
         SessionEvent::SessionStarted { .. }

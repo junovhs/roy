@@ -107,8 +107,12 @@ pub(crate) fn ArtifactViewer(artifact: SessionArtifact) -> Element {
                 }
             }
             }
-        },
-        ArtifactBody::DeniedCommandTrace { command, args, reason } => {
+        }
+        ArtifactBody::DeniedCommandTrace {
+            command,
+            args,
+            reason,
+        } => {
             let rendered = if args.is_empty() {
                 command.clone()
             } else {

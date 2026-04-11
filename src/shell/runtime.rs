@@ -8,9 +8,9 @@ mod native;
 
 use std::path::PathBuf;
 
+use crate::capabilities::CapabilityRuntime;
 use crate::commands::schema::Backend;
 use crate::commands::{parse_native_request, CommandRegistry};
-use crate::capabilities::CapabilityRuntime;
 use crate::policy::{PolicyEngine, PolicyOutcome};
 use crate::session::SessionArtifact;
 use crate::workspace::WorkspaceBoundary;
@@ -149,7 +149,9 @@ impl ShellRuntime {
 
         match self.policy.evaluate(command, schema.risk_level) {
             PolicyOutcome::Deny { reason } => return self.deny(command, args, reason),
-            PolicyOutcome::ApprovalPending { reason, .. } => return self.deny(command, args, reason),
+            PolicyOutcome::ApprovalPending { reason, .. } => {
+                return self.deny(command, args, reason)
+            }
             PolicyOutcome::Allow => {}
         }
 
@@ -186,7 +188,8 @@ impl ShellRuntime {
     }
 
     fn not_found(&mut self, command: &str) -> DispatchResult {
-        let msg = format!("roy: {command}: command not found — run `help` to see available commands");
+        let msg =
+            format!("roy: {command}: command not found — run `help` to see available commands");
         self.io.write_error(&msg);
         self.last_exit_status = Some(127);
         DispatchResult::NotFound {

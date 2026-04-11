@@ -1,8 +1,8 @@
 //! Tests for the embedded-agent adapter contract:
 //! AgentKind, AgentHandle lifecycle, and AgentError classifications.
 
+use super::{AgentError, AgentErrorKind, AgentHandle, AgentKind, AgentMeta, SupervisionEvent};
 use std::path::PathBuf;
-use super::{AgentHandle, AgentKind, AgentMeta, SupervisionEvent, AgentError, AgentErrorKind};
 
 fn claude_meta() -> AgentMeta {
     AgentMeta {
@@ -26,7 +26,9 @@ fn agent_kind_id_codex() {
 
 #[test]
 fn agent_kind_id_custom() {
-    let k = AgentKind::Custom { name: "my-agent".to_string() };
+    let k = AgentKind::Custom {
+        name: "my-agent".to_string(),
+    };
     assert_eq!(k.id(), "my-agent");
 }
 
@@ -48,11 +50,15 @@ fn new_handle_has_not_exited() {
 #[test]
 fn push_event_records_output_line() {
     let mut h = AgentHandle::new(claude_meta(), 1);
-    h.push_event(SupervisionEvent::OutputLine { text: "hello".to_string() });
+    h.push_event(SupervisionEvent::OutputLine {
+        text: "hello".to_string(),
+    });
     assert_eq!(h.events().len(), 1);
     assert_eq!(
         h.events()[0],
-        SupervisionEvent::OutputLine { text: "hello".to_string() }
+        SupervisionEvent::OutputLine {
+            text: "hello".to_string()
+        }
     );
 }
 
@@ -75,7 +81,9 @@ fn push_process_exited_nonzero_code() {
 fn events_before_exit_do_not_mark_exited() {
     let mut h = AgentHandle::new(claude_meta(), 1);
     h.push_event(SupervisionEvent::AgentStarted { pid: 42 });
-    h.push_event(SupervisionEvent::OutputLine { text: "ok".to_string() });
+    h.push_event(SupervisionEvent::OutputLine {
+        text: "ok".to_string(),
+    });
     assert!(!h.has_exited());
 }
 
@@ -83,11 +91,19 @@ fn events_before_exit_do_not_mark_exited() {
 fn multiple_events_are_recorded_in_order() {
     let mut h = AgentHandle::new(claude_meta(), 1);
     h.push_event(SupervisionEvent::AgentStarted { pid: 100 });
-    h.push_event(SupervisionEvent::OutputLine { text: "line1".to_string() });
+    h.push_event(SupervisionEvent::OutputLine {
+        text: "line1".to_string(),
+    });
     h.push_event(SupervisionEvent::ProcessExited { code: 0 });
     assert_eq!(h.events().len(), 3);
-    assert!(matches!(h.events()[0], SupervisionEvent::AgentStarted { .. }));
-    assert!(matches!(h.events()[2], SupervisionEvent::ProcessExited { .. }));
+    assert!(matches!(
+        h.events()[0],
+        SupervisionEvent::AgentStarted { .. }
+    ));
+    assert!(matches!(
+        h.events()[2],
+        SupervisionEvent::ProcessExited { .. }
+    ));
 }
 
 // ── drain_pending ─────────────────────────────────────────────────────────────
@@ -103,22 +119,29 @@ fn drain_pending_with_no_queue_is_noop() {
 fn drain_pending_moves_events_into_log() {
     use std::sync::{Arc, Mutex};
     let queue = Arc::new(Mutex::new(vec![
-        SupervisionEvent::OutputLine { text: "line-a".to_string() },
-        SupervisionEvent::OutputLine { text: "line-b".to_string() },
+        SupervisionEvent::OutputLine {
+            text: "line-a".to_string(),
+        },
+        SupervisionEvent::OutputLine {
+            text: "line-b".to_string(),
+        },
     ]));
     let mut h = AgentHandle::new(claude_meta(), 1);
     h.set_pending(Arc::clone(&queue));
     h.drain_pending();
     assert_eq!(h.events().len(), 2);
-    assert!(queue.lock().unwrap().is_empty(), "queue must be empty after drain");
+    assert!(
+        queue.lock().unwrap().is_empty(),
+        "queue must be empty after drain"
+    );
 }
 
 #[test]
 fn drain_pending_captures_exit_code_from_queue() {
     use std::sync::{Arc, Mutex};
-    let queue = Arc::new(Mutex::new(vec![
-        SupervisionEvent::ProcessExited { code: 42 },
-    ]));
+    let queue = Arc::new(Mutex::new(vec![SupervisionEvent::ProcessExited {
+        code: 42,
+    }]));
     let mut h = AgentHandle::new(claude_meta(), 1);
     h.set_pending(queue);
     h.drain_pending();

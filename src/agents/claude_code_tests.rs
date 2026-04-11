@@ -2,8 +2,8 @@
 
 use std::path::PathBuf;
 
-use super::ClaudeCodeAdapter;
 use super::super::adapter::{AgentAdapter, AgentAuthMethod, AgentErrorKind, AgentKind};
+use super::ClaudeCodeAdapter;
 
 fn fake_adapter() -> ClaudeCodeAdapter {
     ClaudeCodeAdapter::from_path(PathBuf::from("/usr/local/bin/claude"), "1.2.3")

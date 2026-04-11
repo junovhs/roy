@@ -15,11 +15,19 @@ fn rt() -> ShellRuntime {
 fn bash_denied_with_suggestion() {
     let mut rt = rt();
     match rt.dispatch("bash", &[]) {
-        DispatchResult::Denied { command, suggestion, artifacts } => {
+        DispatchResult::Denied {
+            command,
+            suggestion,
+            artifacts,
+        } => {
             assert_eq!(command, "bash");
             let msg = suggestion.expect("bash denial must include a suggestion");
             assert!(msg.contains("ROY"), "suggestion must mention ROY");
-            assert_eq!(artifacts.len(), 1, "denials should promote a trace artifact");
+            assert_eq!(
+                artifacts.len(),
+                1,
+                "denials should promote a trace artifact"
+            );
         }
         other => panic!("expected Denied, got {other:?}"),
     }
@@ -29,7 +37,10 @@ fn bash_denied_with_suggestion() {
 fn bash_denial_writes_to_error_transcript() {
     let mut rt = rt();
     rt.dispatch("bash", &[]);
-    assert!(!rt.drain_errors().is_empty(), "denial must write to error transcript");
+    assert!(
+        !rt.drain_errors().is_empty(),
+        "denial must write to error transcript"
+    );
 }
 
 #[test]
@@ -98,7 +109,10 @@ fn unknown_command_writes_error_to_transcript() {
 fn prompt_shows_success_indicator_after_zero_exit() {
     let mut rt = rt();
     rt.set_exit_status(0);
-    assert!(rt.prompt().contains('\u{276f}'), "should show ❯ after success");
+    assert!(
+        rt.prompt().contains('\u{276f}'),
+        "should show ❯ after success"
+    );
     assert!(!rt.prompt().contains('\u{2717}'));
 }
 
@@ -106,7 +120,10 @@ fn prompt_shows_success_indicator_after_zero_exit() {
 fn prompt_shows_error_indicator_after_nonzero_exit() {
     let mut rt = rt();
     rt.set_exit_status(1);
-    assert!(rt.prompt().contains('\u{2717}'), "should show ✗ after failure");
+    assert!(
+        rt.prompt().contains('\u{2717}'),
+        "should show ✗ after failure"
+    );
     assert!(!rt.prompt().contains('\u{276f}'));
 }
 
@@ -139,7 +156,10 @@ fn cd_outside_workspace_writes_error_to_transcript() {
     let mut rt = ShellRuntime::new(root.clone());
     let outside = root.parent().unwrap().to_path_buf();
     rt.dispatch("cd", &[outside.to_str().unwrap()]);
-    assert!(!rt.drain_errors().is_empty(), "boundary violation must write to error transcript");
+    assert!(
+        !rt.drain_errors().is_empty(),
+        "boundary violation must write to error transcript"
+    );
 }
 
 #[test]
@@ -167,7 +187,10 @@ fn restrictive_policy_denial_writes_to_error_transcript() {
     let mut rt = rt();
     rt.set_policy(PolicyEngine::new(PolicyProfile::dev()));
     rt.dispatch("sudo", &[]);
-    assert!(!rt.drain_errors().is_empty(), "policy denial must write to error transcript");
+    assert!(
+        !rt.drain_errors().is_empty(),
+        "policy denial must write to error transcript"
+    );
 }
 
 #[test]
@@ -178,7 +201,10 @@ fn permissive_policy_still_allows_compat_trap_to_produce_registry_denial() {
     match rt.dispatch("sudo", &[]) {
         DispatchResult::Denied { suggestion, .. } => {
             let msg = suggestion.expect("registry denial must include suggestion");
-            assert!(msg.contains("policy"), "registry denial should mention policy");
+            assert!(
+                msg.contains("policy"),
+                "registry denial should mention policy"
+            );
         }
         other => panic!("expected Denied, got {other:?}"),
     }

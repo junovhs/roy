@@ -75,8 +75,12 @@ impl WorkspaceBoundary {
     /// If either cannot be canonicalized, returns `false` — the safe default
     /// is to deny rather than silently permit an unchecked escape.
     pub fn contains(&self, path: &Path) -> bool {
-        let Ok(canonical_root) = self.root.canonicalize() else { return false };
-        let Ok(canonical_path) = path.canonicalize() else { return false };
+        let Ok(canonical_root) = self.root.canonicalize() else {
+            return false;
+        };
+        let Ok(canonical_path) = path.canonicalize() else {
+            return false;
+        };
         canonical_path.starts_with(&canonical_root)
     }
 
@@ -91,12 +95,13 @@ impl WorkspaceBoundary {
             self.root.join(path)
         };
 
-        let canonical = absolute
-            .canonicalize()
-            .map_err(|_| WorkspaceError::PathEscapesBoundary {
-                path: absolute.clone(),
-                root: self.root.clone(),
-            })?;
+        let canonical =
+            absolute
+                .canonicalize()
+                .map_err(|_| WorkspaceError::PathEscapesBoundary {
+                    path: absolute.clone(),
+                    root: self.root.clone(),
+                })?;
 
         if !self.contains(&canonical) {
             return Err(WorkspaceError::PathEscapesBoundary {

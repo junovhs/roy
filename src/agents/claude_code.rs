@@ -14,8 +14,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use super::adapter::{
-    AgentAdapter, AgentAuthMethod, AgentError, AgentHandle, AgentKind, AgentMeta,
-    LaunchConfig, SupervisionEvent,
+    AgentAdapter, AgentAuthMethod, AgentError, AgentHandle, AgentKind, AgentMeta, LaunchConfig,
+    SupervisionEvent,
 };
 
 // ── adapter ───────────────────────────────────────────────────────────────────
@@ -37,7 +37,11 @@ impl ClaudeCodeAdapter {
         let install_path = which("claude")?;
         let version = probe_version(&install_path).unwrap_or_else(|_| "unknown".to_string());
         Ok(Self {
-            meta: AgentMeta { kind: AgentKind::ClaudeCode, version, install_path },
+            meta: AgentMeta {
+                kind: AgentKind::ClaudeCode,
+                version,
+                install_path,
+            },
         })
     }
 
@@ -91,9 +95,13 @@ impl AgentAdapter for ClaudeCodeAdapter {
             .map_err(|e| AgentError::launch_failed(e.to_string()))?;
 
         let pid = child.id();
-        let stdout = child.stdout.take()
+        let stdout = child
+            .stdout
+            .take()
             .ok_or_else(|| AgentError::io_error("child stdout was not piped"))?;
-        let stderr = child.stderr.take()
+        let stderr = child
+            .stderr
+            .take()
             .ok_or_else(|| AgentError::io_error("child stderr was not piped"))?;
 
         let queue: Arc<Mutex<Vec<SupervisionEvent>>> = Arc::new(Mutex::new(Vec::new()));

@@ -17,15 +17,27 @@ pub(super) struct ShellLine {
 
 impl ShellLine {
     pub(super) fn output(text: impl Into<String>) -> Self {
-        Self { prefix: String::new(), text: text.into(), is_error: false }
+        Self {
+            prefix: String::new(),
+            text: text.into(),
+            is_error: false,
+        }
     }
 
     pub(super) fn error(text: impl Into<String>) -> Self {
-        Self { prefix: String::new(), text: text.into(), is_error: true }
+        Self {
+            prefix: String::new(),
+            text: text.into(),
+            is_error: true,
+        }
     }
 
     pub(super) fn echo(prompt: impl Into<String>, text: impl Into<String>) -> Self {
-        Self { prefix: prompt.into(), text: text.into(), is_error: false }
+        Self {
+            prefix: prompt.into(),
+            text: text.into(),
+            is_error: false,
+        }
     }
 }
 
@@ -124,7 +136,7 @@ pub(super) fn handle_submit(raw: String, pre_prompt: String, mut ctx: SubmitCont
         ts,
     });
 
-    let parsed = match parse_command_line(&raw) { // neti:allow(LAW OF INTEGRITY) neti scan falsely flags this valid match expression; neti inspect and rustc both parse it cleanly
+    let parsed = match parse_command_line(&raw) { // neti:allow(LAW OF INTEGRITY) valid Rust; neti false positive
         Ok(parsed) => parsed,
         Err(message) => {
             let error_text = format!("parse error: {}", message);
@@ -174,7 +186,12 @@ pub(super) fn handle_submit(raw: String, pre_prompt: String, mut ctx: SubmitCont
         new_lines.push(ShellLine::error(line.clone()));
     }
 
-    record_session_outcome(&mut ctx.session.write(), &result, &output_lines, &error_lines);
+    record_session_outcome(
+        &mut ctx.session.write(),
+        &result,
+        &output_lines,
+        &error_lines,
+    );
 
     if let DispatchResult::Exit { code } = result {
         new_lines.push(ShellLine::output(format!(

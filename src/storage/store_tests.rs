@@ -1,13 +1,16 @@
 //! Integration tests for RoyStore — save/load roundtrip through SQLite.
 
-use std::path::PathBuf;
-use crate::session::{ArtifactBody, ArtifactKind, Session, SessionArtifact, SessionEvent};
 use super::RoyStore;
+use crate::session::{ArtifactBody, ArtifactKind, Session, SessionArtifact, SessionEvent};
+use std::path::PathBuf;
 
 fn session_with_events() -> Session {
     let root = PathBuf::from("/tmp/ws");
     let mut s = Session::new(1000, root, 0);
-    s.push(SessionEvent::UserInput { text: "pwd".to_string(), ts: 1 });
+    s.push(SessionEvent::UserInput {
+        text: "pwd".to_string(),
+        ts: 1,
+    });
     s.push(SessionEvent::CommandInvoked {
         command: "pwd".to_string(),
         args: vec![],
@@ -63,9 +66,13 @@ fn schema_is_idempotent() {
 fn save_and_reload_session_events() {
     let store = RoyStore::open_memory().unwrap();
     let session = session_with_events();
-    store.save_session(&session).expect("save_session must succeed");
+    store
+        .save_session(&session)
+        .expect("save_session must succeed");
 
-    let loaded = store.load_events(session.id).expect("load_events must succeed");
+    let loaded = store
+        .load_events(session.id)
+        .expect("load_events must succeed");
     assert_eq!(
         loaded.len(),
         session.events().len(),
@@ -80,7 +87,10 @@ fn events_reload_in_chronological_order() {
     store.save_session(&session).unwrap();
     let loaded = store.load_events(session.id).unwrap();
     let ts: Vec<u64> = loaded.iter().map(|e| e.timestamp()).collect();
-    assert!(ts.windows(2).all(|w| w[0] <= w[1]), "events must be ordered: {ts:?}");
+    assert!(
+        ts.windows(2).all(|w| w[0] <= w[1]),
+        "events must be ordered: {ts:?}"
+    );
 }
 
 #[test]
@@ -90,7 +100,9 @@ fn user_input_event_roundtrips() {
     store.save_session(&session).unwrap();
     let loaded = store.load_events(session.id).unwrap();
     assert!(
-        loaded.iter().any(|e| matches!(e, SessionEvent::UserInput { .. })),
+        loaded
+            .iter()
+            .any(|e| matches!(e, SessionEvent::UserInput { .. })),
         "UserInput must survive roundtrip"
     );
 }
@@ -101,7 +113,9 @@ fn command_denied_event_preserves_suggestion() {
     let session = session_with_events();
     store.save_session(&session).unwrap();
     let loaded = store.load_events(session.id).unwrap();
-    let denied = loaded.iter().find(|e| matches!(e, SessionEvent::CommandDenied { .. }));
+    let denied = loaded
+        .iter()
+        .find(|e| matches!(e, SessionEvent::CommandDenied { .. }));
     let Some(SessionEvent::CommandDenied { suggestion, .. }) = denied else {
         panic!("CommandDenied must survive roundtrip");
     };
@@ -117,7 +131,10 @@ fn append_event_adds_to_existing_session() {
     let initial_count = session.events().len();
     store.save_session(&session).unwrap();
 
-    let extra = SessionEvent::HostNotice { message: "append test".to_string(), ts: 99 };
+    let extra = SessionEvent::HostNotice {
+        message: "append test".to_string(),
+        ts: 99,
+    };
     store.append_event(session.id, &extra).unwrap();
 
     let loaded = store.load_events(session.id).unwrap();
@@ -150,7 +167,11 @@ fn save_session_replaces_existing_event_and_artifact_rows() {
 
     let loaded = store.load_events(session.id).unwrap();
     let refs = store.load_artifact_refs(session.id).unwrap();
-    assert_eq!(loaded.len(), session.events().len(), "save_session must stay idempotent");
+    assert_eq!(
+        loaded.len(),
+        session.events().len(),
+        "save_session must stay idempotent"
+    );
     assert_eq!(refs.len(), 1, "artifact refs must not duplicate");
 }
 

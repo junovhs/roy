@@ -89,11 +89,9 @@ fn render_event(event: &SessionEvent) -> Option<(String, String, &'static str)> 
             format!("session ended with exit code {exit_code}"),
             TEXT_DIM,
         )),
-        SessionEvent::UserInput { text, .. } => Some((
-            "INPUT".to_string(),
-            text.clone(),
-            TEXT_ACCENT,
-        )),
+        SessionEvent::UserInput { text, .. } => {
+            Some(("INPUT".to_string(), text.clone(), TEXT_ACCENT))
+        }
         SessionEvent::CommandInvoked { command, args, .. } => Some((
             "COMMAND".to_string(),
             if args.is_empty() {
@@ -124,25 +122,19 @@ fn render_event(event: &SessionEvent) -> Option<(String, String, &'static str)> 
             format!("{command} is not in the ROY command world"),
             "#f85149",
         )),
-        SessionEvent::CwdChanged { to, .. } => Some((
-            "CWD".to_string(),
-            to.display().to_string(),
-            TEXT_DIM,
-        )),
-        SessionEvent::HostNotice { message, .. } => Some((
-            "HOST".to_string(),
-            message.clone(),
-            TEXT_DIM,
-        )),
+        SessionEvent::CwdChanged { to, .. } => {
+            Some(("CWD".to_string(), to.display().to_string(), TEXT_DIM))
+        }
+        SessionEvent::HostNotice { message, .. } => {
+            Some(("HOST".to_string(), message.clone(), TEXT_DIM))
+        }
         SessionEvent::ArtifactCreated { artifact, .. } => Some((
             artifact_kind_label(&artifact.kind).to_string(),
             format!("{} · {}", artifact.name, artifact.summary),
             artifact_kind_color(&artifact.kind),
         )),
-        SessionEvent::AgentOutput { text, .. } => Some((
-            "AGENT".to_string(),
-            text.clone(),
-            TEXT_PRIMARY,
-        )),
+        SessionEvent::AgentOutput { text, .. } => {
+            Some(("AGENT".to_string(), text.clone(), TEXT_PRIMARY))
+        }
     }
 }

@@ -9,9 +9,9 @@
 //! - [`CommandRegistry`] — the explicit substitution table
 //! - [`schema`]          — type definitions (Backend, RiskLevel, Visibility)
 
+pub mod fs;
 pub mod registry;
 pub mod schema;
-pub mod fs;
 pub mod validation;
 
 use crate::capabilities::CapabilityRequest;

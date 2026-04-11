@@ -5,6 +5,7 @@ use crate::shell::ShellRuntime;
 
 use super::{short_path_label, BORDER, TEXT_ACCENT, TEXT_DIM, TEXT_PRIMARY};
 
+const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 const STATUS_ACTIVE: &str = "#3fb950";
 const STATUS_IDLE: &str = "#d29922";
 const STATUS_DONE: &str = "#6e7681";
@@ -24,7 +25,11 @@ pub(super) fn Header(runtime: Signal<ShellRuntime>, session: Signal<Session>) ->
         Some(SessionEvent::SessionEnded { .. })
     );
     let status_color = if active {
-        if session.len() > 1 { STATUS_ACTIVE } else { STATUS_IDLE }
+        if session.len() > 1 {
+            STATUS_ACTIVE
+        } else {
+            STATUS_IDLE
+        }
     } else {
         STATUS_DONE
     };
@@ -54,7 +59,7 @@ pub(super) fn Header(runtime: Signal<ShellRuntime>, session: Signal<Session>) ->
                 }
                 span {
                     style: "color: {TEXT_DIM}; font-size: 11px;",
-                    "controlled shell host"
+                    "v{APP_VERSION} - controlled shell host"
                 }
             }
 
@@ -63,6 +68,7 @@ pub(super) fn Header(runtime: Signal<ShellRuntime>, session: Signal<Session>) ->
                 Badge { label: "workspace", value: workspace, color: TEXT_PRIMARY }
                 Badge { label: "policy", value: policy, color: TEXT_PRIMARY }
                 Badge { label: "agent", value: "local shell".to_string(), color: TEXT_DIM }
+                Badge { label: "release", value: format!("v{APP_VERSION}"), color: TEXT_DIM }
             }
 
             div {

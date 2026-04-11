@@ -3,19 +3,14 @@ use dioxus::prelude::*;
 use crate::session::{Session, SessionEvent};
 use crate::ui::artifacts::{artifact_kind_color, artifact_kind_label, ArtifactViewer};
 
-use super::{short_path_label, BG_PANEL, BORDER, TEXT_DIM};
 use super::atoms::StatCard;
+use super::{short_path_label, BG_PANEL, BORDER, TEXT_DIM};
 
 #[component]
 pub(super) fn ArtifactsRow(session: Signal<Session>) -> Element {
     let mut selected_index = use_signal(|| 0usize);
     let session = session.read();
-    let artifacts: Vec<_> = session
-        .artifacts()
-        .into_iter()
-        .rev()
-        .cloned()
-        .collect();
+    let artifacts: Vec<_> = session.artifacts().into_iter().rev().cloned().collect();
     let active_index = if artifacts.is_empty() {
         0
     } else {

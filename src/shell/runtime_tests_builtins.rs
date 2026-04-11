@@ -16,7 +16,9 @@ fn pwd_returns_cwd_with_exit_zero() {
     let mut rt = rt();
     let expected = std::env::temp_dir().display().to_string();
     match rt.dispatch("pwd", &[]) {
-        DispatchResult::Executed { output, exit_code, .. } => {
+        DispatchResult::Executed {
+            output, exit_code, ..
+        } => {
             assert_eq!(exit_code, 0);
             assert_eq!(output, expected);
         }
@@ -66,7 +68,10 @@ fn cd_nonexistent_returns_error_and_exit_one() {
 fn cd_nonexistent_writes_error_to_transcript() {
     let mut rt = rt();
     rt.dispatch("cd", &["/nonexistent_roy_test_path_xyz_99993"]);
-    assert!(!rt.drain_errors().is_empty(), "cd error must write to error transcript");
+    assert!(
+        !rt.drain_errors().is_empty(),
+        "cd error must write to error transcript"
+    );
 }
 
 #[test]
@@ -85,7 +90,9 @@ fn cd_no_args_returns_cwd_unchanged() {
 fn env_output_contains_path_and_shell() {
     let mut rt = rt();
     match rt.dispatch("env", &[]) {
-        DispatchResult::Executed { output, exit_code, .. } => {
+        DispatchResult::Executed {
+            output, exit_code, ..
+        } => {
             assert_eq!(exit_code, 0);
             assert!(output.contains("PATH="), "env must include PATH");
             assert!(output.contains("SHELL=roy"), "env must include SHELL=roy");
@@ -98,7 +105,9 @@ fn env_output_contains_path_and_shell() {
 fn env_filter_narrows_output() {
     let mut rt = rt();
     match rt.dispatch("env", &["SHELL"]) {
-        DispatchResult::Executed { output, exit_code, .. } => {
+        DispatchResult::Executed {
+            output, exit_code, ..
+        } => {
             assert_eq!(exit_code, 0);
             assert!(output.contains("SHELL=roy"));
             assert!(!output.contains("PATH="), "filter should exclude PATH");
@@ -119,7 +128,10 @@ fn exit_default_code_is_zero() {
 #[test]
 fn exit_with_explicit_code() {
     let mut rt = rt();
-    assert_eq!(rt.dispatch("exit", &["42"]), DispatchResult::Exit { code: 42 });
+    assert_eq!(
+        rt.dispatch("exit", &["42"]),
+        DispatchResult::Exit { code: 42 }
+    );
     assert_eq!(rt.last_exit_status(), Some(42));
 }
 
@@ -135,7 +147,9 @@ fn quit_alias_exits() {
 fn help_lists_builtins_and_exits_zero() {
     let mut rt = rt();
     match rt.dispatch("help", &[]) {
-        DispatchResult::Executed { output, exit_code, .. } => {
+        DispatchResult::Executed {
+            output, exit_code, ..
+        } => {
             assert_eq!(exit_code, 0);
             assert!(output.contains("ROY"));
             assert!(output.contains("cd"));

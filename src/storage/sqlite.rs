@@ -75,7 +75,8 @@ impl RoyStore {
     }
 
     fn apply_migrations(&self) -> Result<(), StoreError> {
-        self.conn.execute_batch(include_str!("../../migrations/001_initial.sql"))?;
+        self.conn
+            .execute_batch(include_str!("../../migrations/001_initial.sql"))?;
         Ok(())
     }
 
@@ -150,13 +151,14 @@ impl RoyStore {
 
         events
             .into_iter()
-            .map(|payload| {
-                serde_json::from_str::<SessionEvent>(&payload).map_err(StoreError::from)
-            })
+            .map(|payload| serde_json::from_str::<SessionEvent>(&payload).map_err(StoreError::from))
             .collect()
     }
 
-    pub fn load_artifact_refs(&self, session_id: u64) -> Result<Vec<StoredArtifactRef>, StoreError> {
+    pub fn load_artifact_refs(
+        &self,
+        session_id: u64,
+    ) -> Result<Vec<StoredArtifactRef>, StoreError> {
         let mut stmt = self.conn.prepare(
             "SELECT name, kind, summary, created_at
              FROM artifacts

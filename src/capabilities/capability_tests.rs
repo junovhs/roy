@@ -68,10 +68,10 @@ fn write_then_read_round_trips_file_contents() {
 fn read_rejects_escape_outside_workspace() {
     let root = temp_workspace("cap-escape-root");
     let runtime = runtime(&root);
-    let outside = root
-        .parent()
-        .unwrap()
-        .join(format!("escape-{}.txt", root.file_name().unwrap().to_string_lossy()));
+    let outside = root.parent().unwrap().join(format!(
+        "escape-{}.txt",
+        root.file_name().unwrap().to_string_lossy()
+    ));
     std::fs::write(&outside, "escape").unwrap();
 
     let err = runtime

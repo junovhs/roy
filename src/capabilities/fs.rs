@@ -76,11 +76,13 @@ impl CapabilityRuntime {
         }
 
         let previous_contents = if target.exists() {
-            Some(String::from_utf8_lossy(
-                &std::fs::read(&target)
-                    .map_err(|err| CapabilityError::new(format!("write: {err}")))?,
+            Some(
+                String::from_utf8_lossy(
+                    &std::fs::read(&target)
+                        .map_err(|err| CapabilityError::new(format!("write: {err}")))?,
+                )
+                .into_owned(),
             )
-            .into_owned())
         } else {
             None
         };
