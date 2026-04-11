@@ -1,5 +1,7 @@
 use dioxus::prelude::*;
 
+use crate::shell::ShellRuntime;
+
 use super::{BG_PANEL, BG_SHELL, BORDER, TEXT_ACCENT, TEXT_DIM};
 use super::atoms::{Field, PanelHeader, PlaceholderLine, SectionLabel};
 
@@ -53,8 +55,16 @@ pub(super) fn WorkspacePanel() -> Element {
 
 // ── shell pane (center) ───────────────────────────────────────────────────────
 
+/// Central shell interaction pane.
+///
+/// Owns the visual surface for the shell session hosted by [`ShellRuntime`].
+/// `runtime` is the live session signal; the pane reads prompt state from it
+/// and will dispatch commands into it once the input field is interactive
+/// (pending full PTY wiring in SHEL-01 successors).
 #[component]
-pub(super) fn ShellPane() -> Element {
+pub(super) fn ShellPane(runtime: Signal<ShellRuntime>) -> Element {
+    let prompt = runtime.read().prompt();
+
     rsx! {
         div {
             style: "
@@ -68,6 +78,7 @@ pub(super) fn ShellPane() -> Element {
 
             PanelHeader { title: "SHELL" }
 
+            // output area — populated by dispatch results once interactive
             div {
                 style: "
                     flex: 1;
@@ -81,12 +92,7 @@ pub(super) fn ShellPane() -> Element {
                 PlaceholderLine {
                     prefix: "roy",
                     prefix_color: TEXT_ACCENT,
-                    text: "shell host not yet initialized",
-                }
-                PlaceholderLine {
-                    prefix: "roy",
-                    prefix_color: TEXT_ACCENT,
-                    text: "awaiting SHEL-01 \u{2014} compatibility shell runtime",
+                    text: "shell runtime initialized",
                 }
                 PlaceholderLine {
                     prefix: "roy",
@@ -106,10 +112,11 @@ pub(super) fn ShellPane() -> Element {
                 div { style: "height: 12px;" }
                 div {
                     style: "color: {TEXT_DIM}; font-size: 11px;",
-                    "scaffold v0.1 \u{2014} module seams established"
+                    "ShellRuntime v0.1 \u{2014} built-ins + compatibility traps active"
                 }
             }
 
+            // input bar — shows live prompt from runtime
             div {
                 style: "
                     display: flex;
@@ -121,12 +128,12 @@ pub(super) fn ShellPane() -> Element {
                     flex-shrink: 0;
                 ",
                 span {
-                    style: "color: {TEXT_ACCENT}; font-weight: bold; user-select: none;",
-                    "roy \u{276f}"
+                    style: "color: {TEXT_ACCENT}; font-weight: bold; user-select: none; font-size: 12px;",
+                    "{prompt}"
                 }
                 div {
                     style: "flex: 1; color: {TEXT_DIM}; font-size: 12px; font-style: italic;",
-                    "shell input \u{2014} pending SHEL-01"
+                    "interactive input pending"
                 }
             }
         }

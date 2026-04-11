@@ -1,6 +1,19 @@
-NETI REPORT — PASS | 0 blocking | 0 advisory
+NETI REPORT — PASS | 0 blocking | 1 advisory
 
 COMMANDS
-  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (869ms)
-  cargo test ... PASS (984ms)
-LOCALITY: PASS | 17 edges | 0 violations | 0 cycles
+  cargo clippy --all-targets --no-deps -- -D warnings ... FAIL (1000ms)
+    Checking roy v0.1.0 (/home/juno/roy)
+    error: unused import: `DispatchResult`
+      --> src/shell/mod.rs:23:19
+       |
+    23 | pub use runtime::{DispatchResult, ShellRuntime};
+       |                   ^^^^^^^^^^^^^^
+       |
+       = note: `-D unused-imports` implied by `-D warnings`
+       = help: to override `-D warnings` add `#[allow(unused_imports)]`
+    
+  cargo test ... PASS (1454ms)
+LOCALITY: PASS | 20 edges | 0 violations | 0 cycles
+
+ISSUES
+  src/shell/runtime.rs: 4984 tokens (limit 2000)

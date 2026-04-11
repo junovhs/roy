@@ -121,20 +121,70 @@
 `Cargo.toml`
 Workspace configuration.
 
+`SEMMAP.md`
+Generated semantic map.
+
+## Layer 1 -- Domain (Engine)
+
+`src/ui/layout/atoms.rs`
+Implements atoms functionality. [COUPLING:pure]
+Semantic: pure computation
+
+`src/ui/layout/chrome.rs`
+Implements chrome functionality. [COUPLING:pure]
+Semantic: pure computation
+
+`src/ui/layout/footer.rs`
+Implements footer functionality. [COUPLING:mixed] [BEHAVIOR:persists,sync-primitives]
+Semantic: synchronized side-effecting adapter
+
+`src/ui/layout/panels.rs`
+Implements panels functionality. [COUPLING:pure]
+Semantic: pure computation
+
 ## Layer 3 -- App / Entrypoints
+
+`src/agents/mod.rs`
+Placeholder file. [ENTRY]
 
 `src/app/mod.rs`
 Root application component. [ENTRY] [COUPLING:pure]
 Exports: App
 Semantic: pure computation
 
+`src/commands/mod.rs`
+Placeholder file. [CORE]
+
+`src/diagnostics/mod.rs`
+Placeholder file. [ENTRY]
+
 `src/main.rs`
 Application entry point. [ENTRY] [COUPLING:pure]
 Semantic: pure computation
 
+`src/policy/mod.rs`
+Placeholder file. [ENTRY]
+
+`src/session/mod.rs`
+Placeholder file. [ENTRY]
+
+`src/shell/mod.rs`
+Placeholder file. [ENTRY]
+
+`src/storage/mod.rs`
+Placeholder file. [ENTRY]
+
+`src/ui/layout/mod.rs`
+Root shell cockpit. [ENTRY] [COUPLING:mixed] [BEHAVIOR:owns-state]
+Exports: Cockpit
+Semantic: side-effecting stateful module
+
 `src/ui/mod.rs`
 Re-exports the public API surface. [ENTRY]
 Exports: layout
+
+`src/workspace/mod.rs`
+Placeholder file. [ENTRY]
 
 
 ## DependencyGraph
@@ -143,17 +193,27 @@ Exports: layout
 DependencyGraph:
   # --- Entrypoints ---
   main.rs:
-    Imports: [app/mod.rs, ui/mod.rs]
+    Imports: [agents/mod.rs, app/mod.rs, commands/mod.rs, diagnostics/mod.rs, policy/mod.rs, session/mod.rs, shell/mod.rs, storage/mod.rs, ui/mod.rs, workspace/mod.rs]
     ImportedBy: []
   # --- Layer 0 -- Config ---
-  Cargo.toml:
+  Cargo.toml, SEMMAP.md:
     Imports: []
     ImportedBy: []
+  # --- Layer 1 -- Domain (Engine) ---
+  atoms.rs, chrome.rs, footer.rs, panels.rs:
+    Imports: []
+    ImportedBy: [layout/mod.rs]
   # --- Layer 3 -- App / Entrypoints ---
+  agents/mod.rs, commands/mod.rs, diagnostics/mod.rs, policy/mod.rs, session/mod.rs, shell/mod.rs, storage/mod.rs, workspace/mod.rs:
+    Imports: []
+    ImportedBy: [main.rs]
   app/mod.rs:
     Imports: [ui/mod.rs]
     ImportedBy: [main.rs]
+  layout/mod.rs:
+    Imports: [atoms.rs, chrome.rs, footer.rs, panels.rs]
+    ImportedBy: [ui/mod.rs]
   ui/mod.rs:
-    Imports: []
+    Imports: [layout/mod.rs]
     ImportedBy: [app/mod.rs, main.rs]
 ```

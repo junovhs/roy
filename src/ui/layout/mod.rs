@@ -5,12 +5,12 @@ mod panels;
 
 use dioxus::prelude::*;
 
+use crate::shell::ShellRuntime;
 use chrome::Header;
 use footer::{ArtifactsRow, DiagnosticsPane};
 use panels::{ActivityPanel, ShellPane, WorkspacePanel};
 
 // ── palette ──────────────────────────────────────────────────────────────────
-// pub(crate) so sub-modules can import via `use super::*` or `use super::X`
 
 pub(crate) const BG_BASE: &str = "#0d0f12";
 pub(crate) const BG_PANEL: &str = "#161b22";
@@ -24,12 +24,21 @@ pub(crate) const TEXT_YELLOW: &str = "#d29922";
 
 // ── root cockpit ─────────────────────────────────────────────────────────────
 
-/// Root shell cockpit. Wraps the workspace header, three-column body
-/// (workspace context | shell pane | activity/approvals), artifacts row,
-/// and collapsible diagnostics pane.
+/// Root shell cockpit. Owns the [`ShellRuntime`] session and wraps the
+/// workspace header, three-column body (workspace context | shell pane |
+/// activity/approvals), artifacts row, and collapsible diagnostics pane.
 #[component]
 pub fn Cockpit() -> Element {
     let diag_open = use_signal(|| false);
+
+    // ShellRuntime is the heart of the session. The Cockpit owns it;
+    // child components receive the signal to read state and dispatch commands.
+    // WRK-01 will replace current_dir() with a proper workspace root.
+    let runtime = use_signal(|| {
+        ShellRuntime::new(
+            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
+        )
+    });
 
     rsx! {
         div {
@@ -53,7 +62,7 @@ pub fn Cockpit() -> Element {
                 style: "display: flex; flex: 1; overflow: hidden; border-top: 1px solid {BORDER};",
 
                 WorkspacePanel {}
-                ShellPane {}
+                ShellPane { runtime }
                 ActivityPanel {}
             }
 
