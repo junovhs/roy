@@ -5,4 +5,17 @@
 //! output transforms, and rate limits. Attached to sessions and workspaces,
 //! not globally.
 //!
-//! Populated by POL-01.
+//! Public surface:
+//! - [`PolicyEngine`]    — evaluates commands against a profile
+//! - [`PolicyOutcome`]   — Allow / Deny / ApprovalPending
+//! - [`PolicyProfile`]   — named rule set (permissive / read_only / dev)
+//! - [`PolicyPermission`]— per-command permission value
+
+pub mod engine;
+pub mod profile;
+
+// Used by ShellRuntime dispatch; unused_imports suppressed pending wiring.
+#[allow(unused_imports)]
+pub use engine::{PolicyEngine, PolicyOutcome};
+#[allow(unused_imports)]
+pub use profile::{PolicyPermission, PolicyProfile};

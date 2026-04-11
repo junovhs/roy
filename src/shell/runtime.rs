@@ -4,6 +4,7 @@
 use std::path::PathBuf;
 
 use crate::commands::CommandRegistry;
+use crate::policy::{PolicyEngine, PolicyOutcome};
 
 use super::resolve::{resolve_command, ResolveOutcome};
 use super::result::DispatchResult;
@@ -25,17 +26,27 @@ pub struct ShellRuntime {
     io: BufferedIo,
     last_exit_status: Option<i32>,
     registry: CommandRegistry,
+    policy: PolicyEngine,
 }
 
 impl ShellRuntime {
     /// Create a new runtime rooted at `workspace_root`.
+    ///
+    /// Uses the permissive policy profile by default — policy is in-path
+    /// but transparent until explicitly configured (see `set_policy`).
     pub fn new(workspace_root: PathBuf) -> Self {
         Self {
             env: ShellEnv::new(workspace_root),
             io: BufferedIo::new(),
             last_exit_status: None,
             registry: CommandRegistry::new(),
+            policy: PolicyEngine::default(),
         }
+    }
+
+    /// Replace the active policy profile.
+    pub fn set_policy(&mut self, engine: PolicyEngine) {
+        self.policy = engine;
     }
 
     /// Shared reference to the shell environment.
@@ -84,13 +95,34 @@ impl ShellRuntime {
     /// Dispatch a command through ROY's resolution layers.
     ///
     /// Resolution order:
-    /// 1. ROY built-ins: `cd`, `pwd`, `env`/`printenv`, `exit`/`quit`, `help`/`roy`
-    /// 2. `CommandRegistry`: compat traps → `Denied`; ROY-native → pending (TOOL-02)
-    /// 3. Everything else → `NotFound`
+    /// 1. Policy gate — evaluate against active `PolicyProfile` (default: permissive)
+    /// 2. ROY built-ins: `cd`, `pwd`, `env`/`printenv`, `exit`/`quit`, `help`/`roy`
+    /// 3. `CommandRegistry`: compat traps → `Denied`; ROY-native → pending (TOOL-02)
+    /// 4. Everything else → `NotFound`
     ///
     /// Output is written to the internal [`BufferedIo`] transcript AND
     /// returned in the [`DispatchResult`] for immediate UI rendering.
     pub fn dispatch(&mut self, command: &str, args: &[&str]) -> DispatchResult {
+        // Policy gate: consult registry for risk level, then evaluate.
+        let risk = self.registry
+            .resolve(command)
+            .map(|s| s.risk_level)
+            .unwrap_or(crate::commands::schema::RiskLevel::Low);
+
+        match self.policy.evaluate(command, risk) {
+            PolicyOutcome::Deny { reason } => {
+                self.io.write_error(&reason);
+                self.last_exit_status = Some(1);
+                return DispatchResult::Denied { command: command.to_string(), suggestion: None };
+            }
+            PolicyOutcome::ApprovalPending { reason, .. } => {
+                self.io.write_error(&reason);
+                self.last_exit_status = Some(1);
+                return DispatchResult::Denied { command: command.to_string(), suggestion: None };
+            }
+            PolicyOutcome::Allow => {}
+        }
+
         match command {
             "cd"                 => self.dispatch_cd(args),
             "pwd"                => self.dispatch_pwd(),

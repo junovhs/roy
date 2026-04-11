@@ -1,6 +1,8 @@
 //! Tests for ShellRuntime dispatch policy:
-//! compatibility traps, NotFound, prompt indicator, and transcript errors.
+//! compatibility traps, NotFound, prompt indicator, transcript errors,
+//! and policy engine integration.
 
+use crate::policy::{PolicyEngine, PolicyProfile};
 use crate::shell::{DispatchResult, ShellRuntime};
 
 fn rt() -> ShellRuntime {
@@ -112,4 +114,39 @@ fn prompt_contains_cwd() {
     let root = std::env::temp_dir();
     let rt = ShellRuntime::new(root.clone());
     assert!(rt.prompt().contains(root.to_str().unwrap()));
+}
+
+// ── policy gate integration ───────────────────────────────────────────────────
+
+#[test]
+fn restrictive_policy_blocks_critical_command_via_dispatch() {
+    let mut rt = rt();
+    // dev profile: max_risk = High → sudo (Critical) is denied by policy gate
+    rt.set_policy(PolicyEngine::new(PolicyProfile::dev()));
+    assert!(matches!(
+        rt.dispatch("sudo", &["rm", "-rf", "/"]),
+        DispatchResult::Denied { .. }
+    ));
+}
+
+#[test]
+fn restrictive_policy_denial_writes_to_error_transcript() {
+    let mut rt = rt();
+    rt.set_policy(PolicyEngine::new(PolicyProfile::dev()));
+    rt.dispatch("sudo", &[]);
+    assert!(!rt.drain_errors().is_empty(), "policy denial must write to error transcript");
+}
+
+#[test]
+fn permissive_policy_still_allows_compat_trap_to_produce_registry_denial() {
+    // Permissive policy lets sudo through the gate; registry compat trap denies it.
+    // The suggestion text comes from the registry, not from policy.
+    let mut rt = rt();
+    match rt.dispatch("sudo", &[]) {
+        DispatchResult::Denied { suggestion, .. } => {
+            let msg = suggestion.expect("registry denial must include suggestion");
+            assert!(msg.contains("policy"), "registry denial should mention policy");
+        }
+        other => panic!("expected Denied, got {other:?}"),
+    }
 }
