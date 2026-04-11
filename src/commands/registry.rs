@@ -5,6 +5,7 @@
 mod registry_data;
 
 use super::schema::{CommandSchema, Visibility};
+use super::{fs, validation};
 
 /// ROY command registry — the explicit, data-driven substitution table.
 ///
@@ -23,6 +24,8 @@ impl CommandRegistry {
     pub fn resolve(&self, name: &str) -> Option<&CommandSchema> {
         registry_data::builtins()
             .iter()
+            .chain(fs::native_commands().iter())
+            .chain(validation::native_commands().iter())
             .chain(registry_data::compat_traps().iter())
             .find(|s| s.name == name)
     }
@@ -31,6 +34,8 @@ impl CommandRegistry {
     pub fn public_commands(&self) -> Vec<&CommandSchema> {
         registry_data::builtins()
             .iter()
+            .chain(fs::native_commands().iter())
+            .chain(validation::native_commands().iter())
             .chain(registry_data::compat_traps().iter())
             .filter(|s| s.visibility == Visibility::Public)
             .collect()
@@ -46,7 +51,10 @@ impl CommandRegistry {
 
     /// Total number of known commands (public + hidden).
     pub fn len(&self) -> usize {
-        registry_data::builtins().len() + registry_data::compat_traps().len()
+        registry_data::builtins().len()
+            + fs::native_commands().len()
+            + validation::native_commands().len()
+            + registry_data::compat_traps().len()
     }
 
     /// True if no commands are registered (should never be true after `new`).
@@ -134,7 +142,7 @@ mod tests {
     fn public_commands_includes_cd_pwd_env_exit_help() {
         let r = reg();
         let names: Vec<&str> = r.public_commands().iter().map(|s| s.name).collect();
-        for must_be_public in &["cd", "pwd", "env", "exit", "help"] {
+        for must_be_public in &["cd", "pwd", "env", "exit", "help", "ls", "read", "write", "check"] {
             assert!(
                 names.contains(must_be_public),
                 "{must_be_public} must be public"

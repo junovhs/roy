@@ -99,8 +99,8 @@ impl ShellRuntime {
 
         lines.extend([
             "".to_string(),
-            "ROY-native commands: pending TOOL-02".to_string(),
-            "Policy engine:       pending POL-01".to_string(),
+            "ROY-native commands run through the typed capability runtime.".to_string(),
+            "Policy engine:       active".to_string(),
             "Embedded agents:     pending AGEN-01".to_string(),
         ]);
 

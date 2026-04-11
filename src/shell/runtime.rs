@@ -3,11 +3,14 @@
 
 #[path = "runtime_builtins.rs"]
 mod builtins;
+#[path = "runtime_native.rs"]
+mod native;
 
 use std::path::PathBuf;
 
 use crate::commands::schema::Backend;
-use crate::commands::CommandRegistry;
+use crate::commands::{parse_native_request, CommandRegistry};
+use crate::capabilities::CapabilityRuntime;
 use crate::policy::{PolicyEngine, PolicyOutcome};
 use crate::workspace::WorkspaceBoundary;
 
@@ -148,10 +151,7 @@ impl ShellRuntime {
             Backend::Builtin => self.dispatch_builtin(command, args),
             Backend::CompatTrap { suggestion } => self.deny(command, suggestion),
             Backend::Blocked { reason } => self.deny(command, reason),
-            Backend::RoyNative => self.deny(
-                command,
-                format!("roy: {command}: native command registered but not yet implemented"),
-            ),
+            Backend::RoyNative => self.dispatch_native(command, args),
         }
     }
 
@@ -196,3 +196,7 @@ mod tests_builtins;
 #[cfg(test)]
 #[path = "runtime_tests_policy.rs"]
 mod tests_policy;
+
+#[cfg(test)]
+#[path = "runtime_tests_native.rs"]
+mod tests_native;

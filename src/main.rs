@@ -1,5 +1,6 @@
 mod app;
 mod agents;
+mod capabilities;
 mod commands;
 mod diagnostics;
 mod policy;
