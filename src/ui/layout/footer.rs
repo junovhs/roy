@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 
+use crate::diagnostics::build_trace;
 use crate::session::{Session, SessionEvent};
 use crate::shell::ShellRuntime;
 
@@ -101,7 +102,7 @@ pub(super) fn DiagnosticsPane(
     session: Signal<Session>,
 ) -> Element {
     let is_open = open.read();
-    let height = if *is_open { "160px" } else { "28px" };
+    let height = if *is_open { "240px" } else { "28px" };
     let runtime = runtime.read();
     let session = session.read();
     let denied_count = session.events_of_kind("command_denied").len();
@@ -117,9 +118,11 @@ pub(super) fn DiagnosticsPane(
         runtime.command_count()
     );
     let policy_line = format!("profile {} · pending approvals 0", runtime.policy_name());
+    let agents_line = "adapter contract ready (AGEN-01) · concrete adapters pending AGEN-02".to_string();
     let session_line = format!("session #{} · {} events", session.id, session.len());
     let storage_line = format!("SQLite pending DB-01 · last exit {last_exit}");
     let trace_line = format!("{denied_count} denied traces · {output_count} output lines");
+    let event_trace = build_trace(session.events(), runtime.registry(), 8);
 
     rsx! {
         div {
@@ -172,10 +175,22 @@ pub(super) fn DiagnosticsPane(
                     DiagLine { tag: "shell", text: shell_line }
                     DiagLine { tag: "resolve", text: resolve_line }
                     DiagLine { tag: "policy", text: policy_line }
-                    DiagLine { tag: "agents", text: "embedded adapters pending AGEN-01".to_string() }
+                    DiagLine { tag: "agents", text: agents_line }
                     DiagLine { tag: "session", text: session_line }
                     DiagLine { tag: "storage", text: storage_line }
                     DiagLine { tag: "traces", text: trace_line }
+                    if !event_trace.is_empty() {
+                        div {
+                            style: "margin-top:6px;border-top:1px solid #1a1f27;padding-top:6px;display:flex;flex-direction:column;gap:3px;",
+                            for entry in &event_trace {
+                                div {
+                                    style: "display:flex;gap:8px;align-items:baseline;",
+                                    span { style: "color:{entry.severity.color()};font-size:10px;min-width:60px;", "[{entry.tag}]" }
+                                    span { style: "color:{entry.severity.color()};font-size:10px;", "{entry.text}" }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

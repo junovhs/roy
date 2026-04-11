@@ -86,25 +86,53 @@ impl ShellRuntime {
     pub(super) fn dispatch_help(&mut self) -> DispatchResult {
         let mut lines = vec![
             "ROY — controlled shell host".to_string(),
+            format!("Workspace:  {}", self.workspace.root().display()),
+            format!("Directory:  {}", self.env.cwd().display()),
             "".to_string(),
-            "Built-in commands:".to_string(),
         ];
 
-        lines.extend(
-            self.registry
-                .public_help_lines()
-                .into_iter()
-                .map(|line| format!("  {line}")),
-        );
+        let public = self.registry.public_commands();
+        let builtins: Vec<_> = public
+            .iter()
+            .filter(|s| matches!(s.backend, Backend::Builtin))
+            .collect();
+        let native: Vec<_> = public
+            .iter()
+            .filter(|s| matches!(s.backend, Backend::RoyNative))
+            .collect();
+
+        lines.push("Shell built-ins:".to_string());
+        lines.extend(builtins.iter().map(|s| format!("  {}", s.help_text)));
+
+        if !native.is_empty() {
+            lines.push("".to_string());
+            lines.push("ROY-native commands:".to_string());
+            lines.extend(native.iter().map(|s| format!("  {}", s.help_text)));
+        }
 
         lines.extend([
             "".to_string(),
-            "ROY-native commands run through the typed capability runtime.".to_string(),
-            "Policy engine:       active".to_string(),
-            "Embedded agents:     pending AGEN-01".to_string(),
+            "Policy engine:  active".to_string(),
+            "Run `commands` for a machine-readable command list.".to_string(),
         ]);
 
         let output = lines.join("\n");
+        self.io.write_line(&output);
+        self.last_exit_status = Some(0);
+        DispatchResult::Executed {
+            output,
+            exit_code: 0,
+        }
+    }
+
+    pub(super) fn dispatch_commands(&mut self) -> DispatchResult {
+        let names: Vec<&str> = self
+            .registry
+            .public_commands()
+            .into_iter()
+            .map(|s| s.name)
+            .collect();
+        let output = names.join("\n");
         self.io.write_line(&output);
         self.last_exit_status = Some(0);
         DispatchResult::Executed {

@@ -3,6 +3,8 @@
 
 use std::path::PathBuf;
 
+use serde::{Deserialize, Serialize};
+
 /// Milliseconds since UNIX epoch — simple, copy-friendly, SQLite-friendly.
 pub type Timestamp = u64;
 
@@ -10,7 +12,7 @@ pub type Timestamp = u64;
 ///
 /// Every variant carries a `ts` (timestamp) so the ledger is replayable
 /// in chronological order without a separate timestamp column.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SessionEvent {
     /// The embedded agent or user submitted a line of input.
     UserInput { text: String, ts: Timestamp },

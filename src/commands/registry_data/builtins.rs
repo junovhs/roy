@@ -66,4 +66,11 @@ pub(super) static BUILTINS: &[CommandSchema] = &[
         RiskLevel::Safe,
         Visibility::Hidden,
     ),
+    builtin_schema(
+        "commands",
+        "list available ROY commands",
+        "commands     list all available public commands (one per line)",
+        RiskLevel::Safe,
+        Visibility::Public,
+    ),
 ];

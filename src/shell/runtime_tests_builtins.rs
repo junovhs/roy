@@ -1,5 +1,7 @@
 //! Tests for ShellRuntime built-in command handlers:
-//! pwd, cd, env, exit, help — and the transcript drain.
+//! pwd, cd, env, exit, help, and the transcript drain.
+//! Discovery-surface tests (commands builtin, help sections, not_found hint)
+//! are in runtime_tests_discoverability.rs.
 
 use crate::shell::{DispatchResult, ShellRuntime};
 

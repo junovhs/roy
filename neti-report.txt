@@ -1,6 +1,6 @@
 NETI REPORT — PASS | 0 blocking | 0 advisory
 
 COMMANDS
-  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (308ms)
-  cargo test ... PASS (404ms)
-LOCALITY: PASS | 49 edges | 0 violations | 0 cycles
+  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (1284ms)
+  cargo test ... PASS (1555ms)
+LOCALITY: PASS | 56 edges | 0 violations | 0 cycles

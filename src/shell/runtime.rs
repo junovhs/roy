@@ -66,6 +66,11 @@ impl ShellRuntime {
         self.policy.profile_name()
     }
 
+    /// Shared reference to the command registry — used by diagnostics.
+    pub fn registry(&self) -> &CommandRegistry {
+        &self.registry
+    }
+
     /// Total number of commands known to the registry.
     pub fn command_count(&self) -> usize {
         self.registry.len()
@@ -162,6 +167,7 @@ impl ShellRuntime {
             "env" | "printenv" => self.dispatch_env(args),
             "exit" | "quit" => self.dispatch_exit(args),
             "help" | "roy" | "?" => self.dispatch_help(),
+            "commands" => self.dispatch_commands(),
             _ => self.not_found(command),
         }
     }
@@ -177,7 +183,7 @@ impl ShellRuntime {
     }
 
     fn not_found(&mut self, command: &str) -> DispatchResult {
-        let msg = format!("roy: {command}: command not found");
+        let msg = format!("roy: {command}: command not found — run `help` to see available commands");
         self.io.write_error(&msg);
         self.last_exit_status = Some(127);
         DispatchResult::NotFound {
@@ -187,11 +193,15 @@ impl ShellRuntime {
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
-// Split across two sidecar files to keep each under the token advisory limit.
+// Split across sidecar files to keep each under the token advisory limit.
 
 #[cfg(test)]
 #[path = "runtime_tests_builtins.rs"]
 mod tests_builtins;
+
+#[cfg(test)]
+#[path = "runtime_tests_discoverability.rs"]
+mod tests_discoverability;
 
 #[cfg(test)]
 #[path = "runtime_tests_policy.rs"]

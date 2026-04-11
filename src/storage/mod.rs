@@ -4,4 +4,6 @@
 //! bindings, policy profiles, and artifact references. Local and boring
 //! by design — correctness and inspectability over cleverness.
 //!
-//! Populated by DB-01.
+//! Primary entry point: [`sqlite::RoyStore`].
+
+pub mod sqlite;

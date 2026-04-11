@@ -5,4 +5,17 @@
 //! handoffs, session continuity, and typed host-event capture. Agents are
 //! privileged tenants, not arbitrary binaries.
 //!
-//! Populated by AGEN-01.
+//! ## Contract
+//!
+//! [`adapter::AgentAdapter`] is the core trait: each concrete adapter
+//! (implemented in AGEN-02+) describes one agent kind and knows how to
+//! launch it. [`adapter::AgentHandle`] owns the per-launch lifecycle state
+//! and supervision event buffer. [`session::AgentSession`] is the durable,
+//! cloneable session record the UI and event ledger use without holding the
+//! live process handle.
+//!
+//! Concrete adapters: [`claude_code::ClaudeCodeAdapter`] (AGEN-02).
+
+pub mod adapter;
+pub mod claude_code;
+pub mod session;
