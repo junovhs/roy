@@ -14,7 +14,7 @@ pub trait ShellIo {
     /// Write a line of error text (stderr channel).
     fn write_error(&mut self, text: &str);
     /// Produce the prompt string shown before user input.
-    fn prompt_str(&self, env: &ShellEnv) -> String;
+    fn prompt_str(&self, env: &ShellEnv, indicator: &str) -> String;
 }
 
 /// Buffered IO — collects output into in-memory vecs.
@@ -29,7 +29,10 @@ pub struct BufferedIo {
 
 impl BufferedIo {
     pub fn new() -> Self {
-        Self { output: Vec::new(), errors: Vec::new() }
+        Self {
+            output: Vec::new(),
+            errors: Vec::new(),
+        }
     }
 }
 
@@ -48,8 +51,8 @@ impl ShellIo for BufferedIo {
         self.errors.push(text.to_string());
     }
 
-    fn prompt_str(&self, env: &ShellEnv) -> String {
-        format!("roy:{}\u{276f} ", env.cwd().display())
+    fn prompt_str(&self, env: &ShellEnv, indicator: &str) -> String {
+        format!("roy:{} {} ", env.cwd().display(), indicator)
     }
 }
 
@@ -81,11 +84,15 @@ mod tests {
     }
 
     #[test]
-    fn buffered_io_prompt_includes_cwd() {
+    fn buffered_io_prompt_includes_cwd_and_indicator() {
         let io = BufferedIo::new();
         let env = make_env();
-        let prompt = io.prompt_str(&env);
+        let prompt = io.prompt_str(&env, "\u{276f}");
         assert!(prompt.contains("/tmp"), "prompt must show cwd");
+        assert!(
+            prompt.contains('\u{276f}'),
+            "prompt must show the indicator"
+        );
     }
 
     #[test]

@@ -3,9 +3,18 @@ use dioxus::prelude::*;
 use crate::session::{Session, SessionEvent};
 use crate::shell::{DispatchResult, ShellRuntime};
 
+#[path = "command_line.rs"]
+mod command_line;
+
+use command_line::parse_command_line;
+
 use super::super::atoms::PanelHeader;
-use super::super::{is_session_active, now_millis, BG_PANEL, BG_SHELL, BORDER, TEXT_ACCENT, TEXT_DIM, TEXT_PRIMARY};
-use super::terminal_model::{flatten_chunks, initial_shell_lines, record_session_outcome, ShellLine, TEXT_ERROR};
+use super::super::{
+    is_session_active, now_millis, BG_PANEL, BG_SHELL, BORDER, TEXT_ACCENT, TEXT_DIM, TEXT_PRIMARY,
+};
+use super::terminal_model::{
+    flatten_chunks, initial_shell_lines, record_session_outcome, ShellLine, TEXT_ERROR,
+};
 
 #[component]
 pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>) -> Element {
@@ -17,7 +26,7 @@ pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>)
             "(function(){\
                 var e=document.getElementById('shell-output');\
                 if(e)e.scrollTop=e.scrollHeight;\
-            })();"
+            })();",
         );
     });
 
@@ -116,31 +125,51 @@ pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>)
                                 return;
                             }
 
-                            let parts: Vec<String> =
-                                raw.split_whitespace().map(str::to_string).collect();
-                            if parts.is_empty() {
-                                return;
-                            }
-
-                            let command = parts[0].clone();
-                            let args: Vec<String> = parts[1..].to_vec();
-                            let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
                             let pre_prompt = runtime.read().prompt();
 
                             {
                                 let mut session = session.write();
                                 let ts = now_millis();
                                 session.push(SessionEvent::UserInput { text: raw.clone(), ts });
+                            }
+
+                            let parsed = match parse_command_line(&raw) {
+                                Ok(parsed) => parsed,
+                                Err(message) => {
+                                    let error_text = format!("parse error: {message}");
+                                    let ts = now_millis();
+
+                                    session.write().push(SessionEvent::CommandOutput {
+                                        text: error_text.clone(),
+                                        is_error: true,
+                                        ts,
+                                    });
+
+                                    lines.write().extend([
+                                        ShellLine::echo(pre_prompt, raw.clone()),
+                                        ShellLine::error(error_text),
+                                    ]);
+
+                                    input_text.set(String::new());
+                                    return;
+                                }
+                            };
+
+                            {
+                                let mut session = session.write();
+                                let ts = now_millis();
                                 session.push(SessionEvent::CommandInvoked {
-                                    command: command.clone(),
-                                    args: args.clone(),
-                                    ts: ts + 1,
+                                    command: parsed.command.clone(),
+                                    args: parsed.args.clone(),
+                                    ts,
                                 });
                             }
 
+                            let arg_refs: Vec<&str> = parsed.args.iter().map(String::as_str).collect();
+
                             let (result, out, err) = {
                                 let mut runtime = runtime.write();
-                                let result = runtime.dispatch(&command, &arg_refs);
+                                let result = runtime.dispatch(&parsed.command, &arg_refs);
                                 let out = runtime.drain_output();
                                 let err = runtime.drain_errors();
                                 (result, out, err)

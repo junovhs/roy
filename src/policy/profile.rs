@@ -54,14 +54,24 @@ impl PolicyProfile {
 
     /// Read-only profile — denies anything above `Safe` risk.
     ///
-    /// Allows inspection commands (pwd, env) but denies any state mutation.
+    /// Allows inspection, help, and session-lifecycle commands, but denies
+    /// broader mutation or system-level operations.
     pub fn read_only() -> Self {
         Self {
             name: "read_only".to_string(),
             max_risk: RiskLevel::Safe,
             default_permission: PolicyPermission::Deny,
             blocked: Vec::new(),
-            allowed: vec!["pwd".to_string(), "env".to_string(), "help".to_string()],
+            allowed: vec![
+                "pwd".to_string(),
+                "env".to_string(),
+                "printenv".to_string(),
+                "help".to_string(),
+                "roy".to_string(),
+                "?".to_string(),
+                "exit".to_string(),
+                "quit".to_string(),
+            ],
         }
     }
 
@@ -122,6 +132,15 @@ mod tests {
         let p = PolicyProfile::read_only();
         assert!(p.is_explicitly_allowed("pwd"));
         assert!(!p.is_explicitly_allowed("bash"));
+    }
+
+    #[test]
+    fn read_only_allows_exit_aliases() {
+        let p = PolicyProfile::read_only();
+        assert!(p.is_explicitly_allowed("exit"));
+        assert!(p.is_explicitly_allowed("quit"));
+        assert!(p.is_explicitly_allowed("roy"));
+        assert!(p.is_explicitly_allowed("?"));
     }
 
     #[test]

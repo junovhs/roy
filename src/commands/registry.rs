@@ -5,44 +5,53 @@
 mod registry_data;
 
 use super::schema::{CommandSchema, Visibility};
-use registry_data::COMMANDS;
 
 /// ROY command registry — the explicit, data-driven substitution table.
 ///
 /// Resolves command names to their [`CommandSchema`], covering built-ins,
 /// ROY-native commands (pending TOOL-02+), and compatibility traps.
 /// Unknown names return `None` → `DispatchResult::NotFound`.
-pub struct CommandRegistry {
-    commands: &'static [CommandSchema],
-}
+pub struct CommandRegistry;
 
 impl CommandRegistry {
     /// Create the registry with the default ROY command table.
     pub fn new() -> Self {
-        Self { commands: COMMANDS }
+        Self
     }
 
     /// Resolve a command name to its schema, or `None` if unknown.
     pub fn resolve(&self, name: &str) -> Option<&CommandSchema> {
-        self.commands.iter().find(|s| s.name == name)
+        registry_data::builtins()
+            .iter()
+            .chain(registry_data::compat_traps().iter())
+            .find(|s| s.name == name)
     }
 
     /// All commands visible in public help listings.
     pub fn public_commands(&self) -> Vec<&CommandSchema> {
-        self.commands
+        registry_data::builtins()
             .iter()
+            .chain(registry_data::compat_traps().iter())
             .filter(|s| s.visibility == Visibility::Public)
+            .collect()
+    }
+
+    /// Help lines for public commands, in registry order.
+    pub fn public_help_lines(&self) -> Vec<&'static str> {
+        self.public_commands()
+            .into_iter()
+            .map(|s| s.help_text)
             .collect()
     }
 
     /// Total number of known commands (public + hidden).
     pub fn len(&self) -> usize {
-        self.commands.len()
+        registry_data::builtins().len() + registry_data::compat_traps().len()
     }
 
     /// True if no commands are registered (should never be true after `new`).
     pub fn is_empty(&self) -> bool {
-        self.commands.is_empty()
+        self.len() == 0
     }
 }
 
@@ -115,7 +124,8 @@ mod tests {
         for s in &public {
             assert!(
                 !s.backend.is_denied(),
-                "public command {} must not be denied", s.name
+                "public command {} must not be denied",
+                s.name
             );
         }
     }
@@ -125,7 +135,10 @@ mod tests {
         let r = reg();
         let names: Vec<&str> = r.public_commands().iter().map(|s| s.name).collect();
         for must_be_public in &["cd", "pwd", "env", "exit", "help"] {
-            assert!(names.contains(must_be_public), "{must_be_public} must be public");
+            assert!(
+                names.contains(must_be_public),
+                "{must_be_public} must be public"
+            );
         }
     }
 
@@ -134,5 +147,12 @@ mod tests {
         let r = reg();
         let s = r.resolve("bash").unwrap();
         assert_eq!(s.visibility, Visibility::Hidden);
+    }
+
+    #[test]
+    fn public_help_lines_include_pwd() {
+        let r = reg();
+        let lines = r.public_help_lines();
+        assert!(lines.iter().any(|line| line.contains("pwd")));
     }
 }

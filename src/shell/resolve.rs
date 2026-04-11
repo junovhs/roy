@@ -1,4 +1,6 @@
-// Live via ShellRuntime::dispatch(); no additional allow needed.
+// Live in tests; runtime wiring was simplified, so keep this module allowed
+// until resolution is reintroduced as a first-class dispatch step.
+#![allow(dead_code)]
 
 use crate::commands::{schema::Backend, CommandRegistry};
 

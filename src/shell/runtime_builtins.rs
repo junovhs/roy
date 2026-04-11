@@ -1,9 +1,13 @@
 use super::*;
+use crate::shell::ShellError;
 
 impl ShellRuntime {
     pub(super) fn dispatch_cd(&mut self, args: &[&str]) -> DispatchResult {
         let Some(&raw) = args.first() else {
-            return DispatchResult::CwdChanged { to: self.env.cwd().to_path_buf() };
+            self.last_exit_status = Some(0);
+            return DispatchResult::CwdChanged {
+                to: self.env.cwd().to_path_buf(),
+            };
         };
 
         let raw_path = std::path::Path::new(raw);
@@ -14,20 +18,22 @@ impl ShellRuntime {
         };
 
         if absolute.exists() && !self.workspace.contains(&absolute) {
-            let msg = format!(
-                "cd: {} escapes workspace boundary (root: {})",
-                absolute.display(),
-                self.workspace.root().display()
+            return self.deny(
+                "cd",
+                format!(
+                    "cd: {} escapes workspace boundary (root: {})",
+                    absolute.display(),
+                    self.workspace.root().display()
+                ),
             );
-            self.io.write_error(&msg);
-            self.last_exit_status = Some(1);
-            return DispatchResult::Executed { output: msg, exit_code: 1 };
         }
 
         match self.env.chdir(std::path::Path::new(raw)) {
             Ok(()) => {
                 self.last_exit_status = Some(0);
-                DispatchResult::CwdChanged { to: self.env.cwd().to_path_buf() }
+                DispatchResult::CwdChanged {
+                    to: self.env.cwd().to_path_buf(),
+                }
             }
             Err(ShellError::DirNotFound(p)) => self.cwd_error(p, "no such directory"),
             Err(ShellError::NotADirectory(p)) => self.cwd_error(p, "not a directory"),
@@ -35,7 +41,10 @@ impl ShellRuntime {
                 let msg = format!("cd: {e}");
                 self.io.write_error(&msg);
                 self.last_exit_status = Some(1);
-                DispatchResult::Executed { output: msg, exit_code: 1 }
+                DispatchResult::Executed {
+                    output: msg,
+                    exit_code: 1,
+                }
             }
         }
     }
@@ -44,7 +53,10 @@ impl ShellRuntime {
         let output = self.env.cwd().display().to_string();
         self.io.write_line(&output);
         self.last_exit_status = Some(0);
-        DispatchResult::Executed { output, exit_code: 0 }
+        DispatchResult::Executed {
+            output,
+            exit_code: 0,
+        }
     }
 
     pub(super) fn dispatch_env(&mut self, args: &[&str]) -> DispatchResult {
@@ -59,7 +71,10 @@ impl ShellRuntime {
         let output = lines.join("\n");
         self.io.write_line(&output);
         self.last_exit_status = Some(0);
-        DispatchResult::Executed { output, exit_code: 0 }
+        DispatchResult::Executed {
+            output,
+            exit_code: 0,
+        }
     }
 
     pub(super) fn dispatch_exit(&mut self, args: &[&str]) -> DispatchResult {
@@ -69,30 +84,42 @@ impl ShellRuntime {
     }
 
     pub(super) fn dispatch_help(&mut self) -> DispatchResult {
-        let output = [
-            "ROY \u{2014} controlled shell host",
-            "",
-            "Built-in commands:",
-            "  cd [path]    change working directory",
-            "  pwd          print working directory",
-            "  env [key]    print environment (filtered by key substring if given)",
-            "  exit [n]     exit session with code n (default 0)",
-            "  help         show this help",
-            "",
-            "ROY-native commands: pending TOOL-02",
-            "Policy engine:       pending POL-01",
-            "Embedded agents:     pending AGEN-01",
-        ]
-        .join("\n");
+        let mut lines = vec![
+            "ROY — controlled shell host".to_string(),
+            "".to_string(),
+            "Built-in commands:".to_string(),
+        ];
+
+        lines.extend(
+            self.registry
+                .public_help_lines()
+                .into_iter()
+                .map(|line| format!("  {line}")),
+        );
+
+        lines.extend([
+            "".to_string(),
+            "ROY-native commands: pending TOOL-02".to_string(),
+            "Policy engine:       pending POL-01".to_string(),
+            "Embedded agents:     pending AGEN-01".to_string(),
+        ]);
+
+        let output = lines.join("\n");
         self.io.write_line(&output);
         self.last_exit_status = Some(0);
-        DispatchResult::Executed { output, exit_code: 0 }
+        DispatchResult::Executed {
+            output,
+            exit_code: 0,
+        }
     }
 
     fn cwd_error(&mut self, path: std::path::PathBuf, suffix: &str) -> DispatchResult {
         let msg = format!("cd: {}: {suffix}", path.display());
         self.io.write_error(&msg);
         self.last_exit_status = Some(1);
-        DispatchResult::Executed { output: msg, exit_code: 1 }
+        DispatchResult::Executed {
+            output: msg,
+            exit_code: 1,
+        }
     }
 }

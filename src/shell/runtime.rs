@@ -6,21 +6,21 @@ mod builtins;
 
 use std::path::PathBuf;
 
+use crate::commands::schema::Backend;
 use crate::commands::CommandRegistry;
 use crate::policy::{PolicyEngine, PolicyOutcome};
 use crate::workspace::WorkspaceBoundary;
 
-use super::resolve::{resolve_command, ResolveOutcome};
 use super::result::DispatchResult;
-use super::{BufferedIo, ShellEnv, ShellError, ShellIo};
+use super::{BufferedIo, ShellEnv, ShellIo};
 
 /// ROY shell runtime.
 ///
 /// Owns the controlled shell environment, a session transcript buffer,
 /// and the command registry. Dispatches commands through three layers:
-/// 1. Built-in handlers (cd, pwd, env, exit, help)
-/// 2. `CommandRegistry` → compat traps, ROY-native (pending), denied
-/// 3. NotFound fallback
+/// 1. Command resolution through the registry
+/// 2. Policy evaluation for known commands
+/// 3. Built-in handlers or registry-backed denials
 ///
 /// The `io` field is a [`BufferedIo`] that accumulates all output lines
 /// for the session transcript. The UI drains it via [`drain_output`] /
@@ -40,7 +40,9 @@ impl ShellRuntime {
     /// Uses the permissive policy profile by default — policy is in-path
     /// but transparent until explicitly configured (see `set_policy`).
     pub fn new(workspace_root: PathBuf) -> Self {
+        let workspace_root = workspace_root.canonicalize().unwrap_or(workspace_root);
         let workspace = WorkspaceBoundary::new(workspace_root.clone());
+
         Self {
             env: ShellEnv::new(workspace_root),
             io: BufferedIo::new(),
@@ -96,15 +98,18 @@ impl ShellRuntime {
         self.last_exit_status = Some(code);
     }
 
+    fn prompt_indicator(&self) -> &'static str {
+        match self.last_exit_status {
+            Some(0) | None => "\u{276f}",
+            Some(_) => "\u{2717}",
+        }
+    }
+
     /// Prompt string reflecting current session state.
     ///
     /// Shows `✗` after a non-zero exit, `❯` otherwise.
     pub fn prompt(&self) -> String {
-        let indicator = match self.last_exit_status {
-            Some(0) | None => "\u{276f}",
-            Some(_) => "\u{2717}",
-        };
-        format!("roy:{} {} ", self.env.cwd().display(), indicator)
+        self.io.prompt_str(&self.env, self.prompt_indicator())
     }
 
     /// Drain accumulated output lines since the last drain.
@@ -122,68 +127,61 @@ impl ShellRuntime {
     /// Dispatch a command through ROY's resolution layers.
     ///
     /// Resolution order:
-    /// 1. Policy gate — evaluate against active `PolicyProfile` (default: permissive)
-    /// 2. ROY built-ins: `cd`, `pwd`, `env`/`printenv`, `exit`/`quit`, `help`/`roy`
-    /// 3. `CommandRegistry`: compat traps → `Denied`; ROY-native → pending (TOOL-02)
-    /// 4. Everything else → `NotFound`
+    /// 1. Registry lookup — unknown commands immediately become `NotFound`
+    /// 2. Policy gate for known commands
+    /// 3. Built-ins or registry-backed deny/pending behavior
     ///
     /// Output is written to the internal [`BufferedIo`] transcript AND
     /// returned in the [`DispatchResult`] for immediate UI rendering.
     pub fn dispatch(&mut self, command: &str, args: &[&str]) -> DispatchResult {
-        // Policy gate: consult registry for risk level, then evaluate.
-        let risk = self.registry
-            .resolve(command)
-            .map(|s| s.risk_level)
-            .unwrap_or(crate::commands::schema::RiskLevel::Low);
+        let Some(schema) = self.registry.resolve(command) else {
+            return self.not_found(command);
+        };
 
-        match self.policy.evaluate(command, risk) {
-            PolicyOutcome::Deny { reason } => {
-                self.io.write_error(&reason);
-                self.last_exit_status = Some(1);
-                return DispatchResult::Denied { command: command.to_string(), suggestion: None };
-            }
-            PolicyOutcome::ApprovalPending { reason, .. } => {
-                self.io.write_error(&reason);
-                self.last_exit_status = Some(1);
-                return DispatchResult::Denied { command: command.to_string(), suggestion: None };
-            }
+        match self.policy.evaluate(command, schema.risk_level) {
+            PolicyOutcome::Deny { reason } => return self.deny(command, reason),
+            PolicyOutcome::ApprovalPending { reason, .. } => return self.deny(command, reason),
             PolicyOutcome::Allow => {}
         }
 
-        match command {
-            "cd"                 => self.dispatch_cd(args),
-            "pwd"                => self.dispatch_pwd(),
-            "env" | "printenv"   => self.dispatch_env(args),
-            "exit" | "quit"      => self.dispatch_exit(args),
-            "help" | "roy" | "?" => self.dispatch_help(),
-            _                    => self.dispatch_via_registry(command),
+        match schema.backend {
+            Backend::Builtin => self.dispatch_builtin(command, args),
+            Backend::CompatTrap { suggestion } => self.deny(command, suggestion),
+            Backend::Blocked { reason } => self.deny(command, reason),
+            Backend::RoyNative => self.deny(
+                command,
+                format!("roy: {command}: native command registered but not yet implemented"),
+            ),
         }
     }
 
-    /// Resolve a non-builtin command through the command registry.
-    fn dispatch_via_registry(&mut self, command: &str) -> DispatchResult {
-        match resolve_command(&self.registry, command) {
-            ResolveOutcome::Denied { suggestion } => {
-                let suggestion_owned = suggestion.map(ToString::to_string);
-                if let Some(msg) = suggestion {
-                    self.io.write_error(msg);
-                }
-                DispatchResult::Denied {
-                    command: command.to_string(),
-                    suggestion: suggestion_owned,
-                }
-            }
-            ResolveOutcome::RoyNative => {
-                // Execution pending TOOL-02; treat as not-yet-implemented.
-                let msg = format!("roy: {command}: native command not yet implemented");
-                self.io.write_error(&msg);
-                DispatchResult::NotFound { command: command.to_string() }
-            }
-            ResolveOutcome::Builtin | ResolveOutcome::NotFound => {
-                let msg = format!("roy: {command}: command not found");
-                self.io.write_error(&msg);
-                DispatchResult::NotFound { command: command.to_string() }
-            }
+    fn dispatch_builtin(&mut self, command: &str, args: &[&str]) -> DispatchResult {
+        match command {
+            "cd" => self.dispatch_cd(args),
+            "pwd" => self.dispatch_pwd(),
+            "env" | "printenv" => self.dispatch_env(args),
+            "exit" | "quit" => self.dispatch_exit(args),
+            "help" | "roy" | "?" => self.dispatch_help(),
+            _ => self.not_found(command),
+        }
+    }
+
+    fn deny(&mut self, command: &str, message: impl Into<String>) -> DispatchResult {
+        let message = message.into();
+        self.io.write_error(&message);
+        self.last_exit_status = Some(126);
+        DispatchResult::Denied {
+            command: command.to_string(),
+            suggestion: Some(message),
+        }
+    }
+
+    fn not_found(&mut self, command: &str) -> DispatchResult {
+        let msg = format!("roy: {command}: command not found");
+        self.io.write_error(&msg);
+        self.last_exit_status = Some(127);
+        DispatchResult::NotFound {
+            command: command.to_string(),
         }
     }
 }
