@@ -5,7 +5,7 @@ use crate::shell::ShellRuntime;
 
 use super::super::{is_session_active, short_path_label};
 use super::terminal_model::{
-    handle_submit, initial_shell_lines, ShellLine, SubmitContext, TEXT_ERROR,
+    handle_submit, initial_shell_lines, LineKind, ShellLine, SubmitContext, TEXT_ERROR,
 };
 
 // ── palette (prototype) ───────────────────────────────────────────────────────
@@ -109,19 +109,7 @@ pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>)
                     ",
 
                     for line in lines.read().iter() {
-                        div {
-                            style: format!(
-                                "display:flex;gap:8px;white-space:pre-wrap;word-break:break-all;color:{};",
-                                if line.is_error { TEXT_ERROR } else { INK }
-                            ),
-                            if !line.prefix.is_empty() {
-                                span {
-                                    style: "color:{CORAL_SOFT};flex-shrink:0;font-weight:bold;",
-                                    "{line.prefix}"
-                                }
-                            }
-                            span { "{line.text}" }
-                        }
+                        { render_line(line) }
                     }
                 }
             }
@@ -245,5 +233,86 @@ pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>)
                 }
             }
         }
+    }
+}
+
+// ── line renderer ─────────────────────────────────────────────────────────────
+
+fn render_line(line: &ShellLine) -> Element {
+    match line.kind {
+        // ── denial header: ⊘ command — blocked ────────────────────────────
+        LineKind::DenialHeader => rsx! {
+            div {
+                style: "
+                    display:flex;gap:8px;align-items:baseline;
+                    margin-top:6px;
+                    white-space:pre-wrap;word-break:break-all;
+                ",
+                span {
+                    style: "color:{TEXT_ERROR};flex-shrink:0;font-weight:600;",
+                    "{line.prefix}"
+                }
+                span { style: "color:{TEXT_ERROR};font-weight:500;", "{line.text}" }
+            }
+        },
+        // ── denial hint: → suggestion ──────────────────────────────────────
+        LineKind::DenialHint => rsx! {
+            div {
+                style: "
+                    display:flex;gap:8px;align-items:baseline;
+                    margin-bottom:6px;padding-left:4px;
+                    white-space:pre-wrap;word-break:break-all;
+                ",
+                span {
+                    style: "color:{CORAL_SOFT};flex-shrink:0;",
+                    "{line.prefix}"
+                }
+                span { style: "color:{INK_DIM};", "{line.text}" }
+            }
+        },
+        // ── not found: ? command ───────────────────────────────────────────
+        LineKind::NotFound => rsx! {
+            div {
+                style: "
+                    display:flex;gap:8px;align-items:baseline;
+                    white-space:pre-wrap;word-break:break-all;
+                ",
+                span { style: "color:{INK_FAINT};flex-shrink:0;", "{line.prefix}" }
+                span { style: "color:{INK_FAINT};font-style:italic;", "{line.text}" }
+            }
+        },
+        // ── echo (input): prompt + command ────────────────────────────────
+        LineKind::Echo => rsx! {
+            div {
+                style: "display:flex;gap:8px;white-space:pre-wrap;word-break:break-all;color:{INK};",
+                if !line.prefix.is_empty() {
+                    span {
+                        style: "color:{CORAL_SOFT};flex-shrink:0;font-weight:bold;",
+                        "{line.prefix}"
+                    }
+                }
+                span { "{line.text}" }
+            }
+        },
+        // ── error ──────────────────────────────────────────────────────────
+        LineKind::Error => rsx! {
+            div {
+                style: "display:flex;gap:8px;white-space:pre-wrap;word-break:break-all;color:{TEXT_ERROR};",
+                span { "{line.text}" }
+            }
+        },
+        // ── normal output ──────────────────────────────────────────────────
+        LineKind::Output => rsx! {
+            div {
+                style: "display:flex;gap:8px;white-space:pre-wrap;word-break:break-all;color:{INK};",
+                if !line.prefix.is_empty() {
+                    span {
+                        style: "color:{CORAL_SOFT};flex-shrink:0;font-weight:bold;",
+                        "{line.prefix}"
+                    }
+                }
+                span { "{line.text}" }
+            }
+        },
     }
 }

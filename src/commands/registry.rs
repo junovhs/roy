@@ -165,4 +165,30 @@ mod tests {
         let lines = r.public_help_lines();
         assert!(lines.iter().any(|line| line.contains("pwd")));
     }
+
+    #[test]
+    fn len_matches_all_registry_sources() {
+        let r = reg();
+        let expected = registry_data::builtins().len()
+            + fs::native_commands().len()
+            + validation::native_commands().len()
+            + registry_data::compat_traps().len();
+
+        assert_eq!(r.len(), expected);
+    }
+
+    #[test]
+    fn total_commands_include_hidden_entries_beyond_public_listing() {
+        let r = reg();
+        let hidden = registry_data::builtins()
+            .iter()
+            .chain(fs::native_commands().iter())
+            .chain(validation::native_commands().iter())
+            .chain(registry_data::compat_traps().iter())
+            .filter(|schema| schema.visibility == Visibility::Hidden)
+            .count();
+
+        assert!(r.len() > r.public_commands().len());
+        assert_eq!(r.len() - r.public_commands().len(), hidden);
+    }
 }

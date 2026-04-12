@@ -1,5 +1,5 @@
 use super::*;
-use crate::policy::profile::PolicyProfile;
+use crate::policy::profile::{PolicyPermission, PolicyProfile};
 
 fn permissive() -> PolicyEngine {
     PolicyEngine::new(PolicyProfile::permissive())
@@ -112,4 +112,37 @@ fn profile_name_matches() {
 fn default_engine_is_permissive() {
     let engine = PolicyEngine::default();
     assert_eq!(engine.profile_name(), "permissive");
+}
+
+#[test]
+fn require_approval_profile_returns_approval_pending_above_threshold() {
+    let profile = PolicyProfile {
+        name: "strict".to_string(),
+        max_risk: RiskLevel::Safe,
+        default_permission: PolicyPermission::RequireApproval,
+        blocked: Vec::new(),
+        allowed: Vec::new(),
+    };
+    let engine = PolicyEngine::new(profile);
+    assert!(matches!(
+        engine.evaluate("curl", RiskLevel::High),
+        PolicyOutcome::ApprovalPending { .. }
+    ));
+}
+
+#[test]
+fn require_approval_profile_allows_at_or_below_threshold() {
+    let profile = PolicyProfile {
+        name: "strict".to_string(),
+        max_risk: RiskLevel::Safe,
+        default_permission: PolicyPermission::RequireApproval,
+        blocked: Vec::new(),
+        allowed: Vec::new(),
+    };
+    let engine = PolicyEngine::new(profile);
+    // At threshold: default_permission kicks in → RequireApproval
+    assert!(matches!(
+        engine.evaluate("pwd", RiskLevel::Safe),
+        PolicyOutcome::ApprovalPending { .. }
+    ));
 }

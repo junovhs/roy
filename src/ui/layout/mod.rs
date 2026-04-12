@@ -57,6 +57,19 @@ pub(crate) fn is_session_active(session: &Session) -> bool {
     )
 }
 
+fn build_cockpit_session(session_root: std::path::PathBuf, ts: Timestamp) -> Session {
+    let mut s = Session::new(ts, session_root, ts);
+    s.push(SessionEvent::HostNotice {
+        message: "ROY shell cockpit ready".to_string(),
+        ts: ts + 1,
+    });
+    s
+}
+
+fn drawer_selected(open_drawer: Option<&str>, drawer: &str) -> bool {
+    open_drawer == Some(drawer)
+}
+
 // ── root cockpit ──────────────────────────────────────────────────────────────
 
 /// Root shell cockpit.
@@ -75,15 +88,7 @@ pub fn Cockpit() -> Element {
     let runtime = use_signal(move || ShellRuntime::new(runtime_root.clone()));
 
     let session_root = workspace_root.clone();
-    let session = use_signal(move || {
-        let ts = now_millis();
-        let mut s = Session::new(ts, session_root.clone(), ts);
-        s.push(SessionEvent::HostNotice {
-            message: "ROY shell cockpit ready".to_string(),
-            ts: ts + 1,
-        });
-        s
-    });
+    let session = use_signal(move || build_cockpit_session(session_root.clone(), now_millis()));
 
     rsx! {
         // Root: fills the OS window
@@ -212,7 +217,7 @@ fn EdgeBtn(
     drawer: &'static str,
     open_drawer: Signal<Option<&'static str>>,
 ) -> Element {
-    let is_active = open_drawer.read().as_deref() == Some(drawer);
+    let is_active = drawer_selected(open_drawer.read().as_deref(), drawer);
     let color = if is_active { CORAL } else { INK_FAINT };
     let bg = if is_active { "rgba(232,120,88,.06)" } else { SURFACE_2 };
     let border = if is_active { "rgba(232,120,88,.35)" } else { LINE };
@@ -256,7 +261,7 @@ fn DrawerShell(
     open_drawer: Signal<Option<&'static str>>,
     children: Element,
 ) -> Element {
-    let open = open_drawer.read().as_deref() == Some(name);
+    let open = drawer_selected(open_drawer.read().as_deref(), name);
     let tx = if open { "translateX(0)" } else { "translateX(calc(100% + 60px))" };
 
     rsx! {
@@ -584,5 +589,170 @@ fn ReviewDrawer(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::session::{ArtifactBody, ArtifactKind, SessionArtifact};
+    use std::path::{Path, PathBuf};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn session() -> Session {
+        Session::new(7, PathBuf::from("/tmp/roy-layout-tests"), 10)
+    }
+
+    #[test]
+    fn now_millis_returns_current_epoch_millis() {
+        let before = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as Timestamp;
+        let ts = now_millis();
+        let after = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as Timestamp;
+
+        assert!(ts >= before, "timestamp must not move backwards");
+        assert!(ts <= after, "timestamp must not exceed the current clock");
+        assert!(ts > 1_000_000_000_000, "timestamp must be in modern epoch millis");
+    }
+
+    #[test]
+    fn short_path_label_prefers_file_name() {
+        assert_eq!(short_path_label(Path::new("/tmp/demo/file.txt")), "file.txt");
+    }
+
+    #[test]
+    fn short_path_label_falls_back_to_display_for_root_like_paths() {
+        assert_eq!(short_path_label(Path::new("/")), "/");
+    }
+
+    #[test]
+    fn relative_scope_label_is_slash_for_workspace_root() {
+        assert_eq!(
+            relative_scope_label(Path::new("/tmp/project"), Path::new("/tmp/project")),
+            "/"
+        );
+    }
+
+    #[test]
+    fn relative_scope_label_formats_child_path() {
+        assert_eq!(
+            relative_scope_label(
+                Path::new("/tmp/project"),
+                Path::new("/tmp/project/src/ui/layout")
+            ),
+            "/src/ui/layout"
+        );
+    }
+
+    #[test]
+    fn relative_scope_label_denies_outside_paths_with_root_marker() {
+        assert_eq!(
+            relative_scope_label(Path::new("/tmp/project"), Path::new("/outside")),
+            "/"
+        );
+    }
+
+    #[test]
+    fn is_session_active_only_until_end_event() {
+        let mut session = session();
+        assert!(is_session_active(&session));
+
+        session.end(9, 20);
+        assert!(!is_session_active(&session));
+    }
+
+    #[test]
+    fn build_cockpit_session_adds_host_notice_after_start_event() {
+        let session = build_cockpit_session(PathBuf::from("/tmp/cockpit"), 42);
+        let events = session.events();
+
+        assert!(matches!(events[0], SessionEvent::SessionStarted { ts: 42 }));
+        assert!(matches!(
+            &events[1],
+            SessionEvent::HostNotice { message, ts }
+            if message == "ROY shell cockpit ready" && *ts == 43
+        ));
+    }
+
+    #[test]
+    fn drawer_selected_matches_only_the_active_drawer() {
+        assert!(drawer_selected(Some("diag"), "diag"));
+        assert!(!drawer_selected(Some("diag"), "review"));
+        assert!(!drawer_selected(None, "diag"));
+    }
+
+    #[test]
+    fn event_row_formats_invoked_command_with_args() {
+        let row = event_row(&SessionEvent::CommandInvoked {
+            command: "read".to_string(),
+            args: vec!["Cargo.toml".to_string(), "--json".to_string()],
+            ts: 12,
+        });
+
+        assert_eq!(
+            row,
+            Some((
+                "CMD".to_string(),
+                "read Cargo.toml --json".to_string(),
+                INK_DIM,
+            ))
+        );
+    }
+
+    #[test]
+    fn event_row_discards_blank_output_lines() {
+        let row = event_row(&SessionEvent::CommandOutput {
+            text: "   ".to_string(),
+            is_error: false,
+            ts: 12,
+        });
+
+        assert_eq!(row, None);
+    }
+
+    #[test]
+    fn event_row_formats_artifacts_with_name_and_summary() {
+        let row = event_row(&SessionEvent::ArtifactCreated {
+            artifact: SessionArtifact {
+                name: "neti-report.txt".to_string(),
+                kind: ArtifactKind::Note,
+                summary: "validation output".to_string(),
+                body: ArtifactBody::Note {
+                    text: "details".to_string(),
+                },
+            },
+            ts: 13,
+        });
+
+        assert_eq!(
+            row,
+            Some((
+                "ARTIFACT".to_string(),
+                "neti-report.txt · validation output".to_string(),
+                MINT,
+            ))
+        );
+    }
+
+    #[test]
+    fn event_row_marks_missing_commands_as_errors() {
+        let row = event_row(&SessionEvent::CommandNotFound {
+            command: "unknown".to_string(),
+            ts: 21,
+        });
+
+        assert_eq!(
+            row,
+            Some((
+                "MISSING".to_string(),
+                "unknown not in ROY world".to_string(),
+                "#f85149",
+            ))
+        );
     }
 }

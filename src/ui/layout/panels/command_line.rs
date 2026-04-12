@@ -4,17 +4,20 @@ pub(crate) struct ParsedCommand {
     pub(crate) args: Vec<String>,
 }
 
-/// Minimal shell-like command line parser.
+/// Parse a command line using the ROY v0.2 AST parser, then flatten the
+/// result to the legacy `ParsedCommand` interface for existing dispatch.
 ///
-/// Supports:
-/// - whitespace-delimited tokens
-/// - single quotes
-/// - double quotes
-/// - backslash escapes outside single quotes
-/// - empty quoted arguments (`""`, `''`)
-///
-/// It is intentionally small, but materially better than `split_whitespace()`.
+/// The full typed AST is available via `crate::commands::ast::parse` directly.
 pub(crate) fn parse_command_line(input: &str) -> Result<ParsedCommand, String> {
+    let ast = crate::commands::ast::parse(input).map_err(|e| e.to_string())?;
+    let (verb, args) = ast.to_argv();
+    Ok(ParsedCommand { command: verb.to_string(), args })
+}
+
+/// Legacy tokeniser kept alive for the unit tests below; not used at runtime.
+#[cfg(test)]
+#[allow(dead_code)]
+fn parse_command_line_legacy(input: &str) -> Result<ParsedCommand, String> {
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     enum Mode {
         Normal,

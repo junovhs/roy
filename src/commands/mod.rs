@@ -9,6 +9,7 @@
 //! - [`CommandRegistry`] — the explicit substitution table
 //! - [`schema`]          — type definitions (Backend, RiskLevel, Visibility)
 
+pub mod ast;
 pub mod fs;
 pub mod registry;
 pub mod schema;

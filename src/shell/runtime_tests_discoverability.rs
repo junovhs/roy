@@ -130,3 +130,14 @@ fn not_found_error_hints_at_help() {
         other => panic!("expected NotFound, got {other:?}"),
     }
 }
+
+#[test]
+fn runtime_command_counts_match_registry_views() {
+    let rt = rt();
+
+    assert_eq!(rt.command_count(), rt.registry().len());
+    assert_eq!(rt.public_command_count(), rt.registry().public_commands().len());
+    assert!(rt.command_count() > rt.public_command_count());
+    assert!(rt.command_count() > 10);
+    assert!(rt.public_command_count() > 5);
+}

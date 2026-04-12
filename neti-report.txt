@@ -1,10 +1,13 @@
-NETI REPORT — PASS | 0 blocking | 2 advisory
+NETI REPORT — PASS | 0 blocking | 6 advisory
 
 COMMANDS
-  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (1908ms)
-  cargo test ... PASS (2323ms)
-LOCALITY: PASS | 57 edges | 0 violations | 0 cycles
+  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (1943ms)
+  cargo test ... PASS (481ms)
+LOCALITY: PASS | 58 edges | 0 violations | 0 cycles
 
 ISSUES
-  src/ui/layout/mod.rs: 5370 tokens (limit 2000)
-  src/ui/layout/panels/terminal.rs: 2783 tokens (limit 2000)
+  src/commands/ast_parse.rs: 2359 tokens (limit 2000) | 6 args (limit 5)
+  src/ui/layout/mod.rs: 7361 tokens (limit 2000)
+  src/ui/layout/panels/terminal_model.rs: 4600 tokens (limit 2000)
+  src/ui/layout/panels/terminal.rs: 3600 tokens (limit 2000)
+  src/commands/ast_tests.rs: 2359 tokens (limit 2000)

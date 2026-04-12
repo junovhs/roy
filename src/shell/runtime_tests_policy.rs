@@ -169,6 +169,19 @@ fn workspace_root_accessible_via_runtime() {
     assert_eq!(rt.workspace_root(), root.as_path());
 }
 
+#[test]
+fn runtime_reports_default_policy_name() {
+    let rt = rt();
+    assert_eq!(rt.policy_name(), "permissive");
+}
+
+#[test]
+fn set_policy_updates_reported_policy_name() {
+    let mut rt = rt();
+    rt.set_policy(PolicyEngine::new(PolicyProfile::dev()));
+    assert_eq!(rt.policy_name(), "dev");
+}
+
 // ── policy gate integration ───────────────────────────────────────────────────
 
 #[test]
