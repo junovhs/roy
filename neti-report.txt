@@ -1,29 +1,9 @@
 NETI REPORT — FAIL | 1 blocking | 0 advisory
 
 COMMANDS
-  cargo clippy --all-targets --no-deps -- -D warnings ... FAIL (1113ms)
-    Checking roy v0.1.4 (/home/juno/roy)
-    error[E0432]: unresolved imports `submit::handle_submit`, `submit::SubmitContext`
-     --> src/ui/layout/panels/terminal_model.rs:7:25
-      |
-    7 | pub(super) use submit::{handle_submit, SubmitContext};
-      |                         ^^^^^^^^^^^^^  ^^^^^^^^^^^^^ no `SubmitContext` in `ui::layout::panels::terminal_model::submit`
-      |                         |
-      |                         no `handle_submit` in `ui::layout::panels::terminal_model::submit`
-      |
-      = help: consider importing this struct instead:
-  cargo test ... FAIL (955ms)
-    Compiling roy v0.1.4 (/home/juno/roy)
-    error[E0432]: unresolved imports `submit::handle_submit`, `submit::SubmitContext`
-     --> src/ui/layout/panels/terminal_model.rs:7:25
-      |
-    7 | pub(super) use submit::{handle_submit, SubmitContext};
-      |                         ^^^^^^^^^^^^^  ^^^^^^^^^^^^^ no `SubmitContext` in `ui::layout::panels::terminal_model::submit`
-      |                         |
-      |                         no `handle_submit` in `ui::layout::panels::terminal_model::submit`
-      |
-      = help: consider importing this struct instead:
-LOCALITY: PASS | 92 edges | 0 violations | 0 cycles
+  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (346ms)
+  cargo test ... PASS (421ms)
+LOCALITY: PASS | 93 edges | 0 violations | 0 cycles
 
 ISSUES
   src/ui/layout/panels/terminal.rs: syntax error

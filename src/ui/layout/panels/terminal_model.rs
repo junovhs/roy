@@ -1,10 +1,9 @@
 pub(super) const TEXT_ERROR: &str = "#f85149";
 
-#[path = "terminal_submit.rs"]
-mod submit;
 #[cfg(test)]
-pub(super) use submit::record_session_outcome;
-pub(super) use submit::{handle_submit, SubmitContext};
+pub(super) use super::terminal::terminal_submit::record_session_outcome;
+#[cfg(test)]
+pub(super) use super::terminal::{handle_submit, SubmitContext};
 
 // ── line kind ─────────────────────────────────────────────────────────────────
 

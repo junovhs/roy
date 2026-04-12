@@ -8,7 +8,7 @@ mod terminal_composer;
 #[path = "terminal_line.rs"]
 mod terminal_line;
 #[path = "terminal_submit.rs"]
-mod terminal_submit;
+pub(super) mod terminal_submit;
 #[path = "terminal_view.rs"]
 mod terminal_view;
 
@@ -28,6 +28,36 @@ pub(crate) struct SubmitContext {
     pub(crate) input_text: Signal<String>,
 }
 
+fn parse_submitted_command(
+    raw: &str,
+    pre_prompt: &str,
+    ctx: &mut SubmitContext,
+) -> Option<super::command_line::ParsedCommand> {
+    let parsed = super::command_line::parse_command_line(raw);
+
+    if let Err(message) = parsed.as_ref() {
+        let error_text = format!("parse error: {}", message);
+        let ts = super::super::now_millis();
+
+        ctx.session.write().push(SessionEvent::CommandOutput {
+            text: error_text.clone(),
+            is_error: true,
+            ts,
+        });
+
+        let mut lines = ctx.lines.write();
+        lines.push(super::terminal_model::ShellLine::echo(
+            pre_prompt.to_string(),
+            raw.to_string(),
+        ));
+        lines.push(super::terminal_model::ShellLine::error(error_text));
+        ctx.input_text.set(String::new());
+        return None;
+    }
+
+    parsed.ok()
+}
+
 pub(crate) fn handle_submit(raw: String, pre_prompt: String, mut ctx: SubmitContext) {
     let ts = super::super::now_millis();
     ctx.session.write().push(SessionEvent::UserInput {
@@ -35,24 +65,10 @@ pub(crate) fn handle_submit(raw: String, pre_prompt: String, mut ctx: SubmitCont
         ts,
     });
 
-    let parsed = match super::command_line::parse_command_line(&raw) {
-        Ok(parsed) => parsed,
-        Err(message) => {
-            let error_text = format!("parse error: {}", message);
-            let ts = super::super::now_millis();
-
-            ctx.session.write().push(SessionEvent::CommandOutput {
-                text: error_text.clone(),
-                is_error: true,
-                ts,
-            });
-
-            let mut lines = ctx.lines.write();
-            lines.push(super::terminal_model::ShellLine::echo(pre_prompt, raw));
-            lines.push(super::terminal_model::ShellLine::error(error_text));
-            ctx.input_text.set(String::new());
-            return;
-        }
+    let parsed = if let Some(parsed) = parse_submitted_command(&raw, &pre_prompt, &mut ctx) {
+        parsed
+    } else {
+        return;
     };
 
     let ts = super::super::now_millis();
