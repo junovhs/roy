@@ -1,6 +1,4 @@
 #![allow(dead_code)]
-
-use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -50,8 +48,8 @@ pub(super) fn launch_supervised_agent(
 
     let queue: Arc<Mutex<Vec<SupervisionEvent>>> = Arc::new(Mutex::new(Vec::new()));
 
-    spawn_line_reader(Arc::clone(&queue), stdout, config.session_id, label, false);
-    spawn_line_reader(Arc::clone(&queue), stderr, config.session_id, label, true);
+    spawn_chunk_reader(Arc::clone(&queue), stdout, config.session_id, label, false);
+    spawn_chunk_reader(Arc::clone(&queue), stderr, config.session_id, label, true);
 
     let exit_q = Arc::clone(&queue);
     let sid = config.session_id;
@@ -95,9 +93,9 @@ pub(super) fn probe_version(binary: &PathBuf) -> Result<String, AgentError> {
         .map_err(|e| AgentError::launch_failed(e.to_string()))
 }
 
-fn spawn_line_reader<R>(
+fn spawn_chunk_reader<R>(
     queue: Arc<Mutex<Vec<SupervisionEvent>>>,
-    reader: R,
+    mut reader: R,
     session_id: u64,
     label: &str,
     is_stderr: bool,
@@ -109,15 +107,20 @@ fn spawn_line_reader<R>(
     thread::Builder::new()
         .name(name)
         .spawn(move || {
-            let buf = BufReader::new(reader);
-            for line in buf.lines().map_while(Result::ok) {
-                let event = if is_stderr {
-                    SupervisionEvent::ErrorLine { text: line }
-                } else {
-                    SupervisionEvent::OutputLine { text: line }
-                };
-                if let Ok(mut q) = queue.lock() {
-                    q.push(event);
+            let mut buf = [0_u8; 4096];
+            loop {
+                match reader.read(&mut buf) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        if let Ok(mut q) = queue.lock() {
+                            q.push(SupervisionEvent::OutputChunk {
+                                bytes: buf[..n].to_vec(),
+                                is_stderr,
+                            });
+                        }
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                    Err(_) => break,
                 }
             }
         })

@@ -1,9 +1,0 @@
-NETI REPORT — FAIL | 1 blocking | 0 advisory
-
-COMMANDS
-  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (346ms)
-  cargo test ... PASS (421ms)
-LOCALITY: PASS | 93 edges | 0 violations | 0 cycles
-
-ISSUES
-  src/ui/layout/panels/terminal.rs: syntax error

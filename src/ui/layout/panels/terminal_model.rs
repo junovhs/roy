@@ -26,7 +26,7 @@ pub(super) enum LineKind {
 
 // ── shell line ────────────────────────────────────────────────────────────────
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub(super) struct ShellLine {
     pub(super) prefix: String,
     pub(super) text: String,

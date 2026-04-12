@@ -70,6 +70,7 @@ pub enum SupervisionEvent {
     AgentStarted { pid: u32 },
     OutputLine { text: String },
     ErrorLine { text: String },
+    OutputChunk { bytes: Vec<u8>, is_stderr: bool },
     CommandAttempt { command: String, args: Vec<String> },
     ProcessExited { code: i32 },
 }

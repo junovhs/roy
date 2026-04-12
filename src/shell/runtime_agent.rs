@@ -85,12 +85,12 @@ impl ShellRuntime {
         }
     }
 
-    /// Drain new events from the running agent into output lines.
+    /// Drain new supervision events from the running agent.
     ///
-    /// Returns `(lines, exited)`. When `exited` is true the agent has
+    /// Returns `(events, exited)`. When `exited` is true the agent has
     /// terminated and the handle has been cleared. Safe to call every tick
     /// even when no agent is running.
-    pub fn poll_agent_lines(&mut self) -> (Vec<String>, bool) {
+    pub fn poll_agent_events(&mut self) -> (Vec<SupervisionEvent>, bool) {
         let Some(handle) = &mut self.agent_handle else {
             return (Vec::new(), false);
         };
@@ -98,11 +98,28 @@ impl ShellRuntime {
         let events = handle.take_events();
         let exited = handle.has_exited();
 
+        if exited {
+            self.agent_handle = None;
+        }
+        (events, exited)
+    }
+
+    /// Drain new events from the running agent into output lines.
+    ///
+    /// Legacy line view kept for tests and plain output paths.
+    pub fn poll_agent_lines(&mut self) -> (Vec<String>, bool) {
+        let (events, exited) = self.poll_agent_events();
         let mut lines = Vec::new();
+
         for event in events {
             match event {
-                SupervisionEvent::OutputLine { text } => lines.push(text),
-                SupervisionEvent::ErrorLine { text } => lines.push(text),
+                SupervisionEvent::OutputLine { text } | SupervisionEvent::ErrorLine { text } => {
+                    lines.push(text);
+                }
+                SupervisionEvent::OutputChunk { bytes, .. } => {
+                    let text = String::from_utf8_lossy(&bytes);
+                    lines.extend(text.split('\n').map(str::to_string));
+                }
                 SupervisionEvent::ProcessExited { code } => {
                     lines.push(format!("[claude-code exited · code {code}]"));
                 }
@@ -118,9 +135,6 @@ impl ShellRuntime {
             }
         }
 
-        if exited {
-            self.agent_handle = None;
-        }
         (lines, exited)
     }
 
