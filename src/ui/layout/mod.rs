@@ -1,29 +1,27 @@
-mod artifacts_row;
-mod atoms;
 mod chrome;
-mod footer;
 mod panels;
 
 use dioxus::prelude::*;
 
 use crate::session::{Session, SessionEvent, Timestamp};
 use crate::shell::ShellRuntime;
-use artifacts_row::ArtifactsRow;
 use chrome::Header;
-use footer::DiagnosticsPane;
-use panels::{ActivityPanel, ShellPane, WorkspacePanel};
+use panels::ShellPane;
 
-// ── palette ──────────────────────────────────────────────────────────────────
+// ── palette ───────────────────────────────────────────────────────────────────
 
-pub(crate) const BG_BASE: &str = "#0d0f12";
-pub(crate) const BG_PANEL: &str = "#161b22";
-pub(crate) const BG_SHELL: &str = "#010409";
-pub(crate) const BG_HEADER: &str = "#0d1117";
-pub(crate) const BORDER: &str = "#30363d";
-pub(crate) const TEXT_PRIMARY: &str = "#c9d1d9";
-pub(crate) const TEXT_DIM: &str = "#6e7681";
-pub(crate) const TEXT_ACCENT: &str = "#e8944a";
-pub(crate) const TEXT_YELLOW: &str = "#d29922";
+pub(crate) const INK: &str = "#e6e4df";
+pub(crate) const INK_DIM: &str = "#9b9892";
+pub(crate) const INK_FAINT: &str = "#5f5d58";
+pub(crate) const LINE: &str = "rgba(255,255,255,.06)";
+pub(crate) const LINE_2: &str = "rgba(255,255,255,.1)";
+pub(crate) const MINT: &str = "#a8c5b4";
+pub(crate) const CORAL: &str = "#e87858";
+pub(crate) const CORAL_SOFT: &str = "#f09a7e";
+pub(crate) const PEACH: &str = "#e8b494";
+pub(crate) const SURFACE_2: &str = "#1c1d21";
+
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 pub(crate) fn now_millis() -> Timestamp {
     std::time::SystemTime::now()
@@ -59,15 +57,19 @@ pub(crate) fn is_session_active(session: &Session) -> bool {
     )
 }
 
-// ── root cockpit ─────────────────────────────────────────────────────────────
+// ── root cockpit ──────────────────────────────────────────────────────────────
 
-/// Root shell cockpit. Owns the [`ShellRuntime`] session and wraps the
-/// workspace header, three-column body (workspace context | shell pane |
-/// activity/approvals), artifacts row, and collapsible diagnostics pane.
+/// Root shell cockpit.
+///
+/// Fills the OS window directly — no inner card, no outer padding.
+/// Layout: traffic-light dots (absolute) + marquee header + main area
+/// (pod-wrapper with ShellPane + edge buttons + slide-in drawers).
 #[component]
 pub fn Cockpit() -> Element {
-    let diag_open = use_signal(|| false);
-    let workspace_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let open_drawer: Signal<Option<&'static str>> = use_signal(|| None);
+
+    let workspace_root =
+        std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
 
     let runtime_root = workspace_root.clone();
     let runtime = use_signal(move || ShellRuntime::new(runtime_root.clone()));
@@ -75,42 +77,512 @@ pub fn Cockpit() -> Element {
     let session_root = workspace_root.clone();
     let session = use_signal(move || {
         let ts = now_millis();
-        let mut session = Session::new(ts, session_root.clone(), ts);
-        session.push(SessionEvent::HostNotice {
+        let mut s = Session::new(ts, session_root.clone(), ts);
+        s.push(SessionEvent::HostNotice {
             message: "ROY shell cockpit ready".to_string(),
             ts: ts + 1,
         });
-        session
+        s
     });
 
     rsx! {
+        // Root: fills the OS window
         div {
             style: "
                 display: flex;
                 flex-direction: column;
                 height: 100vh;
                 width: 100vw;
-                background: {BG_BASE};
-                color: {TEXT_PRIMARY};
-                font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
-                font-size: 13px;
-                line-height: 1.5;
+                position: relative;
+                background: linear-gradient(180deg,#1e1f23 0%,#16171a 100%);
                 overflow: hidden;
+                -webkit-font-smoothing: antialiased;
+                font-family: 'Geist', 'Inter', -apple-system, sans-serif;
+                font-size: 15px;
+                color: {INK};
                 box-sizing: border-box;
             ",
 
-            Header { runtime, session }
+            WindowResizeZones {}
 
+            // ── titlebar: window controls + header (drag region) ─────────
             div {
-                style: "display: flex; flex: 1; overflow: hidden; border-top: 1px solid {BORDER};",
+                style: "position: relative; flex-shrink: 0;",
+                onmousedown: move |_| { dioxus::desktop::window().drag(); },
 
-                WorkspacePanel { runtime, session }
-                ShellPane { runtime, session }
-                ActivityPanel { session }
+                // traffic-light window controls
+                div {
+                    style: "
+                        position: absolute;
+                        top: 50%;
+                        left: 16px;
+                        transform: translateY(-50%);
+                        display: flex;
+                        gap: 7px;
+                        z-index: 6;
+                    ",
+                    // Close — red
+                    button {
+                        style: "width:11px;height:11px;border-radius:50%;background:#ff5f57;border:none;padding:0;cursor:pointer;",
+                        title: "Close",
+                        onmousedown: move |e| e.stop_propagation(),
+                        onclick: move |_| { dioxus::desktop::window().close(); },
+                    }
+                    // Minimize — yellow
+                    button {
+                        style: "width:11px;height:11px;border-radius:50%;background:#febc2e;border:none;padding:0;cursor:pointer;",
+                        title: "Minimize",
+                        onmousedown: move |e| e.stop_propagation(),
+                        onclick: move |_| { dioxus::desktop::window().window.set_minimized(true); },
+                    }
+                    // Maximize / restore — green
+                    button {
+                        style: "width:11px;height:11px;border-radius:50%;background:#28c840;border:none;padding:0;cursor:pointer;",
+                        title: "Maximize",
+                        onmousedown: move |e| e.stop_propagation(),
+                        onclick: move |_| { dioxus::desktop::window().toggle_maximized(); },
+                    }
+                }
+
+                // marquee header (draggable via parent onmousedown)
+                Header { runtime, session }
             }
 
-            ArtifactsRow { session }
-            DiagnosticsPane { open: diag_open, runtime, session }
+            // ── main area ─────────────────────────────────────────────────
+            div {
+                style: "
+                    flex: 1;
+                    display: flex;
+                    position: relative;
+                    min-height: 0;
+                    padding: 20px 28px 20px;
+                ",
+
+                // ── canvas ────────────────────────────────────────────────
+                div {
+                    style: "flex: 1; display: flex; min-height: 0; position: relative;",
+
+                    // ── pod-wrapper ───────────────────────────────────────
+                    div {
+                        style: "
+                            flex: 1;
+                            position: relative;
+                            display: flex;
+                            flex-direction: column;
+                            min-width: 0;
+                        ",
+
+                        ShellPane { runtime, session }
+
+                        // ── edge buttons ──────────────────────────────────
+                        div {
+                            style: "
+                                position: absolute;
+                                right: 14px;
+                                top: 50%;
+                                transform: translateY(-50%);
+                                display: flex;
+                                flex-direction: column;
+                                gap: 6px;
+                                z-index: 3;
+                            ",
+                            EdgeBtn { label: "!", drawer: "attention", open_drawer }
+                            EdgeBtn { label: "R", drawer: "review",    open_drawer }
+                            EdgeBtn { label: "A", drawer: "activity",  open_drawer }
+                            EdgeBtn { label: "D", drawer: "diag",      open_drawer }
+                        }
+                    }
+                }
+
+                // ── slide-in drawers (absolute within main) ───────────────
+                ActivityDrawer  { open_drawer, session }
+                DiagDrawer      { open_drawer, runtime, session }
+                AttentionDrawer { open_drawer, session }
+                ReviewDrawer    { open_drawer, session }
+            }
+        }
+    }
+}
+
+// ── edge button ───────────────────────────────────────────────────────────────
+
+#[component]
+fn EdgeBtn(
+    label: &'static str,
+    drawer: &'static str,
+    open_drawer: Signal<Option<&'static str>>,
+) -> Element {
+    let is_active = open_drawer.read().as_deref() == Some(drawer);
+    let color = if is_active { CORAL } else { INK_FAINT };
+    let bg = if is_active { "rgba(232,120,88,.06)" } else { SURFACE_2 };
+    let border = if is_active { "rgba(232,120,88,.35)" } else { LINE };
+
+    rsx! {
+        button {
+            style: "
+                width: 30px;
+                height: 30px;
+                border-radius: 8px;
+                background: {bg};
+                border: 1px solid {border};
+                color: {color};
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: 'Geist', sans-serif;
+                font-size: 14px;
+                font-weight: 500;
+                transition: all .2s;
+            ",
+            onclick: move |_| {
+                let cur = open_drawer.read().as_deref() == Some(drawer);
+                open_drawer.set(if cur { None } else { Some(drawer) });
+            },
+            "{label}"
+        }
+    }
+}
+
+// ── drawer shell ──────────────────────────────────────────────────────────────
+
+/// Sliding overlay panel. Always rendered; CSS transform hides/shows it.
+/// The root window's overflow:hidden clips the offscreen state.
+#[component]
+fn DrawerShell(
+    name: &'static str,
+    title: &'static str,
+    subtitle: &'static str,
+    open_drawer: Signal<Option<&'static str>>,
+    children: Element,
+) -> Element {
+    let open = open_drawer.read().as_deref() == Some(name);
+    let tx = if open { "translateX(0)" } else { "translateX(calc(100% + 60px))" };
+
+    rsx! {
+        div {
+            style: "
+                position: absolute;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                width: 380px;
+                background: {SURFACE_2};
+                border: 1px solid {LINE_2};
+                border-radius: 10px;
+                transform: {tx};
+                transition: transform .4s cubic-bezier(.32,.72,0,1);
+                display: flex;
+                flex-direction: column;
+                z-index: 20;
+                box-shadow: 0 30px 60px rgba(0,0,0,.4);
+            ",
+
+            // drawer header
+            div {
+                style: "
+                    padding: 20px 22px 14px;
+                    border-bottom: 1px solid {LINE};
+                    display: flex;
+                    align-items: baseline;
+                    justify-content: space-between;
+                    flex-shrink: 0;
+                ",
+                div {
+                    div { style: "font-size: 12px; color: {INK_FAINT}; margin-bottom: 2px;", "— {subtitle} —" }
+                    div {
+                        style: "
+                            font-family: 'Fraunces', Georgia, serif;
+                            font-style: italic;
+                            font-weight: 300;
+                            font-size: 24px;
+                            color: {INK};
+                        ",
+                        "{title}"
+                    }
+                }
+                button {
+                    style: "background:none;border:none;color:{INK_FAINT};cursor:pointer;font-size:22px;line-height:1;padding:0 2px;",
+                    onclick: move |_| open_drawer.set(None),
+                    "×"
+                }
+            }
+
+            // drawer body
+            div {
+                style: "flex: 1; overflow-y: auto; padding: 16px 22px 20px;",
+                {children}
+            }
+        }
+    }
+}
+
+// ── activity drawer ───────────────────────────────────────────────────────────
+
+#[component]
+fn ActivityDrawer(
+    open_drawer: Signal<Option<&'static str>>,
+    session: Signal<Session>,
+) -> Element {
+    let session = session.read();
+    let events: Vec<(String, String, &'static str)> = session
+        .events()
+        .iter()
+        .rev()
+        .filter_map(event_row)
+        .take(20)
+        .collect();
+
+    rsx! {
+        DrawerShell { name: "activity", title: "Activity", subtitle: "Session", open_drawer,
+            if events.is_empty() {
+                div { style: "color: {INK_FAINT}; font-size: 13px;", "No events yet." }
+            } else {
+                for (tag, msg, color) in events {
+                    div {
+                        style: "display:flex;gap:14px;padding:10px 0;border-bottom:1px solid {LINE};",
+                        span {
+                            style: "font-family:'JetBrains Mono',monospace;color:{INK_FAINT};font-size:12px;min-width:48px;padding-top:1px;",
+                            "{tag}"
+                        }
+                        span {
+                            style: "font-size:14px;color:{color};flex:1;line-height:1.45;",
+                            "{msg}"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn event_row(event: &SessionEvent) -> Option<(String, String, &'static str)> {
+    match event {
+        SessionEvent::SessionStarted { .. } => {
+            Some(("SESSION".to_string(), "shell session opened".to_string(), MINT))
+        }
+        SessionEvent::SessionEnded { exit_code, .. } => Some((
+            "SESSION".to_string(),
+            format!("ended · exit {exit_code}"),
+            INK_FAINT,
+        )),
+        SessionEvent::UserInput { text, .. } => {
+            Some(("INPUT".to_string(), text.clone(), CORAL_SOFT))
+        }
+        SessionEvent::CommandInvoked { command, args, .. } => Some((
+            "CMD".to_string(),
+            if args.is_empty() {
+                command.clone()
+            } else {
+                format!("{command} {}", args.join(" "))
+            },
+            INK_DIM,
+        )),
+        SessionEvent::CommandOutput { text, is_error, .. } => {
+            if text.trim().is_empty() {
+                return None;
+            }
+            Some((
+                if *is_error { "STDERR" } else { "STDOUT" }.to_string(),
+                text.clone(),
+                if *is_error { "#f85149" } else { INK },
+            ))
+        }
+        SessionEvent::CommandDenied { command, .. } => {
+            Some(("DENIED".to_string(), format!("{command} blocked"), "#f85149"))
+        }
+        SessionEvent::CommandNotFound { command, .. } => Some((
+            "MISSING".to_string(),
+            format!("{command} not in ROY world"),
+            "#f85149",
+        )),
+        SessionEvent::CwdChanged { to, .. } => {
+            Some(("CWD".to_string(), to.display().to_string(), INK_DIM))
+        }
+        SessionEvent::HostNotice { message, .. } => {
+            Some(("HOST".to_string(), message.clone(), INK_DIM))
+        }
+        SessionEvent::ArtifactCreated { artifact, .. } => Some((
+            "ARTIFACT".to_string(),
+            format!("{} · {}", artifact.name, artifact.summary),
+            MINT,
+        )),
+        SessionEvent::AgentOutput { text, .. } => {
+            Some(("AGENT".to_string(), text.clone(), INK))
+        }
+    }
+}
+
+// ── diagnostics drawer ────────────────────────────────────────────────────────
+
+#[component]
+fn DiagDrawer(
+    open_drawer: Signal<Option<&'static str>>,
+    runtime: Signal<ShellRuntime>,
+    session: Signal<Session>,
+) -> Element {
+    let rt = runtime.read();
+    let sess = session.read();
+
+    let root = rt.workspace_root().display().to_string();
+    let cwd = rt.env().cwd().display().to_string();
+    let scope = relative_scope_label(rt.workspace_root(), rt.env().cwd());
+    let policy = rt.policy_name().to_string();
+    let sess_line = format!("#{} · {} events", sess.id, sess.len());
+    let artifact_count = sess.artifacts().len();
+    let cmd_count = rt.public_command_count();
+
+    rsx! {
+        DrawerShell { name: "diag", title: "Diagnostics", subtitle: "Internals", open_drawer,
+            DiagRow { label: "root",      value: root }
+            DiagRow { label: "cwd",       value: cwd }
+            DiagRow { label: "scope",     value: scope }
+            DiagRow { label: "policy",    value: policy }
+            DiagRow { label: "session",   value: sess_line }
+            DiagRow { label: "artifacts", value: artifact_count.to_string() }
+            DiagRow { label: "commands",  value: format!("{cmd_count} public") }
+            DiagRow { label: "runtime",   value: format!("ROY v{}", env!("CARGO_PKG_VERSION")) }
+        }
+    }
+}
+
+#[component]
+fn DiagRow(label: &'static str, value: String) -> Element {
+    rsx! {
+        div {
+            style: "
+                display: flex;
+                justify-content: space-between;
+                padding: 7px 0;
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 12.5px;
+                border-bottom: 1px solid {LINE};
+            ",
+            span { style: "color: {INK_FAINT};", "{label}" }
+            span {
+                style: "color:{INK};text-align:right;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;",
+                "{value}"
+            }
+        }
+    }
+}
+
+// ── attention drawer ──────────────────────────────────────────────────────────
+
+#[component]
+fn AttentionDrawer(
+    open_drawer: Signal<Option<&'static str>>,
+    session: Signal<Session>,
+) -> Element {
+    let sess = session.read();
+    let denied: Vec<(String, String)> = sess
+        .events()
+        .iter()
+        .rev()
+        .filter_map(|e| {
+            if let SessionEvent::CommandDenied { command, suggestion, .. } = e {
+                Some((
+                    command.clone(),
+                    suggestion.clone().unwrap_or_default(),
+                ))
+            } else {
+                None
+            }
+        })
+        .take(5)
+        .collect();
+
+    rsx! {
+        DrawerShell { name: "attention", title: "Attention", subtitle: "Needs you", open_drawer,
+            if denied.is_empty() {
+                div {
+                    style: "padding:20px 16px;border:1px solid {LINE};border-radius:9px;background:rgba(255,255,255,.015);",
+                    div { style: "font-size:12px;color:{INK_FAINT};margin-bottom:6px;", "All clear" }
+                    div { style: "font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:19px;color:{INK};margin-bottom:7px;", "No blocked commands" }
+                    div { style: "font-size:13.5px;color:{INK_DIM};line-height:1.55;", "Denied commands and approval requests will appear here." }
+                }
+            } else {
+                for (cmd, suggestion) in denied {
+                    div {
+                        style: "padding:14px 16px;margin-bottom:10px;border:1px solid rgba(232,120,88,.25);border-radius:9px;background:rgba(232,120,88,.04);",
+                        div { style: "font-size:12px;color:{CORAL_SOFT};margin-bottom:6px;", "Blocked · Policy" }
+                        div { style: "font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:19px;color:{INK};margin-bottom:7px;", "{cmd}" }
+                        if !suggestion.is_empty() {
+                            div { style: "font-size:13.5px;color:{INK_DIM};line-height:1.55;", "{suggestion}" }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── window resize zones ───────────────────────────────────────────────────────
+
+/// Invisible fixed-position hit zones that enable frameless window resizing.
+/// Each zone sets an appropriate CSS cursor and calls tao's drag_resize_window.
+#[component]
+fn WindowResizeZones() -> Element {
+    use dioxus::desktop::tao::window::ResizeDirection;
+
+    macro_rules! zone {
+        ($style:expr, $dir:expr) => {{
+            let dir = $dir;
+            rsx! {
+                div {
+                    style: $style,
+                    onmousedown: move |e| {
+                        e.stop_propagation();
+                        let _ = dioxus::desktop::window().window.drag_resize_window(dir);
+                    },
+                }
+            }
+        }};
+    }
+
+    rsx! {
+        // edges
+        {zone!("position:fixed;top:0;left:16px;right:16px;height:10px;cursor:n-resize;z-index:9999;",  ResizeDirection::North)}
+        {zone!("position:fixed;bottom:0;left:16px;right:16px;height:10px;cursor:s-resize;z-index:9999;", ResizeDirection::South)}
+        {zone!("position:fixed;left:0;top:16px;bottom:16px;width:10px;cursor:w-resize;z-index:9999;",  ResizeDirection::West)}
+        {zone!("position:fixed;right:0;top:16px;bottom:16px;width:10px;cursor:e-resize;z-index:9999;",  ResizeDirection::East)}
+        // corners
+        {zone!("position:fixed;top:0;left:0;width:16px;height:16px;cursor:nw-resize;z-index:10000;",  ResizeDirection::NorthWest)}
+        {zone!("position:fixed;top:0;right:0;width:16px;height:16px;cursor:ne-resize;z-index:10000;", ResizeDirection::NorthEast)}
+        {zone!("position:fixed;bottom:0;left:0;width:16px;height:16px;cursor:sw-resize;z-index:10000;", ResizeDirection::SouthWest)}
+        {zone!("position:fixed;bottom:0;right:0;width:16px;height:16px;cursor:se-resize;z-index:10000;", ResizeDirection::SouthEast)}
+    }
+}
+
+// ── review drawer ─────────────────────────────────────────────────────────────
+
+#[component]
+fn ReviewDrawer(
+    open_drawer: Signal<Option<&'static str>>,
+    session: Signal<Session>,
+) -> Element {
+    let sess = session.read();
+    let artifacts: Vec<_> = sess.artifacts().into_iter().rev().cloned().collect();
+
+    rsx! {
+        DrawerShell { name: "review", title: "Review", subtitle: "Outcome", open_drawer,
+            if artifacts.is_empty() {
+                div {
+                    style: "padding:20px 16px;border:1px solid {LINE};border-radius:9px;background:rgba(255,255,255,.015);",
+                    div { style: "font-size:12px;color:{INK_FAINT};margin-bottom:6px;", "Pending" }
+                    div { style: "font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:19px;color:{INK};margin-bottom:7px;", "No artifacts yet" }
+                    div { style: "font-size:13.5px;color:{INK_DIM};line-height:1.55;", "Run write, check, or trigger a denied command to promote artifacts here." }
+                }
+            } else {
+                for artifact in &artifacts {
+                    div {
+                        style: "padding:14px 16px;margin-bottom:10px;border:1px solid {LINE};border-radius:9px;background:rgba(255,255,255,.015);",
+                        div { style: "font-size:12px;color:{MINT};margin-bottom:6px;", "✓ {artifact.kind.as_str()}" }
+                        div { style: "font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:19px;color:{INK};margin-bottom:7px;", "{artifact.name}" }
+                        div { style: "font-size:13.5px;color:{INK_DIM};line-height:1.55;", "{artifact.summary}" }
+                    }
+                }
+            }
         }
     }
 }

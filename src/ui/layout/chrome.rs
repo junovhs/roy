@@ -3,79 +3,111 @@ use dioxus::prelude::*;
 use crate::session::{Session, SessionEvent};
 use crate::shell::ShellRuntime;
 
-use super::{short_path_label, BORDER, TEXT_ACCENT, TEXT_DIM, TEXT_PRIMARY};
+use super::{short_path_label, CORAL, INK, INK_FAINT, LINE, MINT, PEACH};
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-const STATUS_ACTIVE: &str = "#3fb950";
-const STATUS_IDLE: &str = "#d29922";
-const STATUS_DONE: &str = "#6e7681";
 
-// ── header ───────────────────────────────────────────────────────────────────
+// ── header / marquee ─────────────────────────────────────────────────────────
 
+/// Top bar: Roy brand mark, session strip, and health chip.
 #[component]
 pub(super) fn Header(runtime: Signal<ShellRuntime>, session: Signal<Session>) -> Element {
-    use super::BG_HEADER;
-
     let runtime = runtime.read();
     let session = session.read();
     let workspace = short_path_label(runtime.workspace_root());
     let policy = runtime.policy_name().to_string();
+    let event_count = session.len();
     let active = !matches!(
         session.events().last(),
         Some(SessionEvent::SessionEnded { .. })
     );
-    let status_color = if active {
-        if session.len() > 1 {
-            STATUS_ACTIVE
+
+    let (dot_bg, dot_shadow, chip_color, status_text) = if active {
+        if event_count > 2 {
+            (MINT, "rgba(168,197,180,.4)", MINT, "Running normally")
         } else {
-            STATUS_IDLE
+            (PEACH, "rgba(232,180,148,.4)", PEACH, "Idle")
         }
     } else {
-        STATUS_DONE
-    };
-    let status_text = if active {
-        format!("session #{} · {} events", session.id, session.len())
-    } else {
-        format!("session #{} ended", session.id)
+        ("#5f5d58", "none", "#5f5d58", "Session ended")
     };
 
     rsx! {
         div {
             style: "
+                padding: 18px 28px 14px 70px;
                 display: flex;
                 align-items: center;
-                justify-content: space-between;
-                padding: 6px 16px;
-                background: {BG_HEADER};
-                border-bottom: 1px solid {BORDER};
+                gap: 20px;
+                border-bottom: 1px solid {LINE};
+                position: relative;
+                z-index: 4;
                 flex-shrink: 0;
             ",
 
-            div {
-                style: "display: flex; align-items: center; gap: 16px;",
-                span {
-                    style: "color: {TEXT_ACCENT}; font-weight: bold; letter-spacing: 0.08em;",
-                    "ROY"
-                }
-                span {
-                    style: "color: {TEXT_DIM}; font-size: 11px;",
-                    "v{APP_VERSION} - controlled shell host"
-                }
+            // ── brand mark ─────────────────────────────────────────────────
+            span {
+                style: "
+                    font-family: 'Fraunces', Georgia, serif;
+                    font-size: 26px;
+                    font-weight: 300;
+                    font-style: italic;
+                    color: {CORAL};
+                    line-height: 1;
+                    letter-spacing: -0.01em;
+                    flex-shrink: 0;
+                ",
+                "ROY"
             }
 
+            // ── session strip ───────────────────────────────────────────────
             div {
-                style: "display: flex; align-items: center; gap: 12px;",
-                Badge { label: "workspace", value: workspace, color: TEXT_PRIMARY }
-                Badge { label: "policy", value: policy, color: TEXT_PRIMARY }
-                Badge { label: "agent", value: "local shell".to_string(), color: TEXT_DIM }
-                Badge { label: "release", value: format!("v{APP_VERSION}"), color: TEXT_DIM }
+                style: "
+                    flex: 1;
+                    display: flex;
+                    align-items: center;
+                    gap: 22px;
+                    padding-left: 22px;
+                    border-left: 1px solid {LINE};
+                ",
+                StripItem { label: "Agent", value: "local-shell".to_string() }
+                StripItem { label: "Workspace", value: workspace }
+                StripItem { label: "Policy", value: policy }
+                StripItem { label: "v", value: format!("v{APP_VERSION}") }
             }
 
+            // ── health chip ─────────────────────────────────────────────────
             div {
-                style: "display: flex; align-items: center; gap: 8px;",
-                StatusDot { color: status_color }
+                style: "
+                    margin-left: auto;
+                    display: flex;
+                    align-items: center;
+                    gap: 9px;
+                    padding: 6px 13px;
+                    border: 1px solid {LINE};
+                    border-radius: 100px;
+                    background: rgba(255,255,255,.02);
+                    flex-shrink: 0;
+                ",
+                div {
+                    style: "
+                        width: 6px;
+                        height: 6px;
+                        border-radius: 50%;
+                        background: {dot_bg};
+                        box-shadow: 0 0 8px {dot_shadow};
+                        animation: pulse 2.4s ease-in-out infinite;
+                        flex-shrink: 0;
+                    "
+                }
                 span {
-                    style: "color: {TEXT_DIM}; font-size: 11px;",
+                    style: "
+                        font-family: 'Geist', sans-serif;
+                        font-size: 13.5px;
+                        color: {chip_color};
+                        font-weight: 400;
+                        white-space: nowrap;
+                    ",
                     "{status_text}"
                 }
             }
@@ -83,34 +115,21 @@ pub(super) fn Header(runtime: Signal<ShellRuntime>, session: Signal<Session>) ->
     }
 }
 
-// ── badge ─────────────────────────────────────────────────────────────────────
+// ── strip item ────────────────────────────────────────────────────────────────
 
 #[component]
-fn Badge(label: &'static str, value: String, color: &'static str) -> Element {
+fn StripItem(label: &'static str, value: String) -> Element {
     rsx! {
         div {
-            style: "
-                display: flex;
-                align-items: center;
-                gap: 4px;
-                background: #1c2128;
-                border: 1px solid {BORDER};
-                border-radius: 4px;
-                padding: 2px 8px;
-            ",
-            span { style: "color: {TEXT_DIM}; font-size: 10px;", "{label}" }
-            span { style: "color: {color}; font-size: 10px;",    "{value}" }
-        }
-    }
-}
-
-// ── status dot ────────────────────────────────────────────────────────────────
-
-#[component]
-fn StatusDot(color: &'static str) -> Element {
-    rsx! {
-        div {
-            style: "width: 7px; height: 7px; border-radius: 50%; background: {color};"
+            style: "display: flex; align-items: baseline; gap: 7px;",
+            span {
+                style: "font-size: 12px; color: {INK_FAINT}; font-weight: 400;",
+                "{label}"
+            }
+            span {
+                style: "font-size: 13px; color: {INK}; font-weight: 400;",
+                "{value}"
+            }
         }
     }
 }

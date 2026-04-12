@@ -6,5 +6,3 @@
 //! lives in `ui/layout/footer.rs` (`DiagnosticsPane`).
 
 pub mod pane;
-
-pub use pane::build_trace;

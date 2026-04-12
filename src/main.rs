@@ -25,6 +25,7 @@ fn main() {
                 .with_window(
                     dioxus::desktop::WindowBuilder::new()
                         .with_title(window_title)
+                        .with_decorations(false)
                         .with_inner_size(dioxus::desktop::LogicalSize::new(1280.0, 800.0))
                         .with_min_inner_size(dioxus::desktop::LogicalSize::new(900.0, 600.0)),
                 )
