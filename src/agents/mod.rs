@@ -14,8 +14,11 @@
 //! cloneable session record the UI and event ledger use without holding the
 //! live process handle.
 //!
-//! Concrete adapters: [`claude_code::ClaudeCodeAdapter`] (AGEN-02).
+//! Concrete adapters: [`claude_code::ClaudeCodeAdapter`] and
+//! [`codex::CodexAdapter`].
 
 pub mod adapter;
 pub mod claude_code;
+pub mod codex;
+mod host;
 pub mod session;

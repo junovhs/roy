@@ -11,7 +11,10 @@ pub(crate) struct ParsedCommand {
 pub(crate) fn parse_command_line(input: &str) -> Result<ParsedCommand, String> {
     let ast = crate::commands::ast::parse(input).map_err(|e| e.to_string())?;
     let (verb, args) = ast.to_argv();
-    Ok(ParsedCommand { command: verb.to_string(), args })
+    Ok(ParsedCommand {
+        command: verb.to_string(),
+        args,
+    })
 }
 
 /// Legacy tokeniser kept alive for the unit tests below; not used at runtime.

@@ -31,7 +31,7 @@ pub(super) fn DiagnosticsPane(
     );
     let policy_line = format!("profile {} · pending approvals 0", runtime.policy_name());
     let agents_line =
-        "Claude Code adapter shipped · cockpit still defaults to local shell · Codex adapter pending"
+        "Claude Code and Codex adapters shipped · cockpit still defaults to local shell"
             .to_string();
     let session_line = format!("session #{} · {} events", session.id, session.len());
     let artifact_count = session.artifacts().len();

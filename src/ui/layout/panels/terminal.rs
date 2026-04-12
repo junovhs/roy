@@ -1,318 +1,125 @@
 use dioxus::prelude::*;
 
-use crate::session::Session;
+use crate::session::{Session, SessionEvent};
 use crate::shell::ShellRuntime;
 
-use super::super::{is_session_active, short_path_label};
-use super::terminal_model::{
-    handle_submit, initial_shell_lines, LineKind, ShellLine, SubmitContext, TEXT_ERROR,
-};
+#[path = "terminal_composer.rs"]
+mod terminal_composer;
+#[path = "terminal_line.rs"]
+mod terminal_line;
+#[path = "terminal_submit.rs"]
+mod terminal_submit;
+#[path = "terminal_view.rs"]
+mod terminal_view;
 
-// ── palette (prototype) ───────────────────────────────────────────────────────
-const SURFACE: &str = "#16171a";
-const SURFACE_2: &str = "#1c1d21";
-const LINE: &str = "rgba(255,255,255,.06)";
-const INK: &str = "#e6e4df";
-const INK_DIM: &str = "#9b9892";
-const INK_FAINT: &str = "#5f5d58";
-const CORAL: &str = "#e87858";
-const CORAL_SOFT: &str = "#f09a7e";
+pub(super) const SURFACE: &str = "#16171a";
+pub(super) const SURFACE_2: &str = "#1c1d21";
+pub(super) const LINE: &str = "rgba(255,255,255,.06)";
+pub(super) const INK: &str = "#e6e4df";
+pub(super) const INK_DIM: &str = "#9b9892";
+pub(super) const INK_FAINT: &str = "#5f5d58";
+pub(super) const CORAL: &str = "#e87858";
+pub(super) const CORAL_SOFT: &str = "#f09a7e";
 
-// ── shell pane ────────────────────────────────────────────────────────────────
+pub(crate) struct SubmitContext {
+    pub(crate) runtime: Signal<ShellRuntime>,
+    pub(crate) session: Signal<Session>,
+    pub(crate) lines: Signal<Vec<super::terminal_model::ShellLine>>,
+    pub(crate) input_text: Signal<String>,
+}
 
-/// Full-height terminal pod: rounded frame + scrollable output + composer.
-#[component]
-pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>) -> Element {
-    let mut input_text = use_signal(String::new);
-    let lines: Signal<Vec<ShellLine>> = use_signal(initial_shell_lines);
-
-    // Auto-scroll to bottom whenever lines change.
-    use_effect(|| {
-        let _ = document::eval(
-            "(function(){\
-                var e=document.getElementById('shell-output');\
-                if(e)e.scrollTop=e.scrollHeight;\
-            })();",
-        );
+pub(crate) fn handle_submit(raw: String, pre_prompt: String, mut ctx: SubmitContext) {
+    let ts = super::super::now_millis();
+    ctx.session.write().push(SessionEvent::UserInput {
+        text: raw.clone(),
+        ts,
     });
 
-    let prompt = runtime.read().prompt();
-    let workspace = short_path_label(runtime.read().workspace_root());
-    let session_closed = !is_session_active(&session.read());
+    let parsed = match super::command_line::parse_command_line(&raw) {
+        Ok(parsed) => parsed,
+        Err(message) => {
+            let error_text = format!("parse error: {}", message);
+            let ts = super::super::now_millis();
 
-    rsx! {
-        // Outer: fills the pod-wrapper in Cockpit
-        div {
-            style: "
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                min-height: 0;
-            ",
+            ctx.session.write().push(SessionEvent::CommandOutput {
+                text: error_text.clone(),
+                is_error: true,
+                ts,
+            });
 
-            // ── pod-frame (the rounded terminal window) ───────────────────
-            div {
-                style: "
-                    flex: 1;
-                    background: {SURFACE};
-                    border-radius: 10px;
-                    border: 1px solid {LINE};
-                    box-shadow: 0 20px 50px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.03);
-                    display: flex;
-                    flex-direction: column;
-                    min-height: 0;
-                    overflow: hidden;
-                    position: relative;
-                ",
+            let mut lines = ctx.lines.write();
+            lines.push(super::terminal_model::ShellLine::echo(pre_prompt, raw));
+            lines.push(super::terminal_model::ShellLine::error(error_text));
+            ctx.input_text.set(String::new());
+            return;
+        }
+    };
 
-                // ── terminal head (3 dots + workspace label) ──────────────
-                div {
-                    style: "
-                        padding: 14px 22px 12px;
-                        display: flex;
-                        align-items: center;
-                        gap: 10px;
-                        border-bottom: 1px solid {LINE};
-                        position: relative;
-                        z-index: 2;
-                        flex-shrink: 0;
-                    ",
-                    div { style: "width:6px;height:6px;border-radius:50%;background:{INK_DIM};opacity:.5;" }
-                    div { style: "width:6px;height:6px;border-radius:50%;background:{INK_DIM};opacity:.5;" }
-                    div { style: "width:6px;height:6px;border-radius:50%;background:{INK_DIM};opacity:.5;" }
-                    span {
-                        style: "
-                            font-family: 'JetBrains Mono', monospace;
-                            font-size: 12px;
-                            color: {INK_FAINT};
-                            margin-left: 6px;
-                            letter-spacing: .02em;
-                        ",
-                        "session · "
-                        em { style: "color: {INK_DIM}; font-style: normal;", "{workspace}" }
-                    }
-                }
+    let ts = super::super::now_millis();
+    ctx.session.write().push(SessionEvent::CommandInvoked {
+        command: parsed.command.clone(),
+        args: parsed.args.clone(),
+        ts,
+    });
 
-                // ── terminal body (.tb) ────────────────────────────────────
-                div {
-                    id: "shell-output",
-                    style: "
-                        flex: 1;
-                        padding: 22px 28px;
-                        font-family: 'JetBrains Mono', monospace;
-                        font-size: 14px;
-                        line-height: 1.75;
-                        overflow-y: auto;
-                        color: {INK_DIM};
-                        position: relative;
-                        z-index: 2;
-                    ",
+    let arg_refs: Vec<&str> = parsed.args.iter().map(String::as_str).collect();
+    let mut runtime = ctx.runtime.write();
+    let result = runtime.dispatch(&parsed.command, &arg_refs);
+    let out = runtime.drain_output();
+    let err = runtime.drain_errors();
+    drop(runtime);
 
-                    for line in lines.read().iter() {
-                        { render_line(line) }
-                    }
-                }
-            }
+    let output_lines = super::terminal_model::flatten_chunks(out);
+    let error_lines = super::terminal_model::flatten_chunks(err);
+    let mut new_lines = vec![super::terminal_model::ShellLine::echo(pre_prompt, raw)];
 
-            // ── composer (below the pod-frame) ────────────────────────────
-            div {
-                style: "padding: 12px 0 0; flex-shrink: 0;",
-
-                div {
-                    style: "
-                        background: {SURFACE_2};
-                        border: 1px solid {LINE};
-                        border-radius: 10px;
-                        padding: 12px 14px;
-                        display: flex;
-                        flex-direction: column;
-                        gap: 8px;
-                    ",
-
-                    // Input row
-                    div {
-                        style: "display: flex; align-items: center; gap: 8px;",
-                        span {
-                            style: "color: {CORAL}; font-family: 'JetBrains Mono', monospace; font-size: 14px; flex-shrink: 0;",
-                            "{prompt}"
-                        }
-                        if session_closed {
-                            span {
-                                style: "color: {INK_FAINT}; font-size: 14px; font-style: italic;",
-                                "session ended"
-                            }
-                        } else {
-                            input {
-                                r#type: "text",
-                                value: "{input_text}",
-                                autofocus: true,
-                                placeholder: "Enter a command…",
-                                style: "
-                                    flex: 1;
-                                    background: transparent;
-                                    border: none;
-                                    outline: none;
-                                    color: {INK};
-                                    font-family: 'Geist', sans-serif;
-                                    font-size: 15px;
-                                    caret-color: {CORAL};
-                                    padding: 0;
-                                    font-weight: 400;
-                                ",
-                                oninput: move |evt| input_text.set(evt.value()),
-                                onkeydown: move |evt| {
-                                    if evt.key() != Key::Enter {
-                                        return;
-                                    }
-                                    let raw = input_text.read().trim().to_string();
-                                    if raw.is_empty() {
-                                        return;
-                                    }
-                                    let pre_prompt = runtime.read().prompt();
-                                    handle_submit(
-                                        raw,
-                                        pre_prompt,
-                                        SubmitContext { runtime, session, lines, input_text },
-                                    );
-                                },
-                            }
-                        }
-                    }
-
-                    // Bottom row: tool buttons + send
-                    div {
-                        style: "display: flex; align-items: center; justify-content: space-between;",
-                        div {
-                            style: "display: flex; gap: 2px;",
-                            for label in ["+", "◫", "@"] {
-                                button {
-                                    style: "
-                                        background: none;
-                                        border: none;
-                                        color: {INK_FAINT};
-                                        width: 26px;
-                                        height: 26px;
-                                        border-radius: 5px;
-                                        cursor: pointer;
-                                        font-size: 15px;
-                                    ",
-                                    "{label}"
-                                }
-                            }
-                        }
-                        if !session_closed {
-                            button {
-                                style: "
-                                    padding: 6px 14px;
-                                    border-radius: 6px;
-                                    background: {CORAL};
-                                    color: #1a1b1e;
-                                    border: none;
-                                    cursor: pointer;
-                                    font-family: 'Geist', sans-serif;
-                                    font-size: 13px;
-                                    font-weight: 500;
-                                    transition: all .15s;
-                                ",
-                                onclick: move |_| {
-                                    let raw = input_text.read().trim().to_string();
-                                    if raw.is_empty() {
-                                        return;
-                                    }
-                                    let pre_prompt = runtime.read().prompt();
-                                    handle_submit(
-                                        raw,
-                                        pre_prompt,
-                                        SubmitContext { runtime, session, lines, input_text },
-                                    );
-                                },
-                                "Send \u{23ce}"
-                            }
-                        }
-                    }
+    match &result {
+        crate::shell::DispatchResult::Denied {
+            command,
+            suggestion,
+            ..
+        } => {
+            new_lines.push(super::terminal_model::ShellLine::denial_header(command));
+            if let Some(hint) = suggestion {
+                if !hint.trim().is_empty() {
+                    new_lines.push(super::terminal_model::ShellLine::denial_hint(hint));
                 }
             }
         }
+        crate::shell::DispatchResult::NotFound { command } => {
+            new_lines.push(super::terminal_model::ShellLine::not_found(command));
+        }
+        crate::shell::DispatchResult::Exit { code } => {
+            for line in &output_lines {
+                new_lines.push(super::terminal_model::ShellLine::output(line.clone()));
+            }
+            for line in &error_lines {
+                new_lines.push(super::terminal_model::ShellLine::error(line.clone()));
+            }
+            new_lines.push(super::terminal_model::ShellLine::output(format!(
+                "[session ended · exit {}]",
+                code
+            )));
+        }
+        _ => {
+            for line in &output_lines {
+                new_lines.push(super::terminal_model::ShellLine::output(line.clone()));
+            }
+            for line in &error_lines {
+                new_lines.push(super::terminal_model::ShellLine::error(line.clone()));
+            }
+        }
     }
+
+    terminal_submit::record_session_outcome(
+        &mut ctx.session.write(),
+        &result,
+        &output_lines,
+        &error_lines,
+    );
+
+    ctx.lines.write().extend(new_lines);
+    ctx.input_text.set(String::new());
 }
 
-// ── line renderer ─────────────────────────────────────────────────────────────
-
-fn render_line(line: &ShellLine) -> Element {
-    match line.kind {
-        // ── denial header: ⊘ command — blocked ────────────────────────────
-        LineKind::DenialHeader => rsx! {
-            div {
-                style: "
-                    display:flex;gap:8px;align-items:baseline;
-                    margin-top:6px;
-                    white-space:pre-wrap;word-break:break-all;
-                ",
-                span {
-                    style: "color:{TEXT_ERROR};flex-shrink:0;font-weight:600;",
-                    "{line.prefix}"
-                }
-                span { style: "color:{TEXT_ERROR};font-weight:500;", "{line.text}" }
-            }
-        },
-        // ── denial hint: → suggestion ──────────────────────────────────────
-        LineKind::DenialHint => rsx! {
-            div {
-                style: "
-                    display:flex;gap:8px;align-items:baseline;
-                    margin-bottom:6px;padding-left:4px;
-                    white-space:pre-wrap;word-break:break-all;
-                ",
-                span {
-                    style: "color:{CORAL_SOFT};flex-shrink:0;",
-                    "{line.prefix}"
-                }
-                span { style: "color:{INK_DIM};", "{line.text}" }
-            }
-        },
-        // ── not found: ? command ───────────────────────────────────────────
-        LineKind::NotFound => rsx! {
-            div {
-                style: "
-                    display:flex;gap:8px;align-items:baseline;
-                    white-space:pre-wrap;word-break:break-all;
-                ",
-                span { style: "color:{INK_FAINT};flex-shrink:0;", "{line.prefix}" }
-                span { style: "color:{INK_FAINT};font-style:italic;", "{line.text}" }
-            }
-        },
-        // ── echo (input): prompt + command ────────────────────────────────
-        LineKind::Echo => rsx! {
-            div {
-                style: "display:flex;gap:8px;white-space:pre-wrap;word-break:break-all;color:{INK};",
-                if !line.prefix.is_empty() {
-                    span {
-                        style: "color:{CORAL_SOFT};flex-shrink:0;font-weight:bold;",
-                        "{line.prefix}"
-                    }
-                }
-                span { "{line.text}" }
-            }
-        },
-        // ── error ──────────────────────────────────────────────────────────
-        LineKind::Error => rsx! {
-            div {
-                style: "display:flex;gap:8px;white-space:pre-wrap;word-break:break-all;color:{TEXT_ERROR};",
-                span { "{line.text}" }
-            }
-        },
-        // ── normal output ──────────────────────────────────────────────────
-        LineKind::Output => rsx! {
-            div {
-                style: "display:flex;gap:8px;white-space:pre-wrap;word-break:break-all;color:{INK};",
-                if !line.prefix.is_empty() {
-                    span {
-                        style: "color:{CORAL_SOFT};flex-shrink:0;font-weight:bold;",
-                        "{line.prefix}"
-                    }
-                }
-                span { "{line.text}" }
-            }
-        },
-    }
-}
+pub(crate) use terminal_view::ShellPane;

@@ -1,4 +1,3 @@
-// Core contract; ClaudeCodeAdapter wired in AGEN-02.
 #![allow(dead_code)]
 
 //! Embedded-agent adapter contract — types and traits for AGEN-02+ adapters.
@@ -48,6 +47,8 @@ pub enum AgentAuthMethod {
     EnvVar { key: String },
     /// OAuth device-flow handshake is needed before launching.
     OauthDevice,
+    /// Either device auth or an injected API token can be used.
+    OauthDeviceOrEnvVar { key: String },
 }
 
 // ── launch config ─────────────────────────────────────────────────────────────
@@ -62,7 +63,7 @@ pub struct LaunchConfig {
 
 // ── supervision events ────────────────────────────────────────────────────────
 
-/// An event observed by the ROY supervision layer while an agent is running.
+/// Supervision event from a running agent.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SupervisionEvent {
     AgentStarted { pid: u32 },

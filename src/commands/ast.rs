@@ -82,7 +82,11 @@ impl Command {
         for f in &self.filters {
             match f {
                 Filter::Bare(s) => args.push(s.value.clone()),
-                Filter::KeyValue { key, value, negated } => {
+                Filter::KeyValue {
+                    key,
+                    value,
+                    negated,
+                } => {
                     if *negated {
                         args.push(format!("!{}:{}", key.value, value.value));
                     } else {
@@ -113,7 +117,11 @@ impl Command {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Filter {
     /// `key:value` or `!key:value`
-    KeyValue { key: Spanned<String>, value: Spanned<String>, negated: bool },
+    KeyValue {
+        key: Spanned<String>,
+        value: Spanned<String>,
+        negated: bool,
+    },
     /// `about <words>`
     About(Vec<Spanned<String>>),
     /// `lines N`, `lines N..M`, or `lines ..M`
@@ -167,7 +175,11 @@ pub struct ParseError {
 
 impl ParseError {
     pub(crate) fn at(offset: usize, message: impl Into<String>) -> Self {
-        Self { message: message.into(), offset: Some(offset), suggestion: None }
+        Self {
+            message: message.into(),
+            offset: Some(offset),
+            suggestion: None,
+        }
     }
 
     pub(crate) fn with_hint(mut self, hint: impl Into<String>) -> Self {
@@ -176,7 +188,11 @@ impl ParseError {
     }
 
     pub(crate) fn bare(message: impl Into<String>) -> Self {
-        Self { message: message.into(), offset: None, suggestion: None }
+        Self {
+            message: message.into(),
+            offset: None,
+            suggestion: None,
+        }
     }
 }
 
@@ -191,6 +207,9 @@ impl std::fmt::Display for ParseError {
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
+
+#[path = "ast_parse_helpers.rs"]
+mod ast_parse_helpers;
 
 #[cfg(test)]
 #[path = "ast_tests.rs"]

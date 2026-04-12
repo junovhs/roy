@@ -12,7 +12,10 @@ fn diff_artifact_for_new_file_uses_dev_null_origin() {
     .expect("new file should create a diff artifact");
 
     assert_eq!(artifact.kind, ArtifactKind::Diff);
-    assert_eq!(artifact.name, "lib.rs", "short_name should use the filename, not full path");
+    assert_eq!(
+        artifact.name, "lib.rs",
+        "short_name should use the filename, not full path"
+    );
     let ArtifactBody::Diff { diff, .. } = artifact.body else {
         panic!("expected diff payload");
     };
@@ -69,7 +72,10 @@ fn diff_ops_lines_to_empty_all_remove() {
 
 #[test]
 fn diff_ops_identical_all_keep() {
-    let ops: Vec<_> = diff_ops(&["x", "y"], &["x", "y"]).into_iter().map(op).collect();
+    let ops: Vec<_> = diff_ops(&["x", "y"], &["x", "y"])
+        .into_iter()
+        .map(op)
+        .collect();
     assert_eq!(ops, vec![("=", "x"), ("=", "y")]);
 }
 
@@ -104,17 +110,33 @@ fn unified_diff_identical_content_reports_no_changes() {
         diff.contains("(no textual changes)"),
         "identical content must say no changes, got:\n{diff}"
     );
-    assert!(!diff.lines().any(|l| l.starts_with('+') && !l.starts_with("+++")), "no addition lines");
-    assert!(!diff.lines().any(|l| l.starts_with('-') && !l.starts_with("---")), "no removal lines");
+    assert!(
+        !diff
+            .lines()
+            .any(|l| l.starts_with('+') && !l.starts_with("+++")),
+        "no addition lines"
+    );
+    assert!(
+        !diff
+            .lines()
+            .any(|l| l.starts_with('-') && !l.starts_with("---")),
+        "no removal lines"
+    );
 }
 
 #[test]
 fn unified_diff_new_file_marks_all_lines_added() {
-    let diff = build_unified_diff(std::path::Path::new("f.rs"), None, "fn foo() {}\nfn bar() {}");
+    let diff = build_unified_diff(
+        std::path::Path::new("f.rs"),
+        None,
+        "fn foo() {}\nfn bar() {}",
+    );
     assert!(diff.contains("+fn foo() {}"), "new lines must be marked +");
     assert!(diff.contains("+fn bar() {}"));
     // No content lines should be removals (--- header is fine)
-    assert!(!diff.lines().any(|l| l.starts_with('-') && !l.starts_with("---")));
+    assert!(!diff
+        .lines()
+        .any(|l| l.starts_with('-') && !l.starts_with("---")));
 }
 
 #[test]
@@ -126,7 +148,10 @@ fn unified_diff_modified_file_marks_old_and_new() {
     );
     assert!(diff.contains("-old line"));
     assert!(diff.contains("+new line"));
-    assert!(diff.contains(" shared"), "unchanged line must have space prefix");
+    assert!(
+        diff.contains(" shared"),
+        "unchanged line must have space prefix"
+    );
 }
 
 #[test]

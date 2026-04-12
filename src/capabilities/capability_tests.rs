@@ -96,8 +96,14 @@ fn list_dir_labels_symlinks_as_link() {
     let CapabilityOutput::DirectoryListing { entries, .. } = output else {
         panic!("expected listing");
     };
-    let link = entries.iter().find(|e| e.name == "link.txt").expect("symlink must appear");
-    assert_eq!(link.kind, "link", "symlink must be labelled 'link', not 'file'");
+    let link = entries
+        .iter()
+        .find(|e| e.name == "link.txt")
+        .expect("symlink must appear");
+    assert_eq!(
+        link.kind, "link",
+        "symlink must be labelled 'link', not 'file'"
+    );
 }
 
 #[test]
@@ -110,7 +116,9 @@ fn list_dir_labels_dirs_as_dir() {
         .execute(&CapabilityRequest::Fs(FsCapability::ListDir { path: None }))
         .unwrap();
 
-    let CapabilityOutput::DirectoryListing { entries, .. } = output else { panic!() };
+    let CapabilityOutput::DirectoryListing { entries, .. } = output else {
+        panic!()
+    };
     let dir_entry = entries.iter().find(|e| e.name == "subdir").unwrap();
     let file_entry = entries.iter().find(|e| e.name == "file.txt").unwrap();
     assert_eq!(dir_entry.kind, "dir");

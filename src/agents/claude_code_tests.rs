@@ -32,8 +32,13 @@ fn meta_install_path_is_preserved() {
 // ── auth ──────────────────────────────────────────────────────────────────────
 
 #[test]
-fn auth_method_is_oauth_device() {
-    assert_eq!(fake_adapter().auth_method(), AgentAuthMethod::OauthDevice);
+fn auth_method_supports_device_or_api_key() {
+    assert_eq!(
+        fake_adapter().auth_method(),
+        AgentAuthMethod::OauthDeviceOrEnvVar {
+            key: "ANTHROPIC_API_KEY".to_string(),
+        }
+    );
 }
 
 // ── binary discovery ──────────────────────────────────────────────────────────
@@ -41,7 +46,7 @@ fn auth_method_is_oauth_device() {
 #[test]
 fn which_missing_binary_returns_not_installed() {
     // A name extremely unlikely to exist anywhere on PATH.
-    let result = super::which("__roy_no_such_binary_8f2c9__");
+    let result = super::super::host::discover_binary("__roy_no_such_binary_8f2c9__");
     let err = result.expect_err("must fail for absent binary");
     assert_eq!(err.kind(), &AgentErrorKind::NotInstalled);
     assert!(

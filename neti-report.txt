@@ -1,13 +1,29 @@
-NETI REPORT — PASS | 0 blocking | 6 advisory
+NETI REPORT — FAIL | 1 blocking | 0 advisory
 
 COMMANDS
-  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (1943ms)
-  cargo test ... PASS (481ms)
-LOCALITY: PASS | 58 edges | 0 violations | 0 cycles
+  cargo clippy --all-targets --no-deps -- -D warnings ... FAIL (1113ms)
+    Checking roy v0.1.4 (/home/juno/roy)
+    error[E0432]: unresolved imports `submit::handle_submit`, `submit::SubmitContext`
+     --> src/ui/layout/panels/terminal_model.rs:7:25
+      |
+    7 | pub(super) use submit::{handle_submit, SubmitContext};
+      |                         ^^^^^^^^^^^^^  ^^^^^^^^^^^^^ no `SubmitContext` in `ui::layout::panels::terminal_model::submit`
+      |                         |
+      |                         no `handle_submit` in `ui::layout::panels::terminal_model::submit`
+      |
+      = help: consider importing this struct instead:
+  cargo test ... FAIL (955ms)
+    Compiling roy v0.1.4 (/home/juno/roy)
+    error[E0432]: unresolved imports `submit::handle_submit`, `submit::SubmitContext`
+     --> src/ui/layout/panels/terminal_model.rs:7:25
+      |
+    7 | pub(super) use submit::{handle_submit, SubmitContext};
+      |                         ^^^^^^^^^^^^^  ^^^^^^^^^^^^^ no `SubmitContext` in `ui::layout::panels::terminal_model::submit`
+      |                         |
+      |                         no `handle_submit` in `ui::layout::panels::terminal_model::submit`
+      |
+      = help: consider importing this struct instead:
+LOCALITY: PASS | 92 edges | 0 violations | 0 cycles
 
 ISSUES
-  src/commands/ast_parse.rs: 2359 tokens (limit 2000) | 6 args (limit 5)
-  src/ui/layout/mod.rs: 7361 tokens (limit 2000)
-  src/ui/layout/panels/terminal_model.rs: 4600 tokens (limit 2000)
-  src/ui/layout/panels/terminal.rs: 3600 tokens (limit 2000)
-  src/commands/ast_tests.rs: 2359 tokens (limit 2000)
+  src/ui/layout/panels/terminal.rs: syntax error

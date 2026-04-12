@@ -42,8 +42,7 @@ pub(crate) fn tokenise(input: &str) -> Result<Vec<Token>, (usize, String)> {
             b'"' => {
                 let start = i;
                 i += 1;
-                let (s, end) = read_double_quoted(bytes, i)
-                    .map_err(|msg| (start, msg))?;
+                let (s, end) = read_double_quoted(bytes, i).map_err(|msg| (start, msg))?;
                 out.push(Token::Quoted(s, start));
                 i = end;
             }

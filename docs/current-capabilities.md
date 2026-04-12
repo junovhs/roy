@@ -6,7 +6,7 @@ This document is the current-state snapshot of what ROY actually ships today. It
 
 ## Product Status
 
-ROY is currently a controlled shell host with a desktop cockpit, a small ROY-native command world, deterministic shell-fallback denials, typed session/artifact tracking, and an implemented Claude Code adapter layer.
+ROY is currently a controlled shell host with a desktop cockpit, a small ROY-native command world, deterministic shell-fallback denials, typed session/artifact tracking, and implemented Claude Code and Codex adapter layers.
 
 ROY is not yet a full general-purpose shell, and it is not yet exposing every planned agent-hosting flow directly through the live cockpit UI.
 
@@ -120,8 +120,11 @@ Implemented now:
 - embedded-agent adapter contract
 - agent session model
 - Claude Code adapter
+- Codex adapter
 - Claude binary discovery
+- Codex binary discovery
 - controlled PATH shaping for Claude launch
+- controlled PATH shaping for Codex launch
 - stdout/stderr/exit supervision
 - buffered pending-event drain model
 
@@ -129,7 +132,7 @@ Important current limitation:
 
 - the shipped cockpit still presents itself as a local shell session by default
 - there is not yet a first-class in-app launcher/selector flow for switching the live cockpit into a Claude-hosted session
-- Codex hosting is not yet implemented as a concrete adapter
+- there is not yet a first-class in-app launcher/selector flow for switching the live cockpit into a Codex-hosted session
 
 ## What ROY Does Not Yet Claim
 
@@ -148,7 +151,7 @@ ROY should not currently claim all of the following as finished product behavior
 - the controlled shell cockpit
 - public ROY-native filesystem and validation commands
 - deterministic denial/redirect behavior
-- an implemented Claude Code adapter layer
+- implemented Claude Code and Codex adapter layers
 - typed session artifacts with dedicated UI viewers
 - SQLite artifact/session persistence foundations
 
