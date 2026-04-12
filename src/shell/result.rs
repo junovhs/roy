@@ -21,4 +21,6 @@ pub enum DispatchResult {
     CwdChanged { to: std::path::PathBuf },
     /// Session exit requested.
     Exit { code: i32 },
+    /// An embedded agent was launched successfully.
+    AgentStarted { agent_id: String, pid: u32 },
 }

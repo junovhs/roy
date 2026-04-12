@@ -2,6 +2,24 @@ use super::test_support::*;
 use super::*;
 use crate::session::SessionArtifact;
 use dioxus::prelude::ReadableExt;
+use dioxus::prelude::WritableExt;
+use std::io::{self, Write};
+use std::sync::{Arc, Mutex};
+
+struct SharedWriter {
+    buf: Arc<Mutex<Vec<u8>>>,
+}
+
+impl Write for SharedWriter {
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        self.buf.lock().unwrap().extend_from_slice(data);
+        Ok(data.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
 
 #[test]
 fn record_session_outcome_orders_denials_after_output_and_artifacts() {
@@ -116,5 +134,43 @@ fn handle_submit_exit_renders_session_end_notice() {
             events.events().last(),
             Some(SessionEvent::SessionEnded { exit_code: 7, .. })
         ));
+    });
+}
+
+#[test]
+fn handle_submit_agent_active_forwards_raw_input_without_dispatch() {
+    with_runtime(|| {
+        let shared = Arc::new(Mutex::new(Vec::new()));
+        let writer = SharedWriter {
+            buf: Arc::clone(&shared),
+        };
+        let (mut runtime, session, lines, input_text, ctx) = make_ctx();
+
+        runtime.write().agent_handle = Some({
+            let mut handle = crate::agents::adapter::AgentHandle::new(
+                crate::agents::adapter::AgentMeta {
+                    kind: crate::agents::adapter::AgentKind::ClaudeCode,
+                    version: "1.0.0".to_string(),
+                    install_path: std::path::PathBuf::from("/usr/local/bin/claude"),
+                },
+                0,
+            );
+            handle.set_stdin(Arc::new(Mutex::new(Box::new(writer))));
+            handle
+        });
+
+        handle_submit("continue".to_string(), "roy> ".to_string(), ctx);
+
+        assert_eq!(&*input_text.read(), "");
+        assert_eq!(&*shared.lock().unwrap(), b"continue\n");
+
+        let rendered = lines.read();
+        assert_eq!(rendered.len(), 1);
+        assert_eq!(rendered[0].kind, LineKind::Echo);
+        assert_eq!(rendered[0].text, "continue");
+
+        let events = session.read();
+        assert_eq!(events.events_of_kind("user_input").len(), 1);
+        assert_eq!(events.events_of_kind("command_invoked").len(), 0);
     });
 }

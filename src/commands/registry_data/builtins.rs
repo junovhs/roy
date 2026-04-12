@@ -1,8 +1,13 @@
 use crate::commands::schema::{CommandSchema, RiskLevel, Visibility};
 
-use super::builtin_schema;
+use super::{agent_launch_schema, builtin_schema};
 
 pub(super) static BUILTINS: &[CommandSchema] = &[
+    agent_launch_schema(
+        "claude",
+        "launch Claude Code inside the ROY shell",
+        "claude    launch Claude Code as embedded agent (uses Claude login or ANTHROPIC_API_KEY)",
+    ),
     builtin_schema(
         "cd",
         "change working directory",

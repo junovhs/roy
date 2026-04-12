@@ -8,6 +8,8 @@ pub enum Backend {
     Builtin,
     /// ROY-native capability — implementation pending TOOL-02+.
     RoyNative,
+    /// Launches an embedded terminal agent (e.g. Claude Code, Codex).
+    AgentLaunch,
     /// Compatibility trap: blocked with an informative ROY-native suggestion.
     CompatTrap { suggestion: &'static str },
     /// Explicitly blocked, no ROY-native alternative yet.
@@ -24,7 +26,7 @@ impl Backend {
     pub fn suggestion(&self) -> Option<&'static str> {
         match self {
             Self::CompatTrap { suggestion } => Some(suggestion),
-            Self::Blocked { .. } | Self::Builtin | Self::RoyNative => None,
+            Self::Blocked { .. } | Self::Builtin | Self::RoyNative | Self::AgentLaunch => None,
         }
     }
 }

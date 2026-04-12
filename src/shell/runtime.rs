@@ -8,6 +8,7 @@ mod native;
 
 use std::path::PathBuf;
 
+use crate::agents::adapter::AgentHandle;
 use crate::capabilities::CapabilityRuntime;
 use crate::commands::schema::Backend;
 use crate::commands::{parse_native_request, CommandRegistry};
@@ -36,6 +37,8 @@ pub struct ShellRuntime {
     registry: CommandRegistry,
     policy: PolicyEngine,
     workspace: WorkspaceBoundary,
+    /// Handle for the currently running embedded agent, if any.
+    pub(crate) agent_handle: Option<AgentHandle>,
 }
 
 impl ShellRuntime {
@@ -54,6 +57,7 @@ impl ShellRuntime {
             registry: CommandRegistry::new(),
             policy: PolicyEngine::default(),
             workspace,
+            agent_handle: None,
         }
     }
 
@@ -114,6 +118,11 @@ impl ShellRuntime {
         }
     }
 
+    /// True if an embedded agent process is currently running.
+    pub fn agent_active(&self) -> bool {
+        self.agent_handle.is_some()
+    }
+
     /// Prompt string reflecting current session state.
     ///
     /// Shows `✗` after a non-zero exit, `❯` otherwise.
@@ -157,6 +166,7 @@ impl ShellRuntime {
 
         match schema.backend {
             Backend::Builtin => self.dispatch_builtin(command, args),
+            Backend::AgentLaunch => self.dispatch_agent_launch(command),
             Backend::CompatTrap { suggestion } => self.deny(command, args, suggestion),
             Backend::Blocked { reason } => self.deny(command, args, reason),
             Backend::RoyNative => self.dispatch_native(command, args),
@@ -216,3 +226,10 @@ mod tests_policy;
 #[cfg(test)]
 #[path = "runtime_tests_native.rs"]
 mod tests_native;
+
+#[cfg(test)]
+#[path = "runtime_tests_agent.rs"]
+mod tests_agent;
+
+#[path = "runtime_agent.rs"]
+mod agent;

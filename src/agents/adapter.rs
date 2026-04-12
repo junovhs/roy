@@ -2,6 +2,7 @@
 
 //! Embedded-agent adapter contract — types and traits for AGEN-02+ adapters.
 
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -85,18 +86,19 @@ pub trait AgentAdapter: Send + Sync {
 
 // ── handle ────────────────────────────────────────────────────────────────────
 
-/// A running (or recently-exited) agent process, owned by the ROY shell host.
+/// Running (or recently-exited) agent process owned by the ROY shell host.
 ///
-/// Owns the lifecycle state and supervision event buffer. Concrete adapters
-/// attach a supervision queue via [`set_pending`][AgentHandle::set_pending];
-/// callers drain it via [`drain_pending`][AgentHandle::drain_pending].
+/// Attach a supervision queue via `set_pending`; drain via `drain_pending`.
 pub struct AgentHandle {
     pub meta: AgentMeta,
     pub session_id: u64,
     events: Vec<SupervisionEvent>,
     exit_code: Option<i32>,
     pending: Option<Arc<Mutex<Vec<SupervisionEvent>>>>,
+    stdin: Option<SharedAgentInput>,
 }
+
+type SharedAgentInput = Arc<Mutex<Box<dyn Write + Send>>>;
 
 impl AgentHandle {
     /// Create a handle for a newly-started agent process.
@@ -107,6 +109,7 @@ impl AgentHandle {
             events: Vec::new(),
             exit_code: None,
             pending: None,
+            stdin: None,
         }
     }
 
@@ -128,7 +131,7 @@ impl AgentHandle {
         self.exit_code
     }
 
-    /// True if a [`SupervisionEvent::ProcessExited`] event has been recorded.
+    /// True if a `ProcessExited` event has been recorded.
     pub fn has_exited(&self) -> bool {
         self.exit_code.is_some()
     }
@@ -138,7 +141,20 @@ impl AgentHandle {
         self.pending = Some(queue);
     }
 
-    /// Drain all pending events from supervision threads into the event log.
+    /// Attach a writable input stream for forwarding user text to the agent.
+    pub fn set_stdin(&mut self, writer: SharedAgentInput) {
+        self.stdin = Some(writer);
+    }
+
+    /// Take all buffered events, leaving the log empty.
+    ///
+    /// Exit state is preserved in `exit_code` regardless.
+    /// Used by the runtime poll loop to consume new output each tick.
+    pub fn take_events(&mut self) -> Vec<SupervisionEvent> {
+        std::mem::take(&mut self.events)
+    }
+
+    /// Drain pending events from supervision threads into the event log.
     ///
     /// Safe to call on a polling loop; exit codes are captured automatically.
     pub fn drain_pending(&mut self) {
@@ -150,6 +166,23 @@ impl AgentHandle {
         for event in drained {
             self.push_event(event);
         }
+    }
+
+    /// Forward raw input bytes to the running agent.
+    pub fn send_input(&self, input: &str) -> Result<(), AgentError> {
+        let Some(writer) = &self.stdin else {
+            return Err(AgentError::io_error("agent input is unavailable"));
+        };
+        let mut locked = writer
+            .lock()
+            .map_err(|_| AgentError::io_error("agent input lock poisoned"))?;
+        locked
+            .write_all(input.as_bytes())
+            .map_err(|e| AgentError::io_error(e.to_string()))?;
+        locked
+            .flush()
+            .map_err(|e| AgentError::io_error(e.to_string()))?;
+        Ok(())
     }
 }
 

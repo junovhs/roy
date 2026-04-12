@@ -149,6 +149,7 @@ fn backend_label(backend: &Backend) -> &'static str {
     match backend {
         Backend::Builtin => "builtin",
         Backend::RoyNative => "native",
+        Backend::AgentLaunch => "agent",
         Backend::CompatTrap { .. } => "trap",
         Backend::Blocked { .. } => "blocked",
     }

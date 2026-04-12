@@ -25,7 +25,7 @@ pub fn resolve_command(registry: &CommandRegistry, name: &str) -> ResolveOutcome
     match registry.resolve(name) {
         None => ResolveOutcome::NotFound,
         Some(schema) => match schema.backend {
-            Backend::Builtin => ResolveOutcome::Builtin,
+            Backend::Builtin | Backend::AgentLaunch => ResolveOutcome::Builtin,
             Backend::RoyNative => ResolveOutcome::RoyNative,
             Backend::CompatTrap { suggestion } => ResolveOutcome::Denied {
                 suggestion: Some(suggestion),

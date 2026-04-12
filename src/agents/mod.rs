@@ -22,3 +22,7 @@ pub mod claude_code;
 pub mod codex;
 mod host;
 pub mod session;
+
+#[cfg(test)]
+#[path = "agent_contract_tests.rs"]
+mod contract_tests;

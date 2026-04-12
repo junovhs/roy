@@ -31,6 +31,21 @@ pub(super) const fn builtin_schema(
     }
 }
 
+pub(super) const fn agent_launch_schema(
+    name: &'static str,
+    purpose: &'static str,
+    help_text: &'static str,
+) -> CommandSchema {
+    CommandSchema {
+        name,
+        purpose,
+        help_text,
+        risk_level: RiskLevel::High,
+        visibility: Visibility::Public,
+        backend: Backend::AgentLaunch,
+    }
+}
+
 pub(super) const fn compat_schema(
     name: &'static str,
     purpose: &'static str,

@@ -4,6 +4,7 @@ use dioxus::prelude::*;
 pub(super) fn TerminalComposer(
     prompt: String,
     session_closed: bool,
+    agent_active: bool,
     input_text: Signal<String>,
     on_submit: EventHandler<()>,
 ) -> Element {
@@ -34,11 +35,17 @@ pub(super) fn TerminalComposer(
                             "session ended"
                         }
                     } else {
+                        if agent_active {
+                            span {
+                                style: "color: {super::INK_FAINT}; font-size: 14px; font-style: italic;",
+                                "agent running\u{2026}"
+                            }
+                        }
                         input {
                             r#type: "text",
                             value: "{input_text}",
                             autofocus: true,
-                            placeholder: "Enter a command…",
+                            placeholder: if agent_active { "Send input to agent\u{2026}" } else { "Enter a command\u{2026}" },
                             style: "
                                 flex: 1;
                                 background: transparent;
@@ -65,7 +72,7 @@ pub(super) fn TerminalComposer(
                     style: "display: flex; align-items: center; justify-content: space-between;",
                     div {
                         style: "display: flex; gap: 2px;",
-                        for label in ["+", "◫", "@"] {
+                        for label in ["+", "\u{25eb}", "@"] {
                             button {
                                 style: "
                                     background: none;

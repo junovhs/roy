@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 //! Concrete adapter for hosting Claude Code inside the ROY shell.
 //!
 //! Spawns `claude` with PATH prepended by ROY's bin dir (so blocked commands
@@ -43,6 +41,7 @@ impl ClaudeCodeAdapter {
     /// Build the adapter from a known binary path, bypassing auto-discovery.
     ///
     /// No filesystem check is performed — intended for tests.
+    #[allow(dead_code)]
     pub fn from_path(install_path: PathBuf, version: impl Into<String>) -> Self {
         Self {
             meta: AgentMeta {
@@ -59,10 +58,11 @@ impl AgentAdapter for ClaudeCodeAdapter {
         &self.meta
     }
 
-    /// Claude Code uses OAuth device flow for first-time authentication.
+    /// Claude Code can use existing CLI login state or an API key.
     ///
     /// When `ANTHROPIC_API_KEY` is present in `LaunchConfig::env_overrides`
     /// it is forwarded to the subprocess and no interactive login is needed.
+    /// Otherwise Claude Code may rely on its own persisted auth/session state.
     fn auth_method(&self) -> AgentAuthMethod {
         AgentAuthMethod::OauthDeviceOrEnvVar {
             key: "ANTHROPIC_API_KEY".to_string(),

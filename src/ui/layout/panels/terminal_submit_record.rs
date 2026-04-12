@@ -58,6 +58,9 @@ pub(crate) fn record_session_outcome(
             session.push(SessionEvent::CwdChanged { to: to.clone(), ts });
         }
         DispatchResult::Exit { code } => session.end(*code, ts),
+        DispatchResult::AgentStarted { .. } => {
+            // launch message already recorded in output_lines above
+        }
         DispatchResult::Executed { artifacts, .. } => {
             for artifact in artifacts {
                 session.push(SessionEvent::ArtifactCreated {

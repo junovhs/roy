@@ -2,13 +2,30 @@
 //! AgentKind, AgentHandle lifecycle, and AgentError classifications.
 
 use super::{AgentError, AgentErrorKind, AgentHandle, AgentKind, AgentMeta, SupervisionEvent};
+use std::io::{self, Write};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 fn claude_meta() -> AgentMeta {
     AgentMeta {
         kind: AgentKind::ClaudeCode,
         version: "1.0.0".to_string(),
         install_path: PathBuf::from("/usr/local/bin/claude"),
+    }
+}
+
+struct SharedWriter {
+    buf: Arc<Mutex<Vec<u8>>>,
+}
+
+impl Write for SharedWriter {
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        self.buf.lock().unwrap().extend_from_slice(data);
+        Ok(data.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
     }
 }
 
@@ -147,6 +164,27 @@ fn drain_pending_captures_exit_code_from_queue() {
     h.drain_pending();
     assert!(h.has_exited(), "exited state must be set");
     assert_eq!(h.exit_code(), Some(42));
+}
+
+#[test]
+fn send_input_writes_to_attached_stdin() {
+    let shared = Arc::new(Mutex::new(Vec::new()));
+    let writer = SharedWriter {
+        buf: Arc::clone(&shared),
+    };
+    let mut h = AgentHandle::new(claude_meta(), 1);
+    h.set_stdin(Arc::new(Mutex::new(Box::new(writer))));
+
+    h.send_input("hello\n").expect("stdin write must succeed");
+
+    assert_eq!(&*shared.lock().unwrap(), b"hello\n");
+}
+
+#[test]
+fn send_input_without_stdin_returns_io_error() {
+    let h = AgentHandle::new(claude_meta(), 1);
+    let err = h.send_input("hello").expect_err("missing stdin must error");
+    assert_eq!(err.kind(), &AgentErrorKind::IoError);
 }
 
 // ── AgentError ────────────────────────────────────────────────────────────────

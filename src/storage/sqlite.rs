@@ -3,6 +3,15 @@
 
 //! SQLite-backed ROY store — save, replay, and manage session state on disk.
 
+#[path = "sqlite_refs.rs"]
+mod refs;
+
+#[path = "sqlite_issues.rs"]
+mod issues;
+
+#[path = "sqlite_lang.rs"]
+mod lang;
+
 use std::path::Path;
 
 use rusqlite::{params, Connection};
@@ -77,6 +86,8 @@ impl RoyStore {
     fn apply_migrations(&self) -> Result<(), StoreError> {
         self.conn
             .execute_batch(include_str!("../../migrations/001_initial.sql"))?;
+        self.conn
+            .execute_batch(include_str!("../../migrations/002_language_state.sql"))?;
         Ok(())
     }
 
@@ -225,3 +236,7 @@ impl RoyStore {
 #[cfg(test)]
 #[path = "store_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "store_tests_lang.rs"]
+mod tests_lang;
