@@ -39,10 +39,7 @@ fn auth_method_supports_device_or_api_key() {
 
 #[test]
 fn discover_matches_environment_when_binary_present_or_absent() {
-    let has_codex = std::env::var("PATH")
-        .unwrap_or_default()
-        .split(':')
-        .any(|d| PathBuf::from(d).join("codex").is_file());
+    let has_codex = super::super::host::discover_binary("codex").is_ok();
 
     match CodexAdapter::discover() {
         Ok(adapter) => {
@@ -51,14 +48,12 @@ fn discover_matches_environment_when_binary_present_or_absent() {
                 "discover() succeeded but PATH scan found no codex"
             );
             assert_eq!(adapter.meta().kind, AgentKind::Codex);
-            assert_eq!(
-                adapter
-                    .meta()
-                    .install_path
-                    .file_name()
-                    .and_then(|n| n.to_str()),
-                Some("codex")
-            );
+            let install_name = adapter
+                .meta()
+                .install_path
+                .file_stem()
+                .and_then(|n| n.to_str());
+            assert_eq!(install_name, Some("codex"));
             assert!(
                 !adapter.meta().version.trim().is_empty(),
                 "discover() must keep a non-empty version string"

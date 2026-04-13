@@ -12,6 +12,22 @@ fn rt() -> ShellRuntime {
     ShellRuntime::new(std::env::temp_dir())
 }
 
+fn binary_on_path(name: &str) -> bool {
+    #[cfg(windows)]
+    let exts = ["", ".exe", ".cmd", ".bat"];
+    #[cfg(not(windows))]
+    let exts = [""];
+
+    std::env::var_os("PATH")
+        .map(|path| {
+            std::env::split_paths(&path).any(|dir| {
+                exts.iter()
+                    .any(|ext| dir.join(format!("{name}{ext}")).is_file())
+            })
+        })
+        .unwrap_or(false)
+}
+
 fn fake_handle() -> AgentHandle {
     let meta = AgentMeta {
         kind: AgentKind::ClaudeCode,
@@ -78,10 +94,7 @@ fn dispatch_claude_not_installed_returns_exec_with_127() {
     // This test relies on `claude` NOT being installed in the test environment.
     // If it is installed, this test is skipped via the same env-check pattern
     // used in claude_code_tests.
-    let has_claude = std::env::var("PATH")
-        .unwrap_or_default()
-        .split(':')
-        .any(|d| PathBuf::from(d).join("claude").is_file());
+    let has_claude = binary_on_path("claude");
 
     if has_claude {
         return; // claude is installed; skip the not-installed path
@@ -98,10 +111,7 @@ fn dispatch_claude_not_installed_returns_exec_with_127() {
 
 #[test]
 fn dispatch_claude_not_installed_writes_error_line() {
-    let has_claude = std::env::var("PATH")
-        .unwrap_or_default()
-        .split(':')
-        .any(|d| PathBuf::from(d).join("claude").is_file());
+    let has_claude = binary_on_path("claude");
 
     if has_claude {
         return;
@@ -128,10 +138,7 @@ fn dispatch_claude_not_installed_writes_error_line() {
 /// ROY must not reject launch before Claude gets a chance to use that state.
 #[test]
 fn dispatch_claude_missing_api_key_does_not_fail_preflight_auth_gate() {
-    let has_claude = std::env::var("PATH")
-        .unwrap_or_default()
-        .split(':')
-        .any(|d| PathBuf::from(d).join("claude").is_file());
+    let has_claude = binary_on_path("claude");
 
     if !has_claude {
         return; // binary absent; not the path under test here

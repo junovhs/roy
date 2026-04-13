@@ -14,7 +14,7 @@ fn rt() -> ShellRuntime {
 #[test]
 fn pwd_returns_cwd_with_exit_zero() {
     let mut rt = rt();
-    let expected = std::env::temp_dir().display().to_string();
+    let expected = rt.env().cwd().display().to_string();
     match rt.dispatch("pwd", &[]) {
         DispatchResult::Executed {
             output, exit_code, ..
@@ -29,10 +29,11 @@ fn pwd_returns_cwd_with_exit_zero() {
 #[test]
 fn pwd_writes_to_transcript() {
     let mut rt = rt();
+    let expected = rt.env().cwd().display().to_string();
     rt.dispatch("pwd", &[]);
     let lines = rt.drain_output();
     assert!(!lines.is_empty(), "pwd must write to transcript");
-    assert_eq!(lines[0], std::env::temp_dir().display().to_string());
+    assert_eq!(lines[0], expected);
 }
 
 // ── cd ────────────────────────────────────────────────────────────────────────
@@ -78,8 +79,9 @@ fn cd_nonexistent_writes_error_to_transcript() {
 fn cd_no_args_returns_cwd_unchanged() {
     let root = std::env::temp_dir();
     let mut rt = ShellRuntime::new(root.clone());
+    let expected = rt.env().cwd().to_path_buf();
     match rt.dispatch("cd", &[]) {
-        DispatchResult::CwdChanged { to } => assert_eq!(to, root),
+        DispatchResult::CwdChanged { to } => assert_eq!(to, expected),
         other => panic!("expected CwdChanged, got {other:?}"),
     }
 }

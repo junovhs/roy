@@ -19,15 +19,45 @@ pub(super) fn launch_supervised_agent(
 ) -> Result<AgentHandle, AgentError> {
     let pty_system = native_pty_system();
     let pair = pty_system
-        .openpty(PtySize { rows: PTY_ROWS, cols: PTY_COLS, pixel_width: 0, pixel_height: 0 })
+        .openpty(PtySize {
+            rows: PTY_ROWS,
+            cols: PTY_COLS,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
         .map_err(|e| AgentError::launch_failed(e.to_string()))?;
 
-    let roy_bin = crate::shell::ShellEnv::roy_path();
     let sys_path = std::env::var("PATH").unwrap_or_default();
+    // Prepend the roy bin dir (Linux only — on Windows it's a Unix path stub
+    // that would corrupt the Windows DLL search path).
+    let new_path: std::ffi::OsString = {
+        #[cfg(not(windows))]
+        {
+            let roy_bin = crate::shell::ShellEnv::roy_path();
+            std::env::join_paths(
+                std::iter::once(std::path::PathBuf::from(&roy_bin))
+                    .chain(std::env::split_paths(&sys_path)),
+            )
+            .unwrap_or_else(|_| format!("{roy_bin}:{sys_path}").into())
+        }
+        #[cfg(windows)]
+        {
+            sys_path.into()
+        }
+    };
 
     let mut cmd = CommandBuilder::new(&meta.install_path);
-    cmd.env("PATH", format!("{roy_bin}:{sys_path}"));
-    cmd.env("HOME", std::env::var("HOME").unwrap_or_default());
+
+    // Seed the child's environment from the parent so that critical OS variables
+    // (SystemRoot, USERPROFILE, APPDATA, TEMP, …) are present.  On Windows,
+    // portable-pty's CommandBuilder does NOT inherit the parent environment
+    // automatically — it passes only the vars that are explicitly set.
+    for (key, val) in std::env::vars_os() {
+        cmd.env(key, val);
+    }
+
+    // Now apply ROY-specific overrides on top of the inherited environment.
+    cmd.env("PATH", new_path);
     cmd.env("ROY_SESSION_ID", config.session_id.to_string());
     cmd.env("COLUMNS", PTY_COLS.to_string());
     cmd.env("LINES", PTY_ROWS.to_string());
@@ -37,17 +67,20 @@ pub(super) fn launch_supervised_agent(
     }
     cmd.cwd(&config.workspace_root);
 
-    let child = pair.slave
+    let child = pair
+        .slave
         .spawn_command(cmd)
         .map_err(|e| AgentError::launch_failed(e.to_string()))?;
 
     let pid = child.process_id().unwrap_or(0);
 
     // Extract reader (dup of master fd) before dropping pair.
-    let master_reader = pair.master
+    let master_reader = pair
+        .master
         .try_clone_reader()
         .map_err(|e| AgentError::io_error(e.to_string()))?;
-    let master_writer = pair.master
+    let master_writer = pair
+        .master
         .take_writer()
         .map_err(|e| AgentError::io_error(e.to_string()))?;
     // pair.master and pair.slave drop here; reader/writer keep the PTY alive.
@@ -72,17 +105,27 @@ pub(super) fn launch_supervised_agent(
 
     let mut handle = AgentHandle::new(meta.clone(), config.session_id);
     handle.push_event(SupervisionEvent::AgentStarted { pid });
-    handle.set_stdin(Arc::new(Mutex::new(Box::new(master_writer) as Box<dyn Write + Send>)));
+    handle.set_stdin(Arc::new(Mutex::new(
+        Box::new(master_writer) as Box<dyn Write + Send>
+    )));
     handle.set_pending(queue);
     Ok(handle)
 }
 
 pub(super) fn discover_binary(name: &str) -> Result<PathBuf, AgentError> {
     let path_var = std::env::var("PATH").unwrap_or_default();
-    for dir in path_var.split(':') {
-        let candidate = PathBuf::from(dir).join(name);
-        if candidate.is_file() {
-            return Ok(candidate);
+    // On Windows, executables may have .cmd, .exe, or .bat extensions.
+    #[cfg(windows)]
+    let extensions = &["", ".exe", ".cmd", ".bat"][..];
+    #[cfg(not(windows))]
+    let extensions = &[""][..];
+
+    for dir in std::env::split_paths(&path_var) {
+        for ext in extensions {
+            let candidate = dir.join(format!("{name}{ext}"));
+            if candidate.is_file() {
+                return Ok(candidate);
+            }
         }
     }
     Err(AgentError::not_installed(name))

@@ -3,12 +3,18 @@ use dioxus::prelude::*;
 use crate::session::Session;
 use crate::shell::ShellRuntime;
 
-#[path = "terminal_emulator.rs"]
-mod terminal_emulator;
+#[path = "terminal_colors.rs"]
+mod terminal_colors;
+#[path = "terminal_composer.rs"]
+mod terminal_composer;
 #[path = "terminal_grid.rs"]
 mod terminal_grid;
+#[path = "terminal_grid_render.rs"]
+mod terminal_grid_render;
 #[path = "terminal_line.rs"]
 mod terminal_line;
+#[path = "terminal_spans.rs"]
+mod terminal_spans;
 #[path = "terminal_submit.rs"]
 pub(super) mod terminal_submit;
 #[path = "terminal_view.rs"]

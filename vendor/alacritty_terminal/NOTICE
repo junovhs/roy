@@ -1,0 +1,14 @@
+ROY includes a local fork of alacritty_terminal 0.26.0.
+
+Upstream project:
+https://github.com/alacritty/alacritty
+
+Original crate authors:
+- Christian Duerr <contact@christianduerr.com>
+- Joe Wilm <joe@jwilm.com>
+
+License:
+Apache-2.0. See LICENSE-APACHE in this directory for the upstream license text.
+
+This fork is vendored under vendor/alacritty_terminal so ROY can own terminal-specific
+integration work without relying on crates.io for local modifications.

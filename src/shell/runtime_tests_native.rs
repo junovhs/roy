@@ -128,6 +128,7 @@ fn check_runs_cargo_check_for_current_workspace() {
     std::fs::write(root.join("src/lib.rs"), "pub fn fixture() -> u32 { 7 }\n").unwrap();
 
     let mut rt = ShellRuntime::new(root.clone());
+    let expected_cwd = rt.env().cwd().display().to_string();
     match rt.dispatch("check", &[]) {
         DispatchResult::Executed {
             output,
@@ -136,7 +137,7 @@ fn check_runs_cargo_check_for_current_workspace() {
         } => {
             assert_eq!(exit_code, 0);
             assert!(output.contains("cargo check"));
-            assert!(output.contains(root.to_str().unwrap()));
+            assert!(output.contains(&expected_cwd));
             assert_eq!(
                 artifacts.len(),
                 1,

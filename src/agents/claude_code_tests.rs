@@ -59,10 +59,7 @@ fn which_missing_binary_returns_not_installed() {
 fn discover_returns_not_installed_when_claude_absent() {
     // When claude is not installed, discover() must surface NotInstalled.
     // If claude happens to be on PATH in this env, skip the error-path assertion.
-    let has_claude = std::env::var("PATH")
-        .unwrap_or_default()
-        .split(':')
-        .any(|d| PathBuf::from(d).join("claude").is_file());
+    let has_claude = super::super::host::discover_binary("claude").is_ok();
 
     if !has_claude {
         let err = ClaudeCodeAdapter::discover().expect_err("must fail when claude absent");

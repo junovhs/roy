@@ -131,7 +131,8 @@ fn prompt_shows_error_indicator_after_nonzero_exit() {
 fn prompt_contains_cwd() {
     let root = std::env::temp_dir();
     let rt = ShellRuntime::new(root.clone());
-    assert!(rt.prompt().contains(root.to_str().unwrap()));
+    let cwd = rt.env().cwd().display().to_string();
+    assert!(rt.prompt().contains(&cwd));
 }
 
 // ── workspace boundary enforcement ───────────────────────────────────────────

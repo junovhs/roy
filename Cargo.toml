@@ -13,10 +13,10 @@ dioxus = { version = "0.7", features = ["desktop"] }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-rusqlite = "0.31"
+rusqlite = { version = "0.31", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-alacritty_terminal = "0.26.0"
+alacritty_terminal = { path = "vendor/alacritty_terminal" }
 portable-pty = "0.9.0"
 
 [profile.release]

@@ -87,7 +87,22 @@ fn read_rejects_escape_outside_workspace() {
 fn list_dir_labels_symlinks_as_link() {
     let root = temp_workspace("cap-symlink");
     std::fs::write(root.join("target.txt"), "t").unwrap();
+
+    // Create a symlink cross-platform.  On Windows this requires Developer
+    // Mode or administrator privileges; skip gracefully when unavailable.
+    #[cfg(unix)]
     std::os::unix::fs::symlink(root.join("target.txt"), root.join("link.txt")).unwrap();
+
+    #[cfg(windows)]
+    {
+        if std::os::windows::fs::symlink_file(root.join("target.txt"), root.join("link.txt"))
+            .is_err()
+        {
+            // Symlink creation is a privileged operation on Windows without
+            // Developer Mode; skip rather than falsely fail.
+            return;
+        }
+    }
 
     let output = runtime(&root)
         .execute(&CapabilityRequest::Fs(FsCapability::ListDir { path: None }))
