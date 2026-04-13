@@ -4,6 +4,8 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use portable_pty::MasterPty;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AgentKind {
     ClaudeCode,
@@ -66,6 +68,7 @@ pub struct AgentHandle {
     exit_code: Option<i32>,
     pending: Option<Arc<Mutex<Vec<SupervisionEvent>>>>,
     stdin: Option<SharedAgentInput>,
+    pty_master: Option<Box<dyn MasterPty + Send>>,
 }
 
 type SharedAgentInput = Arc<Mutex<Box<dyn Write + Send>>>;
@@ -79,6 +82,7 @@ impl AgentHandle {
             exit_code: None,
             pending: None,
             stdin: None,
+            pty_master: None,
         }
     }
 
@@ -107,6 +111,10 @@ impl AgentHandle {
 
     pub fn set_stdin(&mut self, writer: SharedAgentInput) {
         self.stdin = Some(writer);
+    }
+
+    pub fn set_pty_master(&mut self, master: Box<dyn MasterPty + Send>) {
+        self.pty_master = Some(master);
     }
 
     pub fn take_events(&mut self) -> Vec<SupervisionEvent> {

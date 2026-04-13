@@ -4,6 +4,7 @@
 
 use crate::policy::{PolicyEngine, PolicyProfile};
 use crate::shell::{DispatchResult, ShellRuntime};
+use crate::workspace::normalize_host_path;
 
 fn rt() -> ShellRuntime {
     ShellRuntime::new(std::env::temp_dir())
@@ -167,7 +168,8 @@ fn cd_outside_workspace_writes_error_to_transcript() {
 fn workspace_root_accessible_via_runtime() {
     let root = std::env::temp_dir().canonicalize().unwrap();
     let rt = ShellRuntime::new(root.clone());
-    assert_eq!(rt.workspace_root(), root.as_path());
+    let expected = normalize_host_path(&root);
+    assert_eq!(rt.workspace_root(), expected.as_path());
 }
 
 #[test]

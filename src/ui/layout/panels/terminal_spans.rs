@@ -3,6 +3,8 @@ use alacritty_terminal::term::cell::Flags;
 use super::terminal_grid::CursorShapeKind;
 
 type StyledCell = (char, u32, u32, u16);
+const DEFAULT_FG: &str = super::INK;
+const DEFAULT_BG: &str = "#16171a";
 
 pub(super) fn row_spans_with_cursor(
     row: &[StyledCell],
@@ -34,11 +36,6 @@ pub(super) fn row_spans_with_cursor(
     if let Some(active_style) = style {
         spans.push((text, active_style));
     }
-    if cursor.is_none() {
-        if let Some(last) = spans.last_mut() {
-            last.0 = last.0.trim_end().to_string();
-        }
-    }
     spans.retain(|(text, _)| !text.is_empty());
     spans
 }
@@ -67,22 +64,81 @@ fn rgba_css(rgba: u32) -> Option<String> {
 }
 
 fn span_css(fg: u32, bg: u32, flags: u16) -> String {
-    let mut css = String::new();
+    let flags = Flags::from_bits_truncate(flags);
+    let mut css = String::from("white-space:pre;line-height:1em;letter-spacing:0;");
+    push_color_css(&mut css, fg, bg, flags);
+    push_font_css(&mut css, flags);
+    push_decoration_css(&mut css, flags);
+    css
+}
+
+fn push_color_css(css: &mut String, fg: u32, bg: u32, flags: Flags) {
+    let inverse = flags.contains(Flags::INVERSE);
+    let (fg, bg) = if inverse { (bg, fg) } else { (fg, bg) };
+
     if let Some(color) = rgba_css(fg) {
         css.push_str(&format!("color:{color};"));
+    } else if inverse {
+        css.push_str(&format!("color:{DEFAULT_BG};"));
     }
+
     if let Some(color) = rgba_css(bg) {
         css.push_str(&format!("background:{color};"));
+    } else if inverse {
+        css.push_str(&format!("background:{DEFAULT_FG};"));
     }
-    let flags = Flags::from_bits_truncate(flags);
+
+    if flags.contains(Flags::HIDDEN) {
+        css.push_str("color:transparent;");
+    }
+}
+
+fn push_font_css(css: &mut String, flags: Flags) {
     if flags.contains(Flags::BOLD) {
         css.push_str("font-weight:bold;");
+    }
+    if flags.contains(Flags::DIM) {
+        css.push_str("opacity:.75;");
     }
     if flags.contains(Flags::ITALIC) {
         css.push_str("font-style:italic;");
     }
-    if flags.intersects(Flags::ALL_UNDERLINES) {
-        css.push_str("text-decoration:underline;");
+}
+
+fn push_decoration_css(css: &mut String, flags: Flags) {
+    let underline = flags.intersects(Flags::ALL_UNDERLINES);
+    let strikeout = flags.contains(Flags::STRIKEOUT);
+    if !(underline || strikeout) {
+        return;
     }
-    css
+
+    css.push_str("text-decoration:");
+    if underline {
+        css.push_str("underline");
+        if strikeout {
+            css.push(' ');
+        }
+    }
+    if strikeout {
+        css.push_str("line-through");
+    }
+    css.push_str(";text-decoration-skip-ink:none;");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keeps_trailing_spaces_for_terminal_rows() {
+        let spans = row_spans_with_cursor(&[('x', 0, 0, 0), (' ', 0, 0, 0), (' ', 0, 0, 0)], None);
+        assert_eq!(spans, vec![("x  ".to_string(), span_css(0, 0, 0))]);
+    }
+
+    #[test]
+    fn inverse_swaps_default_terminal_colors() {
+        let css = span_css(0, 0, Flags::INVERSE.bits());
+        assert!(css.contains("color:#16171a;"));
+        assert!(css.contains(&format!("background:{DEFAULT_FG};")));
+    }
 }

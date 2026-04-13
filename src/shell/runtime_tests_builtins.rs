@@ -4,6 +4,7 @@
 //! are in runtime_tests_discoverability.rs.
 
 use crate::shell::{DispatchResult, ShellRuntime};
+use crate::workspace::normalize_host_path;
 
 fn rt() -> ShellRuntime {
     ShellRuntime::new(std::env::temp_dir())
@@ -43,10 +44,11 @@ fn cd_absolute_path_changes_cwd() {
     // cd to the workspace root itself — always a valid within-workspace move.
     let root = std::env::temp_dir().canonicalize().unwrap();
     let mut rt = ShellRuntime::new(root.clone());
+    let expected = normalize_host_path(&root);
     match rt.dispatch("cd", &[root.to_str().unwrap()]) {
         DispatchResult::CwdChanged { to } => {
-            assert_eq!(to, root);
-            assert_eq!(rt.env().cwd(), root.as_path());
+            assert_eq!(to, expected);
+            assert_eq!(rt.env().cwd(), expected.as_path());
             assert_eq!(rt.last_exit_status(), Some(0));
         }
         other => panic!("expected CwdChanged, got {other:?}"),

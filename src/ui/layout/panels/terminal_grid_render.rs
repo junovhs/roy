@@ -29,7 +29,9 @@ pub(super) fn render_grid_row(
     let spans = row_spans_with_cursor(&row, cursor);
 
     rsx! {
-        div { key: "{row_index}", style: "white-space:pre;min-height:1.2em;",
+        div {
+            key: "{row_index}",
+            style: "display:block;white-space:pre;height:1em;line-height:1em;",
             if spans.is_empty() { "\u{00a0}" }
             for (span_index, (text, css)) in spans.into_iter().enumerate() {
                 span { key: "{span_index}", style: "{css}", "{text}" }

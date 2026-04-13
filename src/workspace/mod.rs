@@ -12,8 +12,27 @@
 pub mod boundary;
 pub mod cwd;
 
+use std::path::{Path, PathBuf};
+
 // Used by ShellRuntime and tests; UI wiring pending WRK-02.
 #[allow(unused_imports)]
 pub use boundary::{WorkspaceBoundary, WorkspaceError};
 #[allow(unused_imports)]
 pub use cwd::WorkspaceCwd;
+
+pub fn normalize_host_path(path: &Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        use std::path::MAIN_SEPARATOR_STR;
+
+        let text = path.as_os_str().to_string_lossy();
+        if let Some(stripped) = text.strip_prefix(r"\\?\UNC\") {
+            return PathBuf::from(format!(r"\\{stripped}"));
+        }
+        if let Some(stripped) = text.strip_prefix(r"\\?\") {
+            return PathBuf::from(stripped.replace('/', MAIN_SEPARATOR_STR));
+        }
+    }
+
+    path.to_path_buf()
+}

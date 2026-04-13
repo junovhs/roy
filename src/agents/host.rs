@@ -6,7 +6,9 @@ use std::thread;
 
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 
-use super::adapter::{AgentError, AgentHandle, AgentMeta, LaunchConfig, SupervisionEvent};
+use super::adapter::{
+    AgentError, AgentHandle, AgentKind, AgentMeta, LaunchConfig, SupervisionEvent,
+};
 
 /// Terminal dimensions reported to the hosted agent.
 const PTY_COLS: u16 = 220;
@@ -46,7 +48,7 @@ pub(super) fn launch_supervised_agent(
         }
     };
 
-    let mut cmd = CommandBuilder::new(&meta.install_path);
+    let mut cmd = build_command(meta);
 
     // Seed the child's environment from the parent so that critical OS variables
     // (SystemRoot, USERPROFILE, APPDATA, TEMP, …) are present.  On Windows,
@@ -83,8 +85,6 @@ pub(super) fn launch_supervised_agent(
         .master
         .take_writer()
         .map_err(|e| AgentError::io_error(e.to_string()))?;
-    // pair.master and pair.slave drop here; reader/writer keep the PTY alive.
-
     let queue: Arc<Mutex<Vec<SupervisionEvent>>> = Arc::new(Mutex::new(Vec::new()));
 
     spawn_pty_reader(Arc::clone(&queue), master_reader, config.session_id, label);
@@ -108,8 +108,26 @@ pub(super) fn launch_supervised_agent(
     handle.set_stdin(Arc::new(Mutex::new(
         Box::new(master_writer) as Box<dyn Write + Send>
     )));
+    handle.set_pty_master(pair.master);
     handle.set_pending(queue);
     Ok(handle)
+}
+
+fn build_command(meta: &AgentMeta) -> CommandBuilder {
+    #[cfg(windows)]
+    {
+        if matches!(meta.kind, AgentKind::ClaudeCode) {
+            let comspec = std::env::var_os("ComSpec").unwrap_or_else(|| "cmd.exe".into());
+            let mut cmd = CommandBuilder::new(comspec);
+            cmd.arg("/d");
+            cmd.arg("/s");
+            cmd.arg("/c");
+            cmd.arg(&meta.install_path);
+            return cmd;
+        }
+    }
+
+    CommandBuilder::new(&meta.install_path)
 }
 
 pub(super) fn discover_binary(name: &str) -> Result<PathBuf, AgentError> {
@@ -169,4 +187,50 @@ fn spawn_pty_reader<R>(
             }
         })
         .ok();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn claude_launch_uses_cmd_wrapper_on_windows() {
+        let meta = AgentMeta {
+            kind: AgentKind::ClaudeCode,
+            version: "test".to_string(),
+            install_path: PathBuf::from(r"C:\Users\name\.local\bin\claude.exe"),
+        };
+        let cmd = build_command(&meta);
+        let argv = cmd
+            .get_argv()
+            .iter()
+            .map(|arg| arg.to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+
+        assert!(
+            argv[0].to_ascii_lowercase().contains("cmd"),
+            "expected cmd.exe wrapper, got {argv:?}"
+        );
+        assert_eq!(argv[1..4], ["/d", "/s", "/c"]);
+        assert_eq!(argv[4], r"C:\Users\name\.local\bin\claude.exe");
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn non_windows_launches_binary_directly() {
+        let meta = AgentMeta {
+            kind: AgentKind::ClaudeCode,
+            version: "test".to_string(),
+            install_path: PathBuf::from("/usr/local/bin/claude"),
+        };
+        let cmd = build_command(&meta);
+        let argv = cmd
+            .get_argv()
+            .iter()
+            .map(|arg| arg.to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+
+        assert_eq!(argv, vec!["/usr/local/bin/claude"]);
+    }
 }

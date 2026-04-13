@@ -14,7 +14,7 @@ use crate::commands::schema::Backend;
 use crate::commands::{parse_native_request, CommandRegistry};
 use crate::policy::{PolicyEngine, PolicyOutcome};
 use crate::session::SessionArtifact;
-use crate::workspace::WorkspaceBoundary;
+use crate::workspace::{normalize_host_path, WorkspaceBoundary};
 
 use super::result::DispatchResult;
 use super::{BufferedIo, ShellEnv, ShellIo};
@@ -48,6 +48,7 @@ impl ShellRuntime {
     /// but transparent until explicitly configured (see `set_policy`).
     pub fn new(workspace_root: PathBuf) -> Self {
         let workspace_root = workspace_root.canonicalize().unwrap_or(workspace_root);
+        let workspace_root = normalize_host_path(&workspace_root);
         let workspace = WorkspaceBoundary::new(workspace_root.clone());
 
         Self {

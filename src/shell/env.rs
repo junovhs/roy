@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use super::ShellError;
+use crate::workspace::normalize_host_path;
 
 /// Controlled environment for one ROY shell session.
 ///
@@ -78,6 +79,7 @@ impl ShellEnv {
         let canonical = target
             .canonicalize()
             .map_err(|_| ShellError::DirNotFound(target.clone()))?;
+        let canonical = normalize_host_path(&canonical);
 
         if !canonical.is_dir() {
             return Err(ShellError::NotADirectory(canonical));
@@ -163,7 +165,8 @@ mod tests {
         let parent_canonical = parent.canonicalize().unwrap();
         let mut env = ShellEnv::new(root);
         env.chdir(&parent_canonical).unwrap();
-        assert_eq!(env.cwd(), parent_canonical.as_path());
+        let expected = normalize_host_path(&parent_canonical);
+        assert_eq!(env.cwd(), expected.as_path());
     }
 
     #[test]
@@ -172,7 +175,8 @@ mod tests {
         let parent_canonical = root.parent().unwrap().canonicalize().unwrap();
         let mut env = ShellEnv::new(root);
         env.chdir(Path::new("..")).unwrap();
-        assert_eq!(env.cwd(), parent_canonical.as_path());
+        let expected = normalize_host_path(&parent_canonical);
+        assert_eq!(env.cwd(), expected.as_path());
     }
 
     #[test]
@@ -191,5 +195,19 @@ mod tests {
         let snap = env.snapshot();
         let path = snap.get("PATH").expect("PATH in snapshot");
         assert!(!path.split(':').any(|e| e == "/usr/bin" || e == "/bin"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn chdir_strips_verbatim_windows_prefix() {
+        let root = tmp_root();
+        let mut env = ShellEnv::new(root.clone());
+        let canonical = root.canonicalize().unwrap();
+        env.chdir(&canonical).unwrap();
+        let shown = env.cwd().display().to_string();
+        assert!(
+            !shown.starts_with(r"\\?\"),
+            "cwd should not retain Windows verbatim prefix: {shown}"
+        );
     }
 }

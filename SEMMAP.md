@@ -131,7 +131,7 @@ Configuration for neti.
 
 `src/agents/adapter.rs`
 Implements agent handle.events. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:sync-primitives,panics-on-error,propagates-errors] [QUALITY:undocumented]
-Exports: AgentHandle.send_raw_bytes, AgentAuthMethod, AgentErrorKind, AgentError.auth_required
+Exports: AgentHandle.send_raw_bytes, AgentHandle.set_pty_master, AgentAuthMethod, AgentErrorKind
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: synchronized side-effecting that panics on error
 
@@ -149,6 +149,7 @@ Semantic: pure computation that propagates errors
 
 `src/agents/host.rs`
 Terminal dimensions reported to the hosted agent. [COUPLING:mixed] [BEHAVIOR:owns-state,persists,sync-primitives,propagates-errors] [QUALITY:error-boundary]
+Touch: Contains inline Rust tests alongside runtime code.
 Semantic: synchronized side-effecting stateful adapter that propagates errors
 
 `src/agents/session.rs`
@@ -318,9 +319,10 @@ Touch: Contains inline Rust tests alongside runtime code.
 Semantic: side-effecting that panics on error
 
 `src/ui/layout/panels/terminal_grid.rs`
-alacritty_terminal state helpers for the agent terminal view. [COUPLING:mixed] [BEHAVIOR:owns-state] [QUALITY:undocumented]
-Exports: TermDims.columns, TermDims.screen_lines, TermDims.total_lines
-Semantic: side-effecting stateful module
+alacritty_terminal state helpers for the agent terminal view. [COUPLING:mixed] [BEHAVIOR:owns-state,sync-primitives,panics-on-error] [QUALITY:undocumented]
+Exports: TermDims.columns, TermListener.send_event, TermDims.screen_lines, TermDims.total_lines
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: synchronized side-effecting stateful module that panics on error
 
 `src/ui/layout/panels/terminal_model.rs`
 Visual classification of a terminal line, driving rendering in terminal.rs. [TYPE] [COUPLING:mixed] [BEHAVIOR:owns-state]
@@ -446,8 +448,9 @@ Re-exports the public API surface. [ENTRY] [HOTSPOT] [GLOBAL-UTIL]
 Exports: layout
 
 `src/workspace/mod.rs`
-Workspace management and boundary enforcement. [ENTRY] [HOTSPOT] [GLOBAL-UTIL]
-Exports: WorkspaceCwd, boundary
+Workspace management and boundary enforcement. [ENTRY] [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure]
+Exports: normalize_host_path, WorkspaceCwd, boundary
+Semantic: pure computation
 
 ## Layer 4 -- Tests
 
@@ -557,7 +560,7 @@ DependencyGraph:
     Imports: [ast.rs, capabilities/mod.rs, commands/fs.rs, commands/validation.rs, registry.rs, schema.rs]
     ImportedBy: [builtins.rs, capability_tests.rs, compat.rs, footer.rs, main.rs, pane.rs, pane_tests.rs, policy/engine.rs, profile.rs, registry.rs, registry_data.rs, resolve.rs, runtime.rs, traps.rs]
   env.rs:
-    Imports: [boundary.rs]
+    Imports: [boundary.rs, workspace/mod.rs]
     ImportedBy: [claude_code_tests.rs, codex_tests.rs, cwd.rs, diag_drawer.rs, host.rs, runtime_builtins.rs, runtime_native.rs, runtime_tests_builtins.rs, runtime_tests_native.rs, runtime_tests_policy.rs, shell/mod.rs, workspace.rs]
   events.rs:
     Imports: [session/mod.rs]
@@ -591,7 +594,7 @@ DependencyGraph:
     ImportedBy: [activity.rs, app/mod.rs, artifacts_row.rs, main.rs]
   workspace/mod.rs:
     Imports: [boundary.rs, cwd.rs]
-    ImportedBy: [boundary.rs, capabilities/mod.rs, cwd.rs, main.rs, runtime.rs]
+    ImportedBy: [boundary.rs, capabilities/mod.rs, cwd.rs, env.rs, main.rs, runtime.rs, runtime_tests_builtins.rs, runtime_tests_policy.rs]
   # --- Layer 0 -- Config ---
   Cargo.toml, SEMMAP.md, neti.toml:
     Imports: []
@@ -605,7 +608,7 @@ DependencyGraph:
     ImportedBy: [layout/mod.rs]
   adapter.rs:
     Imports: [adapter_tests.rs, boundary.rs, session/artifacts.rs]
-    ImportedBy: [adapter_tests.rs, agents/mod.rs, runtime_agent.rs]
+    ImportedBy: [agents/mod.rs, host.rs, runtime_agent.rs]
   ast.rs:
     Imports: [boundary.rs]
     ImportedBy: [command_line.rs, commands/mod.rs, main.rs]
@@ -658,7 +661,7 @@ DependencyGraph:
     Imports: [commands/mod.rs, diagnostics/mod.rs, pane.rs, runtime.rs, session/engine.rs, session/mod.rs, shell/mod.rs]
     ImportedBy: []
   host.rs:
-    Imports: [boundary.rs, capabilities/mod.rs, env.rs]
+    Imports: [adapter.rs, boundary.rs, capabilities/mod.rs, env.rs]
     ImportedBy: [agents/mod.rs]
   pane.rs:
     Imports: [boundary.rs, commands/mod.rs, registry.rs, session/mod.rs]
@@ -760,7 +763,7 @@ DependencyGraph:
     ImportedBy: [main.rs]
   # --- Tests ---
   adapter_tests.rs:
-    Imports: [adapter.rs, boundary.rs]
+    Imports: [boundary.rs]
     ImportedBy: [adapter.rs, capabilities/fs.rs, capability_tests.rs, runtime_tests_native.rs, terminal_model_tests_submit.rs, terminal_submit_handle.rs, terminal_submit_parse.rs, terminal_view.rs]
   agent_contract_tests.rs:
     Imports: [claude_code.rs]
@@ -790,7 +793,7 @@ DependencyGraph:
     Imports: [agents/mod.rs, boundary.rs, runtime_agent.rs, shell/mod.rs]
     ImportedBy: []
   runtime_tests_builtins.rs:
-    Imports: [boundary.rs, env.rs, shell/mod.rs]
+    Imports: [boundary.rs, env.rs, shell/mod.rs, workspace/mod.rs]
     ImportedBy: []
   runtime_tests_discoverability.rs:
     Imports: [boundary.rs, shell/mod.rs]
@@ -799,7 +802,7 @@ DependencyGraph:
     Imports: [adapter_tests.rs, boundary.rs, env.rs, shell/mod.rs]
     ImportedBy: []
   runtime_tests_policy.rs:
-    Imports: [boundary.rs, env.rs, policy/mod.rs, runtime.rs, shell/mod.rs]
+    Imports: [boundary.rs, env.rs, policy/mod.rs, runtime.rs, shell/mod.rs, workspace/mod.rs]
     ImportedBy: []
   session/engine_tests.rs:
     Imports: [agents/mod.rs, boundary.rs, events.rs, session/engine.rs, session/mod.rs]

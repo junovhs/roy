@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use alacritty_terminal::event::VoidListener;
+use alacritty_terminal::event::{Event, EventListener, WindowSize};
 use alacritty_terminal::grid::{Dimensions, Scroll};
 use alacritty_terminal::term::{Config as TermConfig, RenderableCursor};
 use alacritty_terminal::vte::ansi::{CursorShape, Processor};
@@ -29,9 +29,41 @@ impl Dimensions for TermDims {
     }
 }
 
+#[derive(Clone, Default)]
+struct TermListener {
+    replies: Arc<Mutex<Vec<Vec<u8>>>>,
+}
+
+impl TermListener {
+    fn drain_replies(&self) -> Vec<Vec<u8>> {
+        let mut replies = self.replies.lock().expect("term reply lock poisoned");
+        replies.drain(..).collect()
+    }
+}
+
+impl EventListener for TermListener {
+    fn send_event(&self, event: Event) {
+        let mut replies = self.replies.lock().expect("term reply lock poisoned");
+        match event {
+            Event::PtyWrite(text) => replies.push(text.into_bytes()),
+            Event::TextAreaSizeRequest(formatter) => replies.push(
+                formatter(WindowSize {
+                    num_lines: TERM_ROWS as u16,
+                    num_cols: TERM_COLS as u16,
+                    cell_width: 0,
+                    cell_height: 0,
+                })
+                .into_bytes(),
+            ),
+            _ => {}
+        }
+    }
+}
+
 pub(super) struct TermState {
-    term: Term<VoidListener>,
+    term: Term<TermListener>,
     parser: Processor,
+    listener: TermListener,
 }
 
 pub(super) type TermHandle = Arc<Mutex<TermState>>;
@@ -57,15 +89,18 @@ pub(super) struct TerminalSnapshot {
 }
 
 pub(super) fn new_term_handle() -> TermHandle {
+    let listener = TermListener::default();
     Arc::new(Mutex::new(TermState {
-        term: Term::new(TermConfig::default(), &TermDims, VoidListener),
+        term: Term::new(TermConfig::default(), &TermDims, listener.clone()),
         parser: Processor::default(),
+        listener,
     }))
 }
 
 impl TermState {
-    pub(super) fn feed(&mut self, bytes: &[u8]) {
+    pub(super) fn feed(&mut self, bytes: &[u8]) -> Vec<Vec<u8>> {
         self.parser.advance(&mut self.term, bytes);
+        self.listener.drain_replies()
     }
 
     pub(super) fn scroll_lines(&mut self, delta: i32) {
@@ -144,4 +179,24 @@ fn renderable_cursor(
         column: col,
         shape,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cursor_position_queries_emit_reply_bytes() {
+        let mut term = TermState {
+            term: Term::new(TermConfig::default(), &TermDims, TermListener::default()),
+            parser: Processor::default(),
+            listener: TermListener::default(),
+        };
+        // Rebuild with the same listener instance the term stores.
+        term.listener = TermListener::default();
+        term.term = Term::new(TermConfig::default(), &TermDims, term.listener.clone());
+
+        let replies = term.feed(b"\x1b[6n");
+        assert_eq!(replies, vec![b"\x1b[1;1R".to_vec()]);
+    }
 }

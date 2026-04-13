@@ -84,7 +84,7 @@ pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>)
 
             if agent_active {
                 div {
-                    style: "color:{super::INK};line-height:1.2;margin-top:4px;overflow:hidden;",
+                    style: "color:{super::INK};margin-top:4px;overflow:hidden;font-family:'Cascadia Mono','JetBrains Mono','Consolas',monospace;font-size:14px;line-height:1;letter-spacing:0;font-kerning:none;font-variant-ligatures:none;font-feature-settings:'liga' 0,'calt' 0;text-rendering:optimizeSpeed;tab-size:8;",
                     for (ri, row) in grid_snapshot.as_ref().unwrap().rows.iter().cloned().enumerate() {
                         { render_grid_row(row, ri, grid_snapshot.as_ref().unwrap().cursor) }
                     }
@@ -137,13 +137,22 @@ async fn poll_agent_output(
             continue;
         }
         let (events, _exited) = runtime.write().poll_agent_events();
-        if !events.is_empty() && apply_events(events, &mut lines, &mut line_buf, &mut agent_term) {
+        if !events.is_empty()
+            && apply_events(
+                &mut runtime,
+                events,
+                &mut lines,
+                &mut line_buf,
+                &mut agent_term,
+            )
+        {
             *grid_tick.write() += 1;
         }
     }
 }
 
 fn apply_events(
+    runtime: &mut Signal<ShellRuntime>,
     events: Vec<SupervisionEvent>,
     lines: &mut Signal<Vec<ShellLine>>,
     line_buf: &mut Signal<String>,
@@ -155,16 +164,20 @@ fn apply_events(
             SupervisionEvent::OutputChunk { bytes, .. } => {
                 let handle = agent_term.read().clone();
                 let mut term = handle.lock().unwrap();
-                term.feed(&bytes);
+                let replies = term.feed(&bytes);
                 term.scroll_to_bottom();
+                drop(term);
+                send_term_replies(runtime, replies);
                 dirty = true;
             }
             SupervisionEvent::OutputLine { text } | SupervisionEvent::ErrorLine { text } => {
                 let handle = agent_term.read().clone();
                 let mut term = handle.lock().unwrap();
-                term.feed(text.as_bytes());
-                term.feed(b"\r\n");
+                let mut replies = term.feed(text.as_bytes());
+                replies.extend(term.feed(b"\r\n"));
                 term.scroll_to_bottom();
+                drop(term);
+                send_term_replies(runtime, replies);
                 dirty = true;
             }
             SupervisionEvent::ProcessExited { code } => {
@@ -199,4 +212,10 @@ fn apply_events(
         }
     }
     dirty
+}
+
+fn send_term_replies(runtime: &mut Signal<ShellRuntime>, replies: Vec<Vec<u8>>) {
+    for reply in replies {
+        let _ = runtime.write().send_agent_raw(&reply);
+    }
 }
