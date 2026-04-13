@@ -16,9 +16,6 @@ mod terminal_surface;
 #[path = "terminal_view.rs"]
 mod terminal_view;
 
-pub(super) const SURFACE: &str = "#16171a";
-pub(super) const SURFACE_2: &str = "#1c1d21";
-pub(super) const LINE: &str = "rgba(255,255,255,.06)";
 pub(super) const INK: &str = "#e6e4df";
 pub(super) const INK_DIM: &str = "#9b9892";
 pub(super) const INK_FAINT: &str = "#5f5d58";

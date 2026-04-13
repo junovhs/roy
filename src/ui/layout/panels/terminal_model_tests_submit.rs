@@ -162,7 +162,8 @@ fn handle_submit_agent_active_forwards_raw_input_without_dispatch() {
         handle_submit("continue".to_string(), "roy> ".to_string(), ctx);
 
         assert_eq!(&*input_text.read(), "");
-        assert_eq!(&*shared.lock().unwrap(), b"continue\n");
+        // PTY expects \r (carriage return) for Enter, not \n.
+        assert_eq!(&*shared.lock().unwrap(), b"continue\r");
 
         let rendered = lines.read();
         assert_eq!(rendered.len(), 1);

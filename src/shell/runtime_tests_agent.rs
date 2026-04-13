@@ -195,7 +195,8 @@ fn send_agent_input_forwards_line_with_newline() {
     rt.send_agent_input("status")
         .expect("agent input forward must succeed");
 
-    assert_eq!(&*shared.lock().unwrap(), b"status\n");
+    // PTY expects \r (carriage return) for Enter, not \n.
+    assert_eq!(&*shared.lock().unwrap(), b"status\r");
 }
 
 #[test]

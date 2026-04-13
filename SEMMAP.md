@@ -130,8 +130,8 @@ Configuration for neti.
 ## Layer 1 -- Domain (Engine)
 
 `src/agents/adapter.rs`
-Which terminal-native agent product is hosted. [HOTSPOT] [DOMAIN-CONTRACT] [COUPLING:mixed] [BEHAVIOR:sync-primitives,panics-on-error] [QUALITY:undocumented]
-Exports: AgentAuthMethod, AgentErrorKind, AgentError.auth_required, AgentError.launch_failed
+Which terminal-native agent product is hosted. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:sync-primitives,panics-on-error,propagates-errors] [QUALITY:undocumented]
+Exports: AgentHandle.send_raw_bytes, AgentAuthMethod, AgentErrorKind, AgentError.auth_required
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: synchronized side-effecting that panics on error
 
@@ -148,8 +148,8 @@ Touch: Contains inline Rust tests alongside runtime code.
 Semantic: pure computation that propagates errors
 
 `src/agents/host.rs`
-Implements host functionality. [COUPLING:mixed] [BEHAVIOR:persists,sync-primitives,propagates-errors]
-Semantic: synchronized side-effecting adapter that propagates errors
+Terminal dimensions reported to the hosted agent via PTY stty and env vars. [COUPLING:mixed] [BEHAVIOR:owns-state,persists,sync-primitives,propagates-errors] [QUALITY:error-boundary]
+Semantic: synchronized side-effecting stateful adapter that propagates errors
 
 `src/agents/session.rs`
 Lifecycle state of an embedded-agent session. [COUPLING:mixed] [BEHAVIOR:panics-on-error]
@@ -266,8 +266,8 @@ Outcome of dispatching a command through the shell runtime.
 Exports: DispatchResult
 
 `src/shell/runtime_agent.rs`
-Implements shellruntime.poll agent lines. [HOTSPOT] [COUPLING:pure]
-Exports: ShellRuntime.poll_agent_lines
+Implements shellruntime.send agent input. [HOTSPOT] [COUPLING:pure]
+Exports: ShellRuntime.poll_agent_events, ShellRuntime.poll_agent_lines, ShellRuntime.send_agent_input, ShellRuntime.send_agent_raw
 Semantic: pure computation
 
 `src/shell/runtime_builtins.rs`
@@ -291,12 +291,12 @@ Touch: Contains inline Rust tests alongside runtime code.
 Semantic: side-effecting adapter with database surface that propagates errors
 
 `src/storage/sqlite_issues.rs`
-Issue storage APIs. [COUPLING:pure] [BEHAVIOR:propagates-errors] [SURFACE:database] [QUALITY:error-boundary]
+Issue storage APIs. [HOTSPOT] [COUPLING:pure] [BEHAVIOR:propagates-errors] [SURFACE:database] [QUALITY:error-boundary]
 Exports: RoyStore.list_open_issues, RoyStore.list_issues, IssueRecord, RoyStore.insert_issue
 Semantic: pure computation with database surface that propagates errors
 
 `src/storage/sqlite_refs.rs`
-Named-ref storage APIs. [COUPLING:pure] [BEHAVIOR:propagates-errors] [SURFACE:database] [QUALITY:error-boundary]
+Named-ref storage APIs. [HOTSPOT] [COUPLING:pure] [BEHAVIOR:propagates-errors] [SURFACE:database] [QUALITY:error-boundary]
 Exports: RoyStore.list_named_refs, NamedRefRecord, RoyStore.load_named_ref, RoyStore.upsert_named_ref
 Semantic: pure computation with database surface that propagates errors
 
@@ -313,16 +313,22 @@ Semantic: synchronized side-effecting adapter
 Representative: src/ui/layout/activity_drawer.rs, src/ui/layout/artifacts_row.rs
 
 `src/ui/layout/panels/command_line.rs`
-Implements command line. [CORE] [COUPLING:mixed] [BEHAVIOR:panics-on-error,propagates-errors] [QUALITY:complex-flow,error-boundary]
+Implements command line. [CORE] [COUPLING:mixed] [BEHAVIOR:panics-on-error,propagates-errors] [QUALITY:error-boundary]
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: side-effecting that panics on error
+
+`src/ui/layout/panels/terminal_emulator.rs`
+Provides shared terminal emulator used across multiple domains. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:mixed] [BEHAVIOR:owns-state]
+Exports: AgentTerminalEmulator.default, TerminalCell.default
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: side-effecting stateful module
 
 `src/ui/layout/panels/terminal_model.rs`
 Visual classification of a terminal line, driving rendering in terminal.rs. [TYPE] [COUPLING:mixed] [BEHAVIOR:owns-state]
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: side-effecting stateful module
 
-`src/ui/layout/panels/` (8 files: 8 .rs)
+`src/ui/layout/panels/` (17 files: 17 .rs)
 Representative: src/ui/layout/panels/activity.rs, src/ui/layout/panels/terminal.rs
 
 `src/ui/layout/resize.rs`
@@ -363,7 +369,7 @@ Touch: Contains inline Rust tests alongside runtime code.
 Semantic: pure computation
 
 `src/storage/sqlite_lang.rs`
-Denial and approval storage APIs. [COUPLING:pure] [BEHAVIOR:propagates-errors] [SURFACE:database] [QUALITY:error-boundary]
+Denial and approval storage APIs. [HOTSPOT] [COUPLING:pure] [BEHAVIOR:propagates-errors] [SURFACE:database] [QUALITY:error-boundary]
 Exports: RoyStore.list_all_approvals, RoyStore.list_pending_approvals, RoyStore.insert_pending_approval, RoyStore.list_denials
 Semantic: pure computation with database surface that propagates errors
 
@@ -371,6 +377,14 @@ Semantic: pure computation with database surface that propagates errors
 Implements helpers functionality. [UTIL] [COUPLING:mixed] [BEHAVIOR:panics-on-error]
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: side-effecting that panics on error
+
+`src/ui/layout/panels/terminal_emulator_parse.rs`
+Implements terminal emulator parse. [UTIL] [COUPLING:pure] [BEHAVIOR:propagates-errors]
+Semantic: pure computation that propagates errors
+
+`src/ui/layout/panels/terminal_submit_parse.rs`
+Implements terminal submit parse. [UTIL] [COUPLING:mixed] [BEHAVIOR:persists,sync-primitives]
+Semantic: synchronized side-effecting adapter
 
 ## Layer 3 -- App / Entrypoints
 
@@ -439,8 +453,9 @@ Exports: WorkspaceCwd, boundary
 ## Layer 4 -- Tests
 
 `src/agents/adapter_tests.rs`
-Tests for the embedded-agent adapter contract: AgentKind, AgentHandle lifecycle, and AgentError classifications. [COUPLING:pure]
-Semantic: pure computation
+Tests for the embedded-agent adapter contract: AgentKind, AgentHandle lifecycle, and AgentError classifications. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:mixed] [BEHAVIOR:sync-primitives,panics-on-error]
+Exports: SharedWriter.flush, SharedWriter.write
+Semantic: synchronized side-effecting that panics on error
 
 `src/agents/agent_contract_tests.rs`
 Contract-comparison tests for the generic AgentAdapter layer. [COUPLING:mixed] [BEHAVIOR:panics-on-error]
@@ -490,15 +505,19 @@ Semantic: side-effecting that panics on error
 Tests for crate. [COUPLING:mixed] [BEHAVIOR:panics-on-error]
 Semantic: side-effecting that panics on error
 
-`src/shell/` (5 files: 5 .rs)
-Representative: src/shell/runtime_tests_agent.rs, src/shell/runtime_tests_builtins.rs
+`src/shell/runtime_tests_agent.rs`
+Tests for agent launch dispatch: already-running guard, not-installed path, and auth-gate regressions. [COUPLING:mixed] [BEHAVIOR:persists,sync-primitives,panics-on-error] [QUALITY:error-boundary]
+Exports: SharedWriter.flush, SharedWriter.write
+Semantic: synchronized side-effecting adapter that panics on error
 
-`src/storage/store_tests.rs`
-Integration tests for RoyStore — save/load roundtrip through SQLite. [COUPLING:mixed] [BEHAVIOR:panics-on-error] [QUALITY:error-boundary]
-Semantic: side-effecting that panics on error
+`src/shell/` (4 files: 4 .rs)
+Representative: src/shell/runtime_tests_builtins.rs, src/shell/runtime_tests_discoverability.rs
 
-`src/storage/store_tests_lang.rs`
-Integration tests for v0.2 language-state storage: named refs, issues, structured denials, and pending approvals. [COUPLING:mixed] [BEHAVIOR:panics-on-error] [QUALITY:error-boundary]
+`src/storage/` (6 files: 6 .rs)
+Representative: src/storage/store_tests.rs, src/storage/store_tests_lang.rs
+
+`src/ui/layout/panels/terminal_emulator_tests.rs`
+Tests for super. [COUPLING:mixed] [BEHAVIOR:panics-on-error] [QUALITY:error-boundary]
 Semantic: side-effecting that panics on error
 
 `src/ui/layout/panels/terminal_model_tests.rs`
@@ -510,8 +529,9 @@ Tests for dioxus. [COUPLING:mixed] [BEHAVIOR:persists,sync-primitives]
 Semantic: synchronized side-effecting adapter
 
 `src/ui/layout/panels/terminal_model_tests_submit.rs`
-Tests for crate. [COUPLING:mixed] [BEHAVIOR:persists,sync-primitives]
-Semantic: synchronized side-effecting adapter
+Implements shared writer.write. [COUPLING:mixed] [BEHAVIOR:persists,sync-primitives,panics-on-error]
+Exports: SharedWriter.flush, SharedWriter.write
+Semantic: synchronized side-effecting adapter that panics on error
 
 
 ## DependencyGraph
@@ -525,13 +545,13 @@ DependencyGraph:
   # --- High Fan-In Hotspots ---
   agents/mod.rs:
     Imports: [adapter.rs, claude_code.rs, codex.rs, host.rs, session.rs]
-    ImportedBy: [helpers.rs, main.rs, runtime.rs, runtime_agent.rs, runtime_tests_agent.rs, session.rs, session/engine_tests.rs]
+    ImportedBy: [helpers.rs, main.rs, runtime.rs, runtime_agent.rs, runtime_tests_agent.rs, session.rs, session/engine_tests.rs, terminal_view.rs]
   ast_parse.rs:
-    Imports: [boundary.rs, registry.rs]
+    Imports: [boundary.rs, registry.rs, terminal_emulator.rs]
     ImportedBy: [ast_parse_helpers.rs, ast_tests.rs, command_line.rs, runtime_builtins.rs]
   boundary.rs:
     Imports: [workspace/mod.rs]
-    ImportedBy: [adapter.rs, adapter_tests.rs, artifacts_tests.rs, ast.rs, ast_parse.rs, ast_parse_helpers.rs, ast_tokenise.rs, capabilities/fs.rs, capabilities/validation.rs, capability_tests.rs, cockpit.rs, command_line.rs, cwd.rs, env.rs, helpers.rs, host.rs, io.rs, main.rs, pane.rs, pane_tests.rs, policy/engine.rs, policy/engine_tests.rs, profile.rs, registry.rs, resolve.rs, runtime.rs, runtime_agent.rs, runtime_builtins.rs, runtime_native.rs, runtime_tests_agent.rs, runtime_tests_builtins.rs, runtime_tests_discoverability.rs, runtime_tests_native.rs, runtime_tests_policy.rs, session.rs, session/artifacts.rs, session/engine.rs, session/engine_tests.rs, sqlite.rs, store_tests.rs, store_tests_lang.rs, terminal.rs, terminal_model.rs, terminal_model_tests.rs, terminal_model_tests_submit.rs, traps.rs, workspace/mod.rs]
+    ImportedBy: [adapter.rs, adapter_tests.rs, artifacts_tests.rs, ast.rs, ast_parse.rs, ast_parse_helpers.rs, ast_tokenise.rs, capabilities/fs.rs, capabilities/validation.rs, capability_tests.rs, cockpit.rs, cwd.rs, env.rs, helpers.rs, host.rs, io.rs, main.rs, pane.rs, pane_tests.rs, policy/engine.rs, policy/engine_tests.rs, profile.rs, registry.rs, resolve.rs, runtime.rs, runtime_agent.rs, runtime_builtins.rs, runtime_native.rs, runtime_tests_agent.rs, runtime_tests_builtins.rs, runtime_tests_discoverability.rs, runtime_tests_native.rs, runtime_tests_policy.rs, session.rs, session/artifacts.rs, session/engine.rs, session/engine_tests.rs, sqlite.rs, store_tests.rs, store_tests_lang.rs, store_tests_lang_migrations.rs, store_tests_lang_refs.rs, terminal_composer.rs, terminal_emulator.rs, terminal_emulator_csi.rs, terminal_emulator_parse.rs, terminal_emulator_tests.rs, terminal_model.rs, terminal_model_tests.rs, terminal_model_tests_submit.rs, terminal_submit_handle.rs, terminal_submit_parse.rs, terminal_surface.rs, terminal_view.rs, traps.rs, workspace/mod.rs]
   capabilities/mod.rs:
     Imports: [capabilities/fs.rs, capabilities/validation.rs, registry.rs, workspace/mod.rs]
     ImportedBy: [capability_tests.rs, commands/fs.rs, commands/mod.rs, commands/validation.rs, main.rs, runtime.rs, runtime_native.rs]
@@ -548,26 +568,32 @@ DependencyGraph:
     Imports: [session/mod.rs]
     ImportedBy: [session/engine.rs, session/engine_tests.rs, session/mod.rs, store_tests.rs]
   io.rs:
-    Imports: [boundary.rs]
+    Imports: [boundary.rs, terminal_emulator.rs]
     ImportedBy: [runtime.rs, runtime_agent.rs, runtime_builtins.rs, runtime_native.rs, shell/mod.rs]
   policy/mod.rs:
     Imports: [policy/engine.rs, profile.rs]
     ImportedBy: [main.rs, policy/engine_tests.rs, runtime.rs, runtime_tests_policy.rs]
   registry.rs:
     Imports: [boundary.rs, commands/mod.rs]
-    ImportedBy: [activity.rs, activity_drawer.rs, artifacts_row.rs, ast_parse.rs, ast_parse_helpers.rs, capabilities/mod.rs, claude_code_tests.rs, codex_tests.rs, command_line.rs, commands/mod.rs, commands/validation.rs, helpers.rs, pane.rs, runtime.rs, runtime_agent.rs, runtime_builtins.rs, runtime_native.rs, session/artifacts.rs, session/engine.rs, terminal.rs, terminal_view.rs, ui/artifacts.rs]
+    ImportedBy: [activity.rs, activity_drawer.rs, artifacts_row.rs, ast_parse.rs, ast_parse_helpers.rs, capabilities/mod.rs, claude_code_tests.rs, codex_tests.rs, commands/mod.rs, commands/validation.rs, helpers.rs, host.rs, pane.rs, runtime.rs, runtime_agent.rs, runtime_builtins.rs, runtime_native.rs, session/artifacts.rs, session/engine.rs, terminal_emulator_buffer.rs, terminal_emulator_csi.rs, terminal_submit_lines.rs, terminal_surface.rs, terminal_view.rs, ui/artifacts.rs]
   runtime.rs:
-    Imports: [agents/mod.rs, boundary.rs, capabilities/mod.rs, commands/mod.rs, io.rs, policy/engine.rs, policy/mod.rs, registry.rs, session/artifacts.rs, session/mod.rs, workspace/mod.rs]
-    ImportedBy: [diag_drawer.rs, footer.rs, runtime_tests_policy.rs, shell/mod.rs, terminal_view.rs]
+    Imports: [agents/mod.rs, boundary.rs, capabilities/mod.rs, commands/mod.rs, io.rs, policy/engine.rs, policy/mod.rs, registry.rs, session/artifacts.rs, session/mod.rs, terminal_emulator.rs, workspace/mod.rs]
+    ImportedBy: [diag_drawer.rs, footer.rs, runtime_tests_policy.rs, shell/mod.rs, terminal_submit_handle.rs, terminal_view.rs]
   session/artifacts.rs:
     Imports: [boundary.rs, registry.rs]
     ImportedBy: [adapter.rs, artifacts_tests.rs, ast_parse_helpers.rs, runtime.rs, runtime_native.rs, session/mod.rs, terminal_model_tests_submit.rs]
   session/mod.rs:
     Imports: [events.rs, session/artifacts.rs, session/engine.rs]
-    ImportedBy: [activity.rs, activity_drawer.rs, artifacts_row.rs, attention_drawer.rs, chrome.rs, diag_drawer.rs, events.rs, footer.rs, helpers.rs, main.rs, pane.rs, pane_tests.rs, result.rs, review_drawer.rs, runtime.rs, runtime_agent.rs, runtime_native.rs, session/engine_tests.rs, sqlite.rs, store_tests.rs, store_tests_lang.rs, terminal.rs, terminal_model_tests.rs, terminal_model_tests_submit.rs, terminal_submit_record.rs, terminal_view.rs, ui/artifacts.rs, workspace.rs]
+    ImportedBy: [activity.rs, activity_drawer.rs, artifacts_row.rs, attention_drawer.rs, chrome.rs, diag_drawer.rs, events.rs, footer.rs, helpers.rs, main.rs, pane.rs, pane_tests.rs, result.rs, review_drawer.rs, runtime.rs, runtime_agent.rs, runtime_native.rs, session/engine_tests.rs, sqlite.rs, store_tests.rs, store_tests_lang.rs, terminal.rs, terminal_model_tests.rs, terminal_model_tests_submit.rs, terminal_submit_handle.rs, terminal_submit_parse.rs, terminal_submit_record.rs, terminal_view.rs, ui/artifacts.rs, workspace.rs]
   shell/mod.rs:
     Imports: [env.rs, io.rs, resolve.rs, result.rs, runtime.rs, traps.rs]
     ImportedBy: [chrome.rs, cockpit.rs, diag_drawer.rs, footer.rs, main.rs, runtime_builtins.rs, runtime_tests_agent.rs, runtime_tests_builtins.rs, runtime_tests_discoverability.rs, runtime_tests_native.rs, runtime_tests_policy.rs, terminal.rs, terminal_model_tests.rs, terminal_submit_record.rs, terminal_view.rs, workspace.rs]
+  sqlite.rs:
+    Imports: [boundary.rs, session/mod.rs]
+    ImportedBy: [storage/mod.rs, store_tests.rs, store_tests_lang.rs, store_tests_lang_migrations.rs]
+  terminal_emulator.rs:
+    Imports: [boundary.rs]
+    ImportedBy: [ast_parse.rs, io.rs, policy/engine_tests.rs, runtime.rs, terminal_emulator_buffer_erase.rs, terminal_emulator_buffer_mutate.rs, terminal_emulator_csi.rs, terminal_emulator_parse.rs]
   ui/mod.rs:
     Imports: [layout/mod.rs]
     ImportedBy: [activity.rs, app/mod.rs, artifacts_row.rs, main.rs]
@@ -586,15 +612,15 @@ DependencyGraph:
     Imports: [registry.rs, session/mod.rs]
     ImportedBy: [layout/mod.rs]
   adapter.rs:
-    Imports: [boundary.rs, session/artifacts.rs]
-    ImportedBy: [adapter_tests.rs, agents/mod.rs, host.rs]
+    Imports: [adapter_tests.rs, boundary.rs, session/artifacts.rs]
+    ImportedBy: [adapter_tests.rs, agents/mod.rs, runtime_agent.rs]
   ast.rs:
     Imports: [boundary.rs]
     ImportedBy: [command_line.rs, commands/mod.rs, main.rs]
-  ast_tokenise.rs:
+  ast_tokenise.rs, terminal_composer.rs:
     Imports: [boundary.rs]
     ImportedBy: []
-  atoms.rs, terminal_composer.rs, terminal_line.rs, terminal_submit.rs:
+  atoms.rs, terminal_emulator_buffer_erase_display.rs, terminal_emulator_buffer_ops.rs, terminal_line.rs, terminal_submit.rs:
     Imports: []
     ImportedBy: []
   attention_drawer.rs, review_drawer.rs:
@@ -603,7 +629,10 @@ DependencyGraph:
   builtins.rs, compat.rs, registry_data.rs:
     Imports: [commands/mod.rs]
     ImportedBy: []
-  capabilities/fs.rs, capabilities/validation.rs:
+  capabilities/fs.rs:
+    Imports: [adapter_tests.rs, boundary.rs]
+    ImportedBy: [capabilities/mod.rs]
+  capabilities/validation.rs:
     Imports: [boundary.rs]
     ImportedBy: [capabilities/mod.rs]
   chrome.rs:
@@ -616,7 +645,7 @@ DependencyGraph:
     Imports: []
     ImportedBy: [agents/mod.rs]
   command_line.rs:
-    Imports: [ast.rs, ast_parse.rs, boundary.rs, registry.rs]
+    Imports: [ast.rs, ast_parse.rs]
     ImportedBy: [panels/mod.rs]
   commands/fs.rs:
     Imports: [capabilities/mod.rs]
@@ -637,7 +666,7 @@ DependencyGraph:
     Imports: [commands/mod.rs, diagnostics/mod.rs, pane.rs, runtime.rs, session/engine.rs, session/mod.rs, shell/mod.rs]
     ImportedBy: []
   host.rs:
-    Imports: [adapter.rs, boundary.rs, env.rs]
+    Imports: [boundary.rs, env.rs, registry.rs]
     ImportedBy: [agents/mod.rs]
   pane.rs:
     Imports: [boundary.rs, commands/mod.rs, registry.rs, session/mod.rs]
@@ -655,8 +684,8 @@ DependencyGraph:
     Imports: [session/mod.rs]
     ImportedBy: [shell/mod.rs]
   runtime_agent.rs:
-    Imports: [agents/mod.rs, boundary.rs, claude_code.rs, io.rs, registry.rs, session/mod.rs]
-    ImportedBy: [runtime_tests_agent.rs, terminal_view.rs]
+    Imports: [adapter.rs, agents/mod.rs, boundary.rs, claude_code.rs, io.rs, registry.rs, session/mod.rs]
+    ImportedBy: [runtime_tests_agent.rs, terminal_submit_handle.rs, terminal_view.rs]
   runtime_builtins.rs:
     Imports: [ast_parse.rs, boundary.rs, env.rs, io.rs, registry.rs, shell/mod.rs]
     ImportedBy: []
@@ -672,23 +701,38 @@ DependencyGraph:
   session/engine.rs:
     Imports: [boundary.rs, events.rs, registry.rs]
     ImportedBy: [footer.rs, session/engine_tests.rs, session/mod.rs]
-  sqlite.rs:
-    Imports: [boundary.rs, session/mod.rs]
-    ImportedBy: [storage/mod.rs, store_tests.rs, store_tests_lang.rs]
-  sqlite_issues.rs, sqlite_refs.rs:
+  sqlite_issues.rs:
     Imports: []
-    ImportedBy: [store_tests_lang.rs]
+    ImportedBy: [store_tests_lang_issues.rs, store_tests_lang_lang.rs, store_tests_lang_migrations.rs]
+  sqlite_refs.rs:
+    Imports: []
+    ImportedBy: [store_tests_lang_lang.rs, store_tests_lang_migrations.rs, store_tests_lang_refs.rs]
   terminal.rs:
-    Imports: [boundary.rs, registry.rs, session/mod.rs, shell/mod.rs]
+    Imports: [session/mod.rs, shell/mod.rs]
     ImportedBy: [panels/mod.rs]
+  terminal_emulator_buffer.rs, terminal_submit_lines.rs:
+    Imports: [registry.rs]
+    ImportedBy: []
+  terminal_emulator_buffer_erase.rs, terminal_emulator_buffer_mutate.rs:
+    Imports: [terminal_emulator.rs]
+    ImportedBy: []
+  terminal_emulator_csi.rs:
+    Imports: [boundary.rs, registry.rs, terminal_emulator.rs]
+    ImportedBy: []
   terminal_model.rs:
     Imports: [boundary.rs]
     ImportedBy: [panels/mod.rs]
+  terminal_submit_handle.rs:
+    Imports: [adapter_tests.rs, boundary.rs, runtime.rs, runtime_agent.rs, session/mod.rs]
+    ImportedBy: []
   terminal_submit_record.rs:
     Imports: [session/mod.rs, shell/mod.rs]
     ImportedBy: []
+  terminal_surface.rs:
+    Imports: [boundary.rs, registry.rs]
+    ImportedBy: []
   terminal_view.rs:
-    Imports: [registry.rs, runtime.rs, runtime_agent.rs, session/mod.rs, shell/mod.rs]
+    Imports: [adapter_tests.rs, agents/mod.rs, boundary.rs, registry.rs, runtime.rs, runtime_agent.rs, session/mod.rs, shell/mod.rs]
     ImportedBy: []
   ui/artifacts.rs:
     Imports: [registry.rs, session/mod.rs]
@@ -705,7 +749,13 @@ DependencyGraph:
     ImportedBy: [layout/mod.rs]
   sqlite_lang.rs:
     Imports: []
-    ImportedBy: [store_tests_lang.rs]
+    ImportedBy: [store_tests_lang_lang.rs, store_tests_lang_migrations.rs]
+  terminal_emulator_parse.rs:
+    Imports: [boundary.rs, terminal_emulator.rs]
+    ImportedBy: []
+  terminal_submit_parse.rs:
+    Imports: [adapter_tests.rs, boundary.rs, session/mod.rs]
+    ImportedBy: []
   # --- Layer 3 -- App / Entrypoints ---
   app/mod.rs:
     Imports: [ui/mod.rs]
@@ -725,7 +775,7 @@ DependencyGraph:
   # --- Tests ---
   adapter_tests.rs:
     Imports: [adapter.rs, boundary.rs]
-    ImportedBy: []
+    ImportedBy: [adapter.rs, capabilities/fs.rs, capability_tests.rs, runtime_tests_native.rs, terminal_model_tests_submit.rs, terminal_submit_handle.rs, terminal_submit_parse.rs, terminal_view.rs]
   agent_contract_tests.rs:
     Imports: [claude_code.rs]
     ImportedBy: []
@@ -739,7 +789,7 @@ DependencyGraph:
     Imports: []
     ImportedBy: []
   capability_tests.rs:
-    Imports: [boundary.rs, capabilities/mod.rs, commands/mod.rs]
+    Imports: [adapter_tests.rs, boundary.rs, capabilities/mod.rs, commands/mod.rs]
     ImportedBy: []
   claude_code_tests.rs, codex_tests.rs:
     Imports: [claude_code.rs, env.rs, registry.rs]
@@ -748,13 +798,16 @@ DependencyGraph:
     Imports: [boundary.rs, commands/mod.rs, pane.rs, session/mod.rs]
     ImportedBy: []
   policy/engine_tests.rs:
-    Imports: [boundary.rs, policy/engine.rs, policy/mod.rs, profile.rs]
+    Imports: [boundary.rs, policy/engine.rs, policy/mod.rs, profile.rs, terminal_emulator.rs]
     ImportedBy: []
   runtime_tests_agent.rs:
     Imports: [agents/mod.rs, boundary.rs, runtime_agent.rs, shell/mod.rs]
     ImportedBy: []
-  runtime_tests_builtins.rs, runtime_tests_discoverability.rs, runtime_tests_native.rs:
+  runtime_tests_builtins.rs, runtime_tests_discoverability.rs:
     Imports: [boundary.rs, shell/mod.rs]
+    ImportedBy: []
+  runtime_tests_native.rs:
+    Imports: [adapter_tests.rs, boundary.rs, shell/mod.rs]
     ImportedBy: []
   runtime_tests_policy.rs:
     Imports: [boundary.rs, policy/mod.rs, runtime.rs, shell/mod.rs]
@@ -766,12 +819,27 @@ DependencyGraph:
     Imports: [boundary.rs, events.rs, session/mod.rs, sqlite.rs]
     ImportedBy: []
   store_tests_lang.rs:
-    Imports: [boundary.rs, session/mod.rs, sqlite.rs, sqlite_issues.rs, sqlite_lang.rs, sqlite_refs.rs]
+    Imports: [boundary.rs, session/mod.rs, sqlite.rs]
+    ImportedBy: []
+  store_tests_lang_issues.rs:
+    Imports: [sqlite_issues.rs]
+    ImportedBy: []
+  store_tests_lang_lang.rs:
+    Imports: [sqlite_issues.rs, sqlite_lang.rs, sqlite_refs.rs]
+    ImportedBy: []
+  store_tests_lang_migrations.rs:
+    Imports: [boundary.rs, sqlite.rs, sqlite_issues.rs, sqlite_lang.rs, sqlite_refs.rs]
+    ImportedBy: []
+  store_tests_lang_refs.rs:
+    Imports: [boundary.rs, sqlite_refs.rs]
+    ImportedBy: []
+  terminal_emulator_tests.rs:
+    Imports: [boundary.rs]
     ImportedBy: []
   terminal_model_tests.rs:
     Imports: [boundary.rs, session/mod.rs, shell/mod.rs]
     ImportedBy: []
   terminal_model_tests_submit.rs:
-    Imports: [boundary.rs, session/artifacts.rs, session/mod.rs]
+    Imports: [adapter_tests.rs, boundary.rs, session/artifacts.rs, session/mod.rs]
     ImportedBy: []
 ```

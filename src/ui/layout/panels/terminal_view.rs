@@ -4,37 +4,46 @@ use crate::agents::adapter::SupervisionEvent;
 use crate::session::Session;
 use crate::shell::ShellRuntime;
 
-use super::super::super::{is_session_active, short_path_label};
+use super::super::super::is_session_active;
 use super::super::terminal_model::{initial_shell_lines, ShellLine};
-use super::terminal_composer::TerminalComposer;
-use super::terminal_emulator::{AgentTerminalEmulator, TerminalSnapshot};
+use super::terminal_composer::key_to_pty_bytes;
+use super::terminal_emulator::AgentTerminalEmulator;
 use super::terminal_line::render_line;
-use super::terminal_surface::render_terminal_surface;
+use super::terminal_surface::{render_row_range, visible_row_count};
 use super::{handle_submit, SubmitContext};
 
 #[component]
 pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>) -> Element {
-    let input_text = use_signal(String::new);
+    let mut input_text = use_signal(String::new);
     let lines: Signal<Vec<ShellLine>> = use_signal(initial_shell_lines);
     let agent_terminal: Signal<AgentTerminalEmulator> = use_signal(AgentTerminalEmulator::default);
 
     use_future(move || poll_agent_output(runtime, lines, agent_terminal));
 
-    use_effect(|| {
+    // Scroll to bottom each render; focus the terminal div when agent is active
+    // so that onkeydown can forward keystrokes to the PTY without a separate input widget.
+    use_effect(move || {
         let _ = document::eval(
             "(function(){\
-                var e=document.getElementById('shell-output');\
-                if(e)e.scrollTop=e.scrollHeight;\
+                var s=document.getElementById('shell-output');\
+                if(!s)return;\
+                s.scrollTop=s.scrollHeight;\
+                if(s.tabIndex>=0)s.focus();\
             })();",
         );
     });
 
     let prompt = runtime.read().prompt();
-    let workspace = short_path_label(runtime.read().workspace_root());
     let session_closed = !is_session_active(&session.read());
     let agent_active = runtime.read().agent_active();
     let agent_snapshot = agent_terminal.read().snapshot();
     let rendered_lines = lines.read().clone();
+
+    // Pre-compute agent rows so we can pass slices into rsx!.
+    let inline_agent = agent_snapshot.as_ref().map(|s| {
+        let vis = visible_row_count(s);
+        (s.rows[..vis.min(s.rows.len())].to_vec(), s.cursor)
+    });
 
     let submit = move || {
         let raw = input_text.read().trim().to_string();
@@ -55,38 +64,84 @@ pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>)
     };
 
     rsx! {
+        // Single unified terminal area — no mode switch, no separate panels.
+        // Agent output appears inline after the transcript, exactly like any other
+        // program's output in a real terminal.
         div {
+            id: "shell-output",
+            // tabindex=0 makes the div focusable when agent is running so onkeydown
+            // can forward raw bytes to the PTY. tabindex=-1 when shell mode because
+            // the <input> element handles focus instead.
+            tabindex: if agent_active { 0 } else { -1 },
             style: "
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                min-height: 0;
+                flex:1;
+                padding:22px 28px;
+                font-family:'JetBrains Mono',monospace;
+                font-size:14px;
+                line-height:1.75;
+                overflow-y:auto;
+                color:{super::INK_DIM};
+                outline:none;
             ",
+            onkeydown: move |evt| {
+                if agent_active {
+                    evt.prevent_default();
+                    if let Some(bytes) = key_to_pty_bytes(&evt) {
+                        let _ = runtime.write().send_agent_raw(&bytes);
+                    }
+                }
+            },
 
-            div {
-                style: "
-                    flex: 1;
-                    background: {super::SURFACE};
-                    border-radius: 10px;
-                    border: 1px solid {super::LINE};
-                    box-shadow: 0 20px 50px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.03);
-                    display: flex;
-                    flex-direction: column;
-                    min-height: 0;
-                    overflow: hidden;
-                    position: relative;
-                ",
-
-                ShellPaneHeader { workspace, agent_active }
-                ShellPaneOutput { lines: rendered_lines, agent_snapshot }
+            // Transcript lines (always visible)
+            for line in rendered_lines.iter() {
+                { render_line(line) }
             }
 
-            TerminalComposer {
-                prompt,
-                session_closed,
-                agent_active,
-                input_text,
-                on_submit: submit,
+            // Agent TUI rows appear inline after transcript — no takeover, no separate panel.
+            if let Some((ref rows, cursor)) = inline_agent {
+                { render_row_range(rows, 0, cursor) }
+            }
+
+            // Inline prompt + input — only shown in shell mode.
+            // When agent is active, the agent draws its own prompt in its TUI rows above.
+            if !agent_active {
+                div {
+                    style: "display:flex; align-items:center; gap:8px; margin-top:4px;",
+                    if session_closed {
+                        span {
+                            style: "color:{super::INK_FAINT}; font-size:14px; font-style:italic;",
+                            "session ended"
+                        }
+                    } else {
+                        span {
+                            style: "
+                                color:{super::CORAL};
+                                font-family:'JetBrains Mono',monospace;
+                                font-size:14px;
+                                flex-shrink:0;
+                                white-space:nowrap;
+                            ",
+                            "{prompt}"
+                        }
+                        input {
+                            r#type: "text",
+                            value: "{input_text}",
+                            autofocus: true,
+                            style: "
+                                flex:1; background:transparent; border:none; outline:none;
+                                color:{super::INK};
+                                font-family:'JetBrains Mono',monospace;
+                                font-size:14px;
+                                caret-color:{super::CORAL};
+                                padding:0;
+                            ",
+                            oninput: move |evt| *input_text.write() = evt.value(),
+                            onkeydown: move |evt| {
+                                if evt.key() == Key::Enter { submit(); }
+                            },
+                        }
+                    }
+                }
             }
         }
     }
@@ -144,69 +199,6 @@ fn apply_agent_events(
                     .push(ShellLine::output(format!("[attempt] {command}{arg_str}")));
             }
             SupervisionEvent::AgentStarted { .. } => {}
-        }
-    }
-}
-
-#[component]
-fn ShellPaneHeader(workspace: String, agent_active: bool) -> Element {
-    rsx! {
-        div {
-            style: "
-                padding: 14px 22px 12px;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                border-bottom: 1px solid {super::LINE};
-                position: relative;
-                z-index: 2;
-                flex-shrink: 0;
-            ",
-            div { style: "width:6px;height:6px;border-radius:50%;background:{super::INK_DIM};opacity:.5;" }
-            div { style: "width:6px;height:6px;border-radius:50%;background:{super::INK_DIM};opacity:.5;" }
-            div { style: "width:6px;height:6px;border-radius:50%;background:{super::INK_DIM};opacity:.5;" }
-            span {
-                style: "
-                    font-family: 'JetBrains Mono', monospace;
-                    font-size: 12px;
-                    color: {super::INK_FAINT};
-                    margin-left: 6px;
-                    letter-spacing: .02em;
-                ",
-                "session · "
-                em { style: "color: {super::INK_DIM}; font-style: normal;", "{workspace}" }
-                if agent_active {
-                    em { style: "color: {super::CORAL_SOFT}; font-style: normal; margin-left: 10px;", "· claude-code running" }
-                }
-            }
-        }
-    }
-}
-
-#[component]
-fn ShellPaneOutput(lines: Vec<ShellLine>, agent_snapshot: Option<TerminalSnapshot>) -> Element {
-    rsx! {
-        div {
-            id: "shell-output",
-            style: "
-                flex: 1;
-                padding: 22px 28px;
-                font-family: 'JetBrains Mono', monospace;
-                font-size: 14px;
-                line-height: 1.75;
-                overflow-y: auto;
-                color: {super::INK_DIM};
-                position: relative;
-                z-index: 2;
-            ",
-
-            for line in lines.iter() {
-                { render_line(line) }
-            }
-
-            if let Some(snapshot) = agent_snapshot.as_ref() {
-                { render_terminal_surface(snapshot) }
-            }
         }
     }
 }

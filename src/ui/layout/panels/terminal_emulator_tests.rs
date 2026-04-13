@@ -71,6 +71,61 @@ fn clear_screen_and_cursor_addressing_redraw_in_place() {
 }
 
 #[test]
+fn sgr_basic_background_colors() {
+    let mut term = AgentTerminalEmulator::new(12, 4);
+    // ESC[41m = red background, then 'X'
+    term.apply_bytes(b"\x1b[41mX");
+    let snapshot = term.snapshot().expect("snapshot");
+    assert_eq!(snapshot.rows[0][0].style.bg, Some(TerminalColor::Indexed(1)));
+    // ESC[49m resets background
+    term.apply_bytes(b"\x1b[49mY");
+    let snapshot2 = term.snapshot().expect("snapshot2");
+    assert_eq!(snapshot2.rows[0][1].style.bg, None);
+}
+
+#[test]
+fn sgr_256color_fg_and_bg() {
+    let mut term = AgentTerminalEmulator::new(20, 4);
+    // ESC[38;5;214m = 256-color fg index 214 (orange)
+    term.apply_bytes(b"\x1b[38;5;214mA");
+    // ESC[48;5;234m = 256-color bg index 234 (very dark gray)
+    term.apply_bytes(b"\x1b[48;5;234mB");
+    let snapshot = term.snapshot().expect("snapshot");
+    assert_eq!(snapshot.rows[0][0].style.fg, Some(TerminalColor::Indexed(214)));
+    assert_eq!(snapshot.rows[0][1].style.bg, Some(TerminalColor::Indexed(234)));
+}
+
+#[test]
+fn sgr_truecolor_fg_and_bg() {
+    let mut term = AgentTerminalEmulator::new(20, 4);
+    // ESC[38;2;255;165;0m = truecolor fg orange
+    term.apply_bytes(b"\x1b[38;2;255;165;0mA");
+    // ESC[48;2;30;30;46m = truecolor bg dark navy
+    term.apply_bytes(b"\x1b[48;2;30;30;46mB");
+    let snapshot = term.snapshot().expect("snapshot");
+    assert_eq!(snapshot.rows[0][0].style.fg, Some(TerminalColor::Rgb(255, 165, 0)));
+    assert_eq!(snapshot.rows[0][1].style.bg, Some(TerminalColor::Rgb(30, 30, 46)));
+}
+
+#[test]
+fn sgr_bright_background_colors() {
+    let mut term = AgentTerminalEmulator::new(12, 4);
+    // ESC[101m = bright red background (index 9)
+    term.apply_bytes(b"\x1b[101mX");
+    let snapshot = term.snapshot().expect("snapshot");
+    assert_eq!(snapshot.rows[0][0].style.bg, Some(TerminalColor::Indexed(9)));
+}
+
+#[test]
+fn sgr_underline_set_and_reset() {
+    let mut term = AgentTerminalEmulator::new(12, 4);
+    term.apply_bytes(b"\x1b[4mU\x1b[24mN");
+    let snapshot = term.snapshot().expect("snapshot");
+    assert!(snapshot.rows[0][0].style.underline, "underline should be set");
+    assert!(!snapshot.rows[0][1].style.underline, "underline should be cleared");
+}
+
+#[test]
 fn finish_for_transcript_drops_live_surface_and_preserves_main_lines() {
     let mut term = AgentTerminalEmulator::new(12, 4);
     term.apply_bytes(b"hello\nworld");

@@ -1,113 +1,44 @@
 use dioxus::prelude::*;
 
-#[component]
-pub(super) fn TerminalComposer(
-    prompt: String,
-    session_closed: bool,
-    agent_active: bool,
-    input_text: Signal<String>,
-    on_submit: EventHandler<()>,
-) -> Element {
-    rsx! {
-        div {
-            style: "padding: 12px 0 0; flex-shrink: 0;",
-
-            div {
-                style: "
-                    background: {super::SURFACE_2};
-                    border: 1px solid {super::LINE};
-                    border-radius: 10px;
-                    padding: 12px 14px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 8px;
-                ",
-
-                div {
-                    style: "display: flex; align-items: center; gap: 8px;",
-                    span {
-                        style: "color: {super::CORAL}; font-family: 'JetBrains Mono', monospace; font-size: 14px; flex-shrink: 0;",
-                        "{prompt}"
+/// Map a keyboard event to the raw bytes that should be sent to the PTY.
+/// Returns `None` for modifier-only keys that carry no PTY payload.
+pub(super) fn key_to_pty_bytes(evt: &KeyboardData) -> Option<Vec<u8>> {
+    let ctrl = evt.modifiers().ctrl();
+    match &evt.key() {
+        Key::Enter => Some(b"\r".to_vec()),
+        Key::Backspace => Some(vec![0x7f]),
+        Key::Tab => Some(b"\t".to_vec()),
+        Key::Escape => Some(vec![0x1b]),
+        Key::ArrowUp => Some(b"\x1b[A".to_vec()),
+        Key::ArrowDown => Some(b"\x1b[B".to_vec()),
+        Key::ArrowRight => Some(b"\x1b[C".to_vec()),
+        Key::ArrowLeft => Some(b"\x1b[D".to_vec()),
+        Key::Home => Some(b"\x1b[H".to_vec()),
+        Key::End => Some(b"\x1b[F".to_vec()),
+        Key::Delete => Some(b"\x1b[3~".to_vec()),
+        Key::PageUp => Some(b"\x1b[5~".to_vec()),
+        Key::PageDown => Some(b"\x1b[6~".to_vec()),
+        Key::F1 => Some(b"\x1bOP".to_vec()),
+        Key::F2 => Some(b"\x1bOQ".to_vec()),
+        Key::F3 => Some(b"\x1bOR".to_vec()),
+        Key::F4 => Some(b"\x1bOS".to_vec()),
+        Key::Character(ch) => {
+            if ctrl {
+                if let Some(c) = ch.chars().next() {
+                    let u = c.to_ascii_uppercase();
+                    if u.is_ascii_uppercase() {
+                        return Some(vec![(u as u8) - b'@']);
                     }
-                    if session_closed {
-                        span {
-                            style: "color: {super::INK_FAINT}; font-size: 14px; font-style: italic;",
-                            "session ended"
-                        }
-                    } else {
-                        if agent_active {
-                            span {
-                                style: "color: {super::INK_FAINT}; font-size: 14px; font-style: italic;",
-                                "agent running\u{2026}"
-                            }
-                        }
-                        input {
-                            r#type: "text",
-                            value: "{input_text}",
-                            autofocus: true,
-                            placeholder: if agent_active { "Send input to agent\u{2026}" } else { "Enter a command\u{2026}" },
-                            style: "
-                                flex: 1;
-                                background: transparent;
-                                border: none;
-                                outline: none;
-                                color: {super::INK};
-                                font-family: 'Geist', sans-serif;
-                                font-size: 15px;
-                                caret-color: {super::CORAL};
-                                padding: 0;
-                                font-weight: 400;
-                            ",
-                            oninput: move |evt| input_text.set(evt.value()),
-                            onkeydown: move |evt| {
-                                if evt.key() == Key::Enter {
-                                    on_submit.call(());
-                                }
-                            },
-                        }
-                    }
-                }
-
-                div {
-                    style: "display: flex; align-items: center; justify-content: space-between;",
-                    div {
-                        style: "display: flex; gap: 2px;",
-                        for label in ["+", "\u{25eb}", "@"] {
-                            button {
-                                style: "
-                                    background: none;
-                                    border: none;
-                                    color: {super::INK_FAINT};
-                                    width: 26px;
-                                    height: 26px;
-                                    border-radius: 5px;
-                                    cursor: pointer;
-                                    font-size: 15px;
-                                ",
-                                "{label}"
-                            }
-                        }
-                    }
-                    if !session_closed {
-                        button {
-                            style: "
-                                padding: 6px 14px;
-                                border-radius: 6px;
-                                background: {super::CORAL};
-                                color: #1a1b1e;
-                                border: none;
-                                cursor: pointer;
-                                font-family: 'Geist', sans-serif;
-                                font-size: 13px;
-                                font-weight: 500;
-                                transition: all .15s;
-                            ",
-                            onclick: move |_| on_submit.call(()),
-                            "Send \u{23ce}"
-                        }
+                    match c {
+                        '[' => return Some(vec![0x1b]),
+                        '\\' => return Some(vec![0x1c]),
+                        ']' => return Some(vec![0x1d]),
+                        _ => {}
                     }
                 }
             }
+            Some(ch.as_bytes().to_vec())
         }
+        _ => None,
     }
 }

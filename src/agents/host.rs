@@ -4,6 +4,11 @@ use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+/// Terminal dimensions reported to the hosted agent via PTY stty and env vars.
+/// Keep in sync with `TERMINAL_COLS` / `TERMINAL_ROWS` in `terminal_emulator.rs`.
+const PTY_COLS: u16 = 120;
+const PTY_ROWS: u16 = 50;
+
 use super::adapter::{AgentError, AgentHandle, AgentMeta, LaunchConfig, SupervisionEvent};
 
 pub(super) fn launch_supervised_agent(
@@ -20,6 +25,8 @@ pub(super) fn launch_supervised_agent(
     cmd.env("PATH", &controlled_path)
         .env("HOME", std::env::var("HOME").unwrap_or_default())
         .env("ROY_SESSION_ID", config.session_id.to_string())
+        .env("COLUMNS", PTY_COLS.to_string())
+        .env("LINES", PTY_ROWS.to_string())
         .envs(config.env_overrides)
         .current_dir(&config.workspace_root)
         .stdin(Stdio::piped())
@@ -128,16 +135,19 @@ fn spawn_chunk_reader<R>(
 }
 
 fn configure_pty_wrapper(cmd: &mut Command, meta: &AgentMeta) {
+    let stty = format!("stty cols {PTY_COLS} rows {PTY_ROWS}");
+    let agent = shell_escape(meta.install_path.to_string_lossy().as_ref());
+    let full_command = format!("{stty} && {agent}");
+
     if cfg!(target_os = "macos") {
-        cmd.arg("-q").arg("/dev/null").arg(&meta.install_path);
+        cmd.arg("-q").arg("/dev/null").arg("sh").arg("-c").arg(full_command);
         return;
     }
 
-    let command = shell_escape(meta.install_path.to_string_lossy().as_ref());
     cmd.arg("-q")
         .arg("-e")
         .arg("-c")
-        .arg(command)
+        .arg(full_command)
         .arg("/dev/null");
 }
 

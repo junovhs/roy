@@ -1,19 +1,25 @@
 use super::super::terminal_model::ShellLine;
 
-const DEFAULT_COLS: usize = 80;
-const DEFAULT_ROWS: usize = 24;
+pub(crate) const TERMINAL_COLS: usize = 120;
+pub(crate) const TERMINAL_ROWS: usize = 50;
+
+const DEFAULT_COLS: usize = TERMINAL_COLS;
+const DEFAULT_ROWS: usize = TERMINAL_ROWS;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) struct TerminalStyle {
     pub(super) bold: bool,
     pub(super) faint: bool,
     pub(super) italic: bool,
+    pub(super) underline: bool,
     pub(super) fg: Option<TerminalColor>,
+    pub(super) bg: Option<TerminalColor>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum TerminalColor {
     Indexed(u8),
+    Rgb(u8, u8, u8),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

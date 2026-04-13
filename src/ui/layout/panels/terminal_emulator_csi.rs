@@ -89,25 +89,56 @@ impl AgentTerminalEmulator {
             self.style = TerminalStyle::default();
             return;
         }
-
-        for value in params.iter().copied().flatten() {
-            match value {
-                0 => self.style = TerminalStyle::default(),
-                1 => self.style.bold = true,
-                2 => self.style.faint = true,
-                3 => self.style.italic = true,
-                22 => {
-                    self.style.bold = false;
-                    self.style.faint = false;
-                }
-                23 => self.style.italic = false,
-                30..=37 => self.style.fg = Some(TerminalColor::Indexed((value - 30) as u8)),
-                90..=97 => self.style.fg = Some(TerminalColor::Indexed((value - 82) as u8)),
-                39 => self.style.fg = None,
-                _ => {}
-            }
+        let mut i = 0;
+        while i < params.len() {
+            let skip = self.apply_sgr_param(params, i);
+            i += skip + 1;
         }
     }
+
+    fn apply_sgr_param(&mut self, params: &[Option<usize>], i: usize) -> usize {
+        let value = params[i].unwrap_or(0);
+        match value {
+            0 => self.style = TerminalStyle::default(),
+            1 => self.style.bold = true,
+            2 => self.style.faint = true,
+            3 => self.style.italic = true,
+            4 => self.style.underline = true,
+            22 => { self.style.bold = false; self.style.faint = false; }
+            23 => self.style.italic = false,
+            24 => self.style.underline = false,
+            30..=37 => self.style.fg = Some(TerminalColor::Indexed((value - 30) as u8)),
+            38 => return apply_sgr_extended_color(&mut self.style.fg, params, i),
+            39 => self.style.fg = None,
+            40..=47 => self.style.bg = Some(TerminalColor::Indexed((value - 40) as u8)),
+            48 => return apply_sgr_extended_color(&mut self.style.bg, params, i),
+            49 => self.style.bg = None,
+            90..=97 => self.style.fg = Some(TerminalColor::Indexed((value - 82) as u8)),
+            100..=107 => self.style.bg = Some(TerminalColor::Indexed((value - 92) as u8)),
+            _ => {}
+        }
+        0
+    }
+}
+
+fn apply_sgr_extended_color(slot: &mut Option<TerminalColor>, params: &[Option<usize>], i: usize) -> usize {
+    let get = |idx: usize| params.get(idx).and_then(|v| *v);
+    match get(i + 1) {
+        Some(5) => {
+            if let Some(n) = get(i + 2) {
+                *slot = Some(TerminalColor::Indexed(n as u8));
+                return 2;
+            }
+        }
+        Some(2) => {
+            if let (Some(r), Some(g), Some(b)) = (get(i + 2), get(i + 3), get(i + 4)) {
+                *slot = Some(TerminalColor::Rgb(r as u8, g as u8, b as u8));
+                return 4;
+            }
+        }
+        _ => {}
+    }
+    0
 }
 
 #[derive(Clone)]

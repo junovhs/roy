@@ -127,12 +127,10 @@ impl AgentHandle {
         &self.events
     }
 
-    /// Exit code of the agent process, if it has exited.
     pub fn exit_code(&self) -> Option<i32> {
         self.exit_code
     }
 
-    /// True if a `ProcessExited` event has been recorded.
     pub fn has_exited(&self) -> bool {
         self.exit_code.is_some()
     }
@@ -169,8 +167,12 @@ impl AgentHandle {
         }
     }
 
-    /// Forward raw input bytes to the running agent.
     pub fn send_input(&self, input: &str) -> Result<(), AgentError> {
+        self.send_raw_bytes(input.as_bytes())
+    }
+
+    /// Forward raw bytes to the running agent without modification (PTY passthrough).
+    pub fn send_raw_bytes(&self, bytes: &[u8]) -> Result<(), AgentError> {
         let Some(writer) = &self.stdin else {
             return Err(AgentError::io_error("agent input is unavailable"));
         };
@@ -178,7 +180,7 @@ impl AgentHandle {
             .lock()
             .map_err(|_| AgentError::io_error("agent input lock poisoned"))?;
         locked
-            .write_all(input.as_bytes())
+            .write_all(bytes)
             .map_err(|e| AgentError::io_error(e.to_string()))?;
         locked
             .flush()
