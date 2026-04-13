@@ -21,10 +21,11 @@ pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>)
     use_future(move || poll_agent_output(runtime, lines, line_buf, agent_term, grid_tick));
 
     use_effect(move || {
+        let _ = grid_tick.read(); // re-run when new output arrives
         let _ = document::eval(
             "(function(){\
                 var s=document.getElementById('shell-output');\
-                if(s)s.scrollTop=s.scrollHeight;\
+                if(s&&s.scrollHeight-s.scrollTop-s.clientHeight<120)s.scrollTop=s.scrollHeight;\
             })();",
         );
     });
@@ -51,7 +52,7 @@ pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>)
     rsx! {
         div {
             id: "shell-output",
-            style: "flex:1;padding:22px 28px;font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1.75;overflow-y:auto;color:{super::INK_DIM};",
+            style: "flex:1;padding:22px 28px;font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1.75;overflow-y:auto;overflow-x:hidden;color:{super::INK_DIM};",
             // Clicking the terminal area re-focuses the capture input.
             onclick: move |_| { let _ = document::eval("document.getElementById('pty-cap')?.focus();"); },
 
@@ -60,7 +61,7 @@ pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>)
             if agent_active {
                 // Grid: fills the role of the entire terminal surface.
                 div {
-                    style: "color:{super::INK};line-height:1.2;margin-top:4px;",
+                    style: "color:{super::INK};line-height:1.2;margin-top:4px;overflow:hidden;",
                     for (ri, row) in grid_rows.into_iter().enumerate() {
                         { render_grid_row(row, ri) }
                     }
