@@ -1,10 +1,7 @@
+#![allow(dead_code)]
+
 use super::super::terminal_model::ShellLine;
 
-pub(crate) const TERMINAL_COLS: usize = 120;
-pub(crate) const TERMINAL_ROWS: usize = 50;
-
-const DEFAULT_COLS: usize = TERMINAL_COLS;
-const DEFAULT_ROWS: usize = TERMINAL_ROWS;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) struct TerminalStyle {
@@ -69,11 +66,6 @@ pub(super) struct AgentTerminalEmulator {
     saw_output: bool,
 }
 
-impl Default for AgentTerminalEmulator {
-    fn default() -> Self {
-        Self::new(DEFAULT_COLS, DEFAULT_ROWS)
-    }
-}
 
 impl AgentTerminalEmulator {
     pub(super) fn new(width: usize, height: usize) -> Self {

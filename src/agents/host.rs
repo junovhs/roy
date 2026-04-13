@@ -1,73 +1,69 @@
 #![allow(dead_code)]
+use std::io::Write;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-/// Terminal dimensions reported to the hosted agent via PTY stty and env vars.
-/// Keep in sync with `TERMINAL_COLS` / `TERMINAL_ROWS` in `terminal_emulator.rs`.
-const PTY_COLS: u16 = 120;
-const PTY_ROWS: u16 = 50;
+use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 
 use super::adapter::{AgentError, AgentHandle, AgentMeta, LaunchConfig, SupervisionEvent};
+
+/// Terminal dimensions reported to the hosted agent.
+const PTY_COLS: u16 = 220;
+const PTY_ROWS: u16 = 50;
 
 pub(super) fn launch_supervised_agent(
     meta: &AgentMeta,
     config: LaunchConfig,
     label: &str,
 ) -> Result<AgentHandle, AgentError> {
-    let roy_bin = crate::shell::ShellEnv::roy_path();
-    let sys_path = std::env::var("PATH").unwrap_or_default();
-    let controlled_path = format!("{roy_bin}:{sys_path}");
-    let script_path = discover_binary("script")?;
-
-    let mut cmd = Command::new(script_path);
-    cmd.env("PATH", &controlled_path)
-        .env("HOME", std::env::var("HOME").unwrap_or_default())
-        .env("ROY_SESSION_ID", config.session_id.to_string())
-        .env("COLUMNS", PTY_COLS.to_string())
-        .env("LINES", PTY_ROWS.to_string())
-        .envs(config.env_overrides)
-        .current_dir(&config.workspace_root)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-
-    configure_pty_wrapper(&mut cmd, meta);
-
-    let mut child = cmd
-        .spawn()
+    let pty_system = native_pty_system();
+    let pair = pty_system
+        .openpty(PtySize { rows: PTY_ROWS, cols: PTY_COLS, pixel_width: 0, pixel_height: 0 })
         .map_err(|e| AgentError::launch_failed(e.to_string()))?;
 
-    let pid = child.id();
-    let stdin = child
-        .stdin
-        .take()
-        .ok_or_else(|| AgentError::io_error("child stdin was not piped"))?;
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| AgentError::io_error("child stdout was not piped"))?;
-    let stderr = child
-        .stderr
-        .take()
-        .ok_or_else(|| AgentError::io_error("child stderr was not piped"))?;
+    let roy_bin = crate::shell::ShellEnv::roy_path();
+    let sys_path = std::env::var("PATH").unwrap_or_default();
+
+    let mut cmd = CommandBuilder::new(&meta.install_path);
+    cmd.env("PATH", format!("{roy_bin}:{sys_path}"));
+    cmd.env("HOME", std::env::var("HOME").unwrap_or_default());
+    cmd.env("ROY_SESSION_ID", config.session_id.to_string());
+    cmd.env("COLUMNS", PTY_COLS.to_string());
+    cmd.env("LINES", PTY_ROWS.to_string());
+    cmd.env("TERM", "xterm-256color");
+    for (k, v) in config.env_overrides {
+        cmd.env(k, v);
+    }
+    cmd.cwd(&config.workspace_root);
+
+    let child = pair.slave
+        .spawn_command(cmd)
+        .map_err(|e| AgentError::launch_failed(e.to_string()))?;
+
+    let pid = child.process_id().unwrap_or(0);
+
+    // Extract reader (dup of master fd) before dropping pair.
+    let master_reader = pair.master
+        .try_clone_reader()
+        .map_err(|e| AgentError::io_error(e.to_string()))?;
+    let master_writer = pair.master
+        .take_writer()
+        .map_err(|e| AgentError::io_error(e.to_string()))?;
+    // pair.master and pair.slave drop here; reader/writer keep the PTY alive.
 
     let queue: Arc<Mutex<Vec<SupervisionEvent>>> = Arc::new(Mutex::new(Vec::new()));
 
-    spawn_chunk_reader(Arc::clone(&queue), stdout, config.session_id, label, false);
-    spawn_chunk_reader(Arc::clone(&queue), stderr, config.session_id, label, true);
+    spawn_pty_reader(Arc::clone(&queue), master_reader, config.session_id, label);
 
     let exit_q = Arc::clone(&queue);
     let sid = config.session_id;
     let exit_label = label.to_string();
+    let mut child = child;
     thread::Builder::new()
         .name(format!("roy-{exit_label}-exit-{sid}"))
         .spawn(move || {
-            let code = match child.wait().map(|s| s.code()) {
-                Ok(Some(c)) => c,
-                _ => -1,
-            };
+            let code = child.wait().map(|s| s.exit_code() as i32).unwrap_or(-1);
             if let Ok(mut q) = exit_q.lock() {
                 q.push(SupervisionEvent::ProcessExited { code });
             }
@@ -76,7 +72,7 @@ pub(super) fn launch_supervised_agent(
 
     let mut handle = AgentHandle::new(meta.clone(), config.session_id);
     handle.push_event(SupervisionEvent::AgentStarted { pid });
-    handle.set_stdin(Arc::new(Mutex::new(Box::new(stdin))));
+    handle.set_stdin(Arc::new(Mutex::new(Box::new(master_writer) as Box<dyn Write + Send>)));
     handle.set_pending(queue);
     Ok(handle)
 }
@@ -93,24 +89,22 @@ pub(super) fn discover_binary(name: &str) -> Result<PathBuf, AgentError> {
 }
 
 pub(super) fn probe_version(binary: &PathBuf) -> Result<String, AgentError> {
-    Command::new(binary)
+    std::process::Command::new(binary)
         .arg("--version")
         .output()
         .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
         .map_err(|e| AgentError::launch_failed(e.to_string()))
 }
 
-fn spawn_chunk_reader<R>(
+fn spawn_pty_reader<R>(
     queue: Arc<Mutex<Vec<SupervisionEvent>>>,
     mut reader: R,
     session_id: u64,
     label: &str,
-    is_stderr: bool,
 ) where
     R: std::io::Read + Send + 'static,
 {
-    let stream = if is_stderr { "stderr" } else { "stdout" };
-    let name = format!("roy-{label}-{stream}-{session_id}");
+    let name = format!("roy-{label}-pty-{session_id}");
     thread::Builder::new()
         .name(name)
         .spawn(move || {
@@ -122,7 +116,7 @@ fn spawn_chunk_reader<R>(
                         if let Ok(mut q) = queue.lock() {
                             q.push(SupervisionEvent::OutputChunk {
                                 bytes: buf[..n].to_vec(),
-                                is_stderr,
+                                is_stderr: false,
                             });
                         }
                     }
@@ -132,39 +126,4 @@ fn spawn_chunk_reader<R>(
             }
         })
         .ok();
-}
-
-fn configure_pty_wrapper(cmd: &mut Command, meta: &AgentMeta) {
-    let stty = format!("stty cols {PTY_COLS} rows {PTY_ROWS}");
-    let agent = shell_escape(meta.install_path.to_string_lossy().as_ref());
-    let full_command = format!("{stty} && {agent}");
-
-    if cfg!(target_os = "macos") {
-        cmd.arg("-q").arg("/dev/null").arg("sh").arg("-c").arg(full_command);
-        return;
-    }
-
-    cmd.arg("-q")
-        .arg("-e")
-        .arg("-c")
-        .arg(full_command)
-        .arg("/dev/null");
-}
-
-fn shell_escape(raw: &str) -> String {
-    if raw.is_empty() {
-        return "''".to_string();
-    }
-
-    let mut escaped = String::with_capacity(raw.len() + 2);
-    escaped.push('\'');
-    for ch in raw.chars() {
-        if ch == '\'' {
-            escaped.push_str("'\"'\"'");
-        } else {
-            escaped.push(ch);
-        }
-    }
-    escaped.push('\'');
-    escaped
 }

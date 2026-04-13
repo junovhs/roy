@@ -1,4 +1,4 @@
-use super::terminal_emulator::{TerminalCell, TerminalColor, TerminalSnapshot, TerminalStyle};
+use super::terminal_emulator::{TerminalCell, TerminalColor, TerminalStyle};
 use dioxus::prelude::*;
 
 /// Render a slice of terminal rows with their global row offset (for cursor matching).
@@ -22,18 +22,6 @@ pub(super) fn render_row_range(
     }
 }
 
-pub(super) fn visible_row_count(snapshot: &TerminalSnapshot) -> usize {
-    if snapshot.using_alternate_screen {
-        return snapshot.rows.len();
-    }
-    let cursor_row = snapshot.cursor.map(|(r, _)| r).unwrap_or(0);
-    let last_text_row = snapshot
-        .rows
-        .iter()
-        .rposition(|r| r.iter().any(|c| c.ch != ' '))
-        .unwrap_or(0);
-    last_text_row.max(cursor_row) + 1
-}
 
 struct RowSegment {
     text: String,

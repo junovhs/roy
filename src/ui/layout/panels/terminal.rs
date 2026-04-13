@@ -3,16 +3,14 @@ use dioxus::prelude::*;
 use crate::session::Session;
 use crate::shell::ShellRuntime;
 
-#[path = "terminal_composer.rs"]
-mod terminal_composer;
 #[path = "terminal_emulator.rs"]
 mod terminal_emulator;
+#[path = "terminal_grid.rs"]
+mod terminal_grid;
 #[path = "terminal_line.rs"]
 mod terminal_line;
 #[path = "terminal_submit.rs"]
 pub(super) mod terminal_submit;
-#[path = "terminal_surface.rs"]
-mod terminal_surface;
 #[path = "terminal_view.rs"]
 mod terminal_view;
 
