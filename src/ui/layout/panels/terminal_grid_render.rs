@@ -1,7 +1,9 @@
 use dioxus::html::geometry::WheelDelta;
 use dioxus::prelude::*;
 
-use super::terminal_grid::TerminalCursor;
+use alacritty_terminal::term::color::Colors;
+
+use super::terminal_grid::{SnapCell, TerminalCursor};
 use super::terminal_spans::row_spans_with_cursor;
 
 pub(super) fn wheel_lines(delta: WheelDelta) -> i32 {
@@ -19,14 +21,15 @@ pub(super) fn wheel_lines(delta: WheelDelta) -> i32 {
 }
 
 pub(super) fn render_grid_row(
-    row: Vec<(char, u32, u32, u16)>,
+    row: Vec<SnapCell>,
     row_index: usize,
     cursor: Option<TerminalCursor>,
+    palette: Colors,
 ) -> Element {
     let cursor = cursor
         .filter(|cursor| cursor.row == row_index)
         .map(|cursor| (cursor.column, cursor.shape));
-    let spans = row_spans_with_cursor(&row, cursor);
+    let spans = row_spans_with_cursor(&row, &palette, cursor);
 
     rsx! {
         div {

@@ -295,7 +295,7 @@ Implements runtime builtins. [COUPLING:pure]
 Semantic: pure computation
 
 `src/shell/runtime_native.rs`
-Implements runtime native. [COUPLING:pure]
+Implements runtime native. [COUPLING:pure] [QUALITY:complex-flow]
 Semantic: pure computation
 
 `src/shell/traps.rs`
@@ -479,7 +479,7 @@ Touch: Contains inline Rust tests alongside runtime code.
 Semantic: pure computation
 
 `src/schema_registry/mod.rs`
-Internal schema registry — machine-readable descriptions of every noun surface, projection, and result envelope exposed by ROY. [ENTRY] [COUPLING:pure]
+Internal schema registry — machine-readable descriptions of every noun surface, projection, and result envelope exposed by ROY. [ENTRY] [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure]
 Exports: FieldDef, SchemaEntry.full_description, SchemaEntry.list_line, SchemaEntry
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: pure computation
@@ -599,7 +599,7 @@ Semantic: synchronized side-effecting adapter that panics on error
 DependencyGraph:
   # --- Entrypoints ---
   main.rs:
-    Imports: [agents/mod.rs, app/mod.rs, ast.rs, boundary.rs, capabilities/mod.rs, commands/mod.rs, diagnostics/mod.rs, nouns/mod.rs, policy/mod.rs, render/mod.rs, session/mod.rs, shell/mod.rs, storage/mod.rs, ui/mod.rs, workspace/mod.rs]
+    Imports: [agents/mod.rs, app/mod.rs, ast.rs, boundary.rs, capabilities/mod.rs, commands/mod.rs, diagnostics/mod.rs, nouns/mod.rs, policy/mod.rs, render/mod.rs, schema_registry/mod.rs, session/mod.rs, shell/mod.rs, storage/mod.rs, ui/mod.rs, workspace/mod.rs]
     ImportedBy: []
   # --- High Fan-In Hotspots ---
   agents/mod.rs:
@@ -644,6 +644,9 @@ DependencyGraph:
   runtime.rs:
     Imports: [agents/mod.rs, boundary.rs, capabilities/mod.rs, commands/mod.rs, io.rs, policy/engine.rs, policy/mod.rs, registry.rs, session/artifacts.rs, session/mod.rs, workspace/mod.rs]
     ImportedBy: [diag_drawer.rs, footer.rs, runtime_tests_policy.rs, shell/mod.rs, terminal_submit_handle.rs, terminal_view.rs]
+  schema_registry/mod.rs:
+    Imports: [boundary.rs, registry.rs, schema_data.rs]
+    ImportedBy: [main.rs, runtime_builtins.rs, runtime_native.rs, schema_tests.rs]
   session/artifacts.rs:
     Imports: [boundary.rs, registry.rs]
     ImportedBy: [adapter.rs, artifacts_tests.rs, ast_parse_helpers.rs, runtime.rs, runtime_native.rs, runtime_tests_builtins.rs, session/mod.rs, terminal_model_tests_submit.rs]
@@ -758,10 +761,10 @@ DependencyGraph:
     Imports: [adapter.rs, agents/mod.rs, boundary.rs, claude_code.rs, io.rs, registry.rs, session/mod.rs]
     ImportedBy: [runtime_tests_agent.rs, terminal_submit_handle.rs, terminal_view.rs]
   runtime_builtins.rs:
-    Imports: [ast_parse.rs, boundary.rs, env.rs, io.rs, registry.rs, render/mod.rs, shell/mod.rs]
+    Imports: [ast_parse.rs, boundary.rs, env.rs, io.rs, registry.rs, render/mod.rs, schema_registry/mod.rs, shell/mod.rs]
     ImportedBy: []
   runtime_native.rs:
-    Imports: [boundary.rs, capabilities/mod.rs, env.rs, io.rs, registry.rs, session/artifacts.rs, session/mod.rs]
+    Imports: [boundary.rs, capabilities/mod.rs, env.rs, io.rs, registry.rs, schema_registry/mod.rs, session/artifacts.rs, session/mod.rs]
     ImportedBy: []
   schema.rs:
     Imports: []
@@ -852,9 +855,6 @@ DependencyGraph:
   panels/mod.rs:
     Imports: [command_line.rs, terminal.rs, terminal_model.rs]
     ImportedBy: [layout/mod.rs]
-  schema_registry/mod.rs:
-    Imports: [boundary.rs, registry.rs, schema_data.rs]
-    ImportedBy: [schema_tests.rs]
   storage/mod.rs:
     Imports: [sqlite.rs]
     ImportedBy: [main.rs]

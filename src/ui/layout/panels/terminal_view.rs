@@ -85,8 +85,14 @@ pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>)
             if agent_active {
                 div {
                     style: "color:{super::INK};margin-top:4px;overflow:hidden;font-family:'Cascadia Mono','JetBrains Mono','Consolas',monospace;font-size:14px;line-height:1;letter-spacing:0;font-kerning:none;font-variant-ligatures:none;font-feature-settings:'liga' 0,'calt' 0;text-rendering:optimizeSpeed;tab-size:8;",
-                    for (ri, row) in grid_snapshot.as_ref().unwrap().rows.iter().cloned().enumerate() {
-                        { render_grid_row(row, ri, grid_snapshot.as_ref().unwrap().cursor) }
+                    {
+                        let snap = grid_snapshot.as_ref().unwrap();
+                        let cursor = snap.cursor;
+                        let palette = snap.colors;
+                        let rows = snap.rows.clone();
+                        rows.into_iter().enumerate().map(move |(ri, row)| {
+                            render_grid_row(row, ri, cursor, palette)
+                        })
                     }
                 }
                 input {

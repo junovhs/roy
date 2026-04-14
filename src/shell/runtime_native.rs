@@ -24,32 +24,7 @@ impl ShellRuntime {
 
         let runtime = CapabilityRuntime::new(self.workspace.clone(), self.env.cwd().to_path_buf());
         match runtime.execute(&request) {
-            Ok(output) => {
-                let primary = output.primary_text();
-                let exit_code = output.exit_code();
-                let artifacts = promoted_artifacts(&output);
-
-                if !primary.is_empty() {
-                    if exit_code == 0 {
-                        self.io.write_line(&primary);
-                    } else {
-                        self.io.write_error(&primary);
-                    }
-                }
-
-                if let Some(stderr) = output.error_text() {
-                    if !stderr.is_empty() && stderr != primary {
-                        self.io.write_error(stderr);
-                    }
-                }
-
-                self.last_exit_status = Some(exit_code);
-                DispatchResult::Executed {
-                    output: primary,
-                    exit_code,
-                    artifacts,
-                }
-            }
+            Ok(output) => self.emit_capability_output(output),
             Err(err) => {
                 let message = format!("{command}: {err}");
                 self.io.write_error(&message);
@@ -61,6 +36,29 @@ impl ShellRuntime {
                 }
             }
         }
+    }
+
+    fn emit_capability_output(&mut self, output: CapabilityOutput) -> DispatchResult {
+        let primary = output.primary_text();
+        let exit_code = output.exit_code();
+        let artifacts = promoted_artifacts(&output);
+
+        if !primary.is_empty() {
+            if exit_code == 0 {
+                self.io.write_line(&primary);
+            } else {
+                self.io.write_error(&primary);
+            }
+        }
+
+        if let Some(stderr) = output.error_text() {
+            if !stderr.is_empty() && stderr != primary {
+                self.io.write_error(stderr);
+            }
+        }
+
+        self.last_exit_status = Some(exit_code);
+        DispatchResult::Executed { output: primary, exit_code, artifacts }
     }
 
     fn dispatch_read_schema(&mut self, name: &str) -> DispatchResult {

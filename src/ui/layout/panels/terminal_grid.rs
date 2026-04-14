@@ -1,19 +1,23 @@
 //! alacritty_terminal state helpers for the agent terminal view.
+//!
+//! `TerminalSnapshot` preserves every `RenderableContent` field exhaustively:
+//! Cell::{c,fg,bg,flags,zerowidth,underline_color,hyperlink} → `SnapCell`;
+//! cursor/selection/colors/mode/display_offset → matching `TerminalSnapshot` fields.
+//! Colors are stored as raw `Color` enums and resolved via the terminal palette at render time.
 
 use std::sync::{Arc, Mutex};
 
 use alacritty_terminal::event::{Event, EventListener, WindowSize};
 use alacritty_terminal::grid::{Dimensions, Scroll};
-use alacritty_terminal::term::{Config as TermConfig, RenderableCursor};
-use alacritty_terminal::vte::ansi::{CursorShape, Processor};
+use alacritty_terminal::selection::SelectionRange;
+use alacritty_terminal::term::cell::Flags;
+use alacritty_terminal::term::color::Colors;
+use alacritty_terminal::term::{Config as TermConfig, RenderableCursor, TermMode};
+use alacritty_terminal::vte::ansi::{Color, CursorShape, NamedColor, Processor};
 use alacritty_terminal::Term;
-
-use super::terminal_colors::color_rgba;
 
 pub(super) const TERM_COLS: usize = 220;
 const TERM_ROWS: usize = 50;
-
-type StyledCell = (char, u32, u32, u16);
 
 struct TermDims;
 
@@ -68,6 +72,57 @@ pub(super) struct TermState {
 
 pub(super) type TermHandle = Arc<Mutex<TermState>>;
 
+/// A single terminal cell captured from alacritty_terminal for palette-aware rendering.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct SnapCell {
+    pub(super) c: char,
+    pub(super) fg: Color,
+    pub(super) bg: Color,
+    pub(super) flags: Flags,
+    /// Zero-width combining characters appended to this cell.
+    pub(super) zerowidth: Vec<char>,
+    /// Per-cell underline color override (from `CellExtra`).
+    pub(super) underline_color: Option<Color>,
+    /// Hyperlink URI, if set on this cell (from `CellExtra`).
+    pub(super) hyperlink: Option<String>,
+}
+
+impl Default for SnapCell {
+    fn default() -> Self {
+        SnapCell {
+            c: ' ',
+            fg: Color::Named(NamedColor::Foreground),
+            bg: Color::Named(NamedColor::Background),
+            flags: Flags::empty(),
+            zerowidth: Vec::new(),
+            underline_color: None,
+            hyperlink: None,
+        }
+    }
+}
+
+impl SnapCell {
+    fn from_cell(cell: &alacritty_terminal::term::cell::Cell) -> Self {
+        SnapCell {
+            c: cell.c,
+            fg: cell.fg,
+            bg: cell.bg,
+            flags: cell.flags,
+            zerowidth: cell.zerowidth().unwrap_or_default().to_vec(),
+            underline_color: cell.underline_color(),
+            hyperlink: cell.hyperlink().map(|h| h.uri().to_owned()),
+        }
+    }
+
+    fn is_blank(&self) -> bool {
+        (self.c == ' ' || self.c == '\t')
+            && self.fg == Color::Named(NamedColor::Foreground)
+            && self.bg == Color::Named(NamedColor::Background)
+            && self.flags.is_empty()
+            && self.zerowidth.is_empty()
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum CursorShapeKind {
     Block,
@@ -82,10 +137,25 @@ pub(super) struct TerminalCursor {
     pub(super) shape: CursorShapeKind,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+/// A lossless snapshot of all alacritty_terminal render state for one frame.
+///
+/// All fields from `RenderableContent` are preserved; see the module-level mapping inventory.
+// Colors does not implement Debug/PartialEq, so those derives are omitted.
+#[derive(Clone, Default)]
 pub(super) struct TerminalSnapshot {
-    pub(super) rows: Vec<Vec<StyledCell>>,
+    pub(super) rows: Vec<Vec<SnapCell>>,
     pub(super) cursor: Option<TerminalCursor>,
+    /// Active text selection range, if any. Consumed by TRM-08 cell renderer.
+    #[allow(dead_code)]
+    pub(super) selection: Option<SelectionRange>,
+    /// Terminal palette (OSC 4/10/11 overrides); resolved at render time.
+    pub(super) colors: Colors,
+    /// Terminal mode flags (SHOW_CURSOR, keyboard protocols, etc.). Consumed by TRM-08.
+    #[allow(dead_code)]
+    pub(super) mode: TermMode,
+    /// Scroll display offset at the time of snapshot. Used by TRM-08/TRM-09.
+    #[allow(dead_code)]
+    pub(super) display_offset: usize,
 }
 
 pub(super) fn new_term_handle() -> TermHandle {
@@ -115,42 +185,42 @@ impl TermState {
         let content = self.term.renderable_content();
         let rows = self.term.screen_lines();
         let cols = self.term.columns();
-        let mut grid = vec![vec![(' ', 0, 0, 0); cols]; rows];
+        let mut grid: Vec<Vec<SnapCell>> = (0..rows)
+            .map(|_| (0..cols).map(|_| SnapCell::default()).collect())
+            .collect();
 
         for indexed in content.display_iter {
             let row = indexed.point.line.0 + content.display_offset as i32;
             let col = indexed.point.column.0;
             if row >= 0 && (row as usize) < rows && col < cols {
-                let cell = indexed.cell;
-                grid[row as usize][col] = (
-                    cell.c,
-                    color_rgba(cell.fg),
-                    color_rgba(cell.bg),
-                    cell.flags.bits(),
-                );
+                grid[row as usize][col] = SnapCell::from_cell(indexed.cell);
             }
         }
 
         let cursor = renderable_cursor(content.cursor, content.display_offset, rows, cols);
         let last = grid
             .iter()
-            .rposition(|row| {
-                row.iter()
-                    .any(|(ch, fg, bg, _)| *ch != ' ' || *fg != 0 || *bg != 0)
-            })
+            .rposition(|row| row.iter().any(|cell| !cell.is_blank()))
             .unwrap_or(0);
         let keep = cursor.map(|cursor| cursor.row.max(last)).unwrap_or(last);
         grid.truncate(keep + 1);
 
-        TerminalSnapshot { rows: grid, cursor }
+        TerminalSnapshot {
+            rows: grid,
+            cursor,
+            selection: content.selection,
+            colors: *content.colors,
+            mode: content.mode,
+            display_offset: content.display_offset,
+        }
     }
 
     pub(super) fn text_rows(&self) -> Vec<String> {
         self.snapshot()
             .rows
             .into_iter()
-            .map(|row| row.into_iter().map(|(ch, _, _, _)| ch).collect::<String>())
-            .map(|row| row.trim_end().to_string())
+            .map(|row| row.into_iter().map(|cell| cell.c).collect::<String>())
+            .map(|row: String| row.trim_end().to_string())
             .collect()
     }
 }
@@ -182,21 +252,5 @@ fn renderable_cursor(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cursor_position_queries_emit_reply_bytes() {
-        let mut term = TermState {
-            term: Term::new(TermConfig::default(), &TermDims, TermListener::default()),
-            parser: Processor::default(),
-            listener: TermListener::default(),
-        };
-        // Rebuild with the same listener instance the term stores.
-        term.listener = TermListener::default();
-        term.term = Term::new(TermConfig::default(), &TermDims, term.listener.clone());
-
-        let replies = term.feed(b"\x1b[6n");
-        assert_eq!(replies, vec![b"\x1b[1;1R".to_vec()]);
-    }
-}
+#[path = "terminal_grid_tests.rs"]
+mod tests;

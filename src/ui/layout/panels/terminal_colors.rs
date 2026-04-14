@@ -1,10 +1,31 @@
+use alacritty_terminal::term::color::Colors;
 use alacritty_terminal::vte::ansi::{Color, NamedColor};
 
-pub(super) fn color_rgba(color: Color) -> u32 {
+/// Resolve a terminal `Color` to a packed RGBA `u32` using the terminal's live palette.
+///
+/// Returns `0` for the default foreground/background sentinel so that the CSS layer can
+/// apply the configured theme color without baking it into every cell.
+pub(super) fn color_rgba_with_palette(color: Color, palette: &Colors) -> u32 {
     match color {
-        Color::Named(NamedColor::Foreground | NamedColor::Background) => 0,
-        Color::Named(named) => named_rgba(named),
-        Color::Indexed(index) => indexed_rgba(index),
+        Color::Named(NamedColor::Foreground | NamedColor::Background) => {
+            // Let the CSS default color handle these so the theme is respected.
+            0
+        }
+        Color::Named(named) => {
+            // Prefer OSC 4/10/11 palette override, fall back to built-in table.
+            if let Some(rgb) = palette[named as usize] {
+                pack_rgb(rgb.r, rgb.g, rgb.b)
+            } else {
+                named_rgba(named)
+            }
+        }
+        Color::Indexed(index) => {
+            if let Some(rgb) = palette[index as usize] {
+                pack_rgb(rgb.r, rgb.g, rgb.b)
+            } else {
+                indexed_rgba(index)
+            }
+        }
         Color::Spec(rgb) => pack_rgb(rgb.r, rgb.g, rgb.b),
     }
 }
