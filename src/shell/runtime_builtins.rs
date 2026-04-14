@@ -1,5 +1,6 @@
 use super::*;
 use crate::render::CommandResult;
+use crate::schema_registry::SchemaRegistry;
 use crate::shell::ShellError;
 
 impl ShellRuntime {
@@ -144,6 +145,61 @@ impl ShellRuntime {
             .map(|s| s.name)
             .collect();
         let output = names.join("\n");
+        self.io.write_line(&output);
+        self.last_exit_status = Some(0);
+        DispatchResult::Executed {
+            output,
+            exit_code: 0,
+            artifacts: Vec::new(),
+        }
+    }
+
+    pub(super) fn dispatch_schemas(&mut self) -> DispatchResult {
+        let registry = SchemaRegistry::new();
+        let output = registry
+            .all()
+            .iter()
+            .map(|schema| schema.list_line())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        self.io.write_line(&output);
+        self.last_exit_status = Some(0);
+        DispatchResult::Executed {
+            output,
+            exit_code: 0,
+            artifacts: Vec::new(),
+        }
+    }
+
+    pub(super) fn dispatch_schema(&mut self, args: &[&str]) -> DispatchResult {
+        let Some(name) = args.first().copied() else {
+            let msg =
+                "schema: missing schema name — run `schemas` to list available schemas".to_string();
+            self.io.write_error(&msg);
+            self.last_exit_status = Some(2);
+            return DispatchResult::Executed {
+                output: msg,
+                exit_code: 2,
+                artifacts: Vec::new(),
+            };
+        };
+
+        let registry = SchemaRegistry::new();
+        let Some(schema) = registry.lookup(name) else {
+            let msg = format!(
+                "schema: unknown schema '{name}' — run `schemas` to list available schemas"
+            );
+            self.io.write_error(&msg);
+            self.last_exit_status = Some(1);
+            return DispatchResult::Executed {
+                output: msg,
+                exit_code: 1,
+                artifacts: Vec::new(),
+            };
+        };
+
+        let output = schema.full_description();
         self.io.write_line(&output);
         self.last_exit_status = Some(0);
         DispatchResult::Executed {

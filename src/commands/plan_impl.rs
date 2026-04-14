@@ -14,9 +14,10 @@ impl<'r> Planner<'r> {
         let verb = &cmd.verb.value;
 
         // 1. Registry lookup — unknown verbs fail here.
-        let schema = self.registry.resolve(verb).ok_or_else(|| PlanError::UnknownVerb {
-            verb: verb.clone(),
-        })?;
+        let schema = self
+            .registry
+            .resolve(verb)
+            .ok_or_else(|| PlanError::UnknownVerb { verb: verb.clone() })?;
 
         // 2. Denied backends — the plan layer rejects them immediately so the
         //    caller never needs to check the backend for executability.
@@ -113,7 +114,7 @@ fn noun_profile(verb: &str) -> (NounKind, Cardinality, ResultType, MutationClass
 
 /// True when this verb requires a non-empty [`Command::target`] argument.
 fn requires_target(verb: &str) -> bool {
-    matches!(verb, "read" | "write")
+    matches!(verb, "read" | "write" | "schema")
 }
 
 /// Classify a single [`Filter`] by evaluation order.
@@ -130,12 +131,8 @@ fn classify_filter(filter: &Filter) -> FilterClass {
 /// set; no current result type qualifies.
 fn refiner_type_error(refiner: &Refiner, result_type: &ResultType) -> Option<String> {
     match refiner {
-        Refiner::SortedBy(key) if !is_record_set(result_type) => {
-            Some(format!("sorted by {key}"))
-        }
-        Refiner::GroupedBy(key) if !is_record_set(result_type) => {
-            Some(format!("grouped by {key}"))
-        }
+        Refiner::SortedBy(key) if !is_record_set(result_type) => Some(format!("sorted by {key}")),
+        Refiner::GroupedBy(key) if !is_record_set(result_type) => Some(format!("grouped by {key}")),
         _ => None,
     }
 }

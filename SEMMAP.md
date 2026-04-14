@@ -182,7 +182,7 @@ Semantic: side-effecting stateful module
 
 `src/commands/plan.rs`
 Plan layer — validates a parsed [`Command`] against the registry and resolves it into an executable [`Plan`]. [CORE] [COUPLING:pure]
-Exports: NounKind, RenderMode, ResultType, ClassifiedFilter
+Exports: RenderMode, ResultType, ClassifiedFilter, MutationClass
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: pure computation
 
@@ -225,6 +225,10 @@ Exports: build_trace, DiagEntry, DiagSeverity, DiagSeverity.color
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: pure computation
 
+`src/nouns/noun_registry_data.rs`
+Static noun table — one entry per ROY noun surface. [COUPLING:mixed] [BEHAVIOR:owns-state]
+Semantic: side-effecting stateful module
+
 `src/policy/engine.rs`
 Typed outcome of a policy evaluation. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:persists]
 Exports: PolicyEngine.profile_name, PolicyEngine.set_profile, PolicyEngine.is_allowed, PolicyOutcome.is_blocked
@@ -236,6 +240,10 @@ What the policy engine decides about a particular command invocation. [HOTSPOT] 
 Exports: PolicyProfile.is_explicitly_allowed, PolicyProfile.read_only, PolicyProfile.is_blocked, PolicyPermission
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: pure computation
+
+`src/schema_registry/schema_data.rs`
+Static schema table — one [`SchemaEntry`] per registered noun surface. [COUPLING:mixed] [BEHAVIOR:owns-state]
+Semantic: side-effecting stateful module
 
 `src/session/artifacts.rs`
 High-value output classes that ROY promotes above transcript text. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure] [QUALITY:undocumented]
@@ -278,7 +286,7 @@ Outcome of dispatching a command through the shell runtime.
 Exports: DispatchResult
 
 `src/shell/runtime_agent.rs`
-Implements shellruntime.poll agent events. [HOTSPOT] [COUPLING:pure]
+Implements shellruntime.send agent input. [HOTSPOT] [COUPLING:pure]
 Exports: ShellRuntime.poll_agent_events, ShellRuntime.poll_agent_lines, ShellRuntime.send_agent_input, ShellRuntime.send_agent_raw
 Semantic: pure computation
 
@@ -389,6 +397,16 @@ Semantic: pure computation that propagates errors
 Implements ast parse helpers. [UTIL] [COUPLING:pure] [BEHAVIOR:propagates-errors] [QUALITY:error-boundary]
 Semantic: pure computation that propagates errors
 
+`src/render/human.rs`
+Human-readable text renderer for [`CommandResult`]. [UTIL] [COUPLING:pure]
+Exports: render
+Semantic: pure computation
+
+`src/render/json.rs`
+JSON renderer for [`CommandResult`]. [UTIL] [COUPLING:pure]
+Exports: render_pretty, render
+Semantic: pure computation
+
 `src/shell/runtime.rs`
 ROY shell runtime. [CORE] [HOTSPOT] [COUPLING:pure]
 Exports: ShellRuntime.public_command_count, ShellRuntime.last_exit_status, ShellRuntime.set_exit_status, ShellRuntime.agent_active
@@ -444,9 +462,27 @@ Exports: pane
 Application entry point. [ENTRY] [COUPLING:pure]
 Semantic: pure computation
 
+`src/nouns/mod.rs`
+Shared noun vocabulary, descriptors, and registry for the ROY v0.2 language. [ENTRY] [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure]
+Exports: NounRegistry.by_kind, NounBacking, NounDescriptor, NounRegistry
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation
+
 `src/policy/mod.rs`
 Policy engine for command and capability execution. [ENTRY] [HOTSPOT] [GLOBAL-UTIL]
 Exports: engine, profile
+
+`src/render/mod.rs`
+Typed result container and format-specific renderers for ROY command output. [UTIL] [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure]
+Exports: CommandResult.with_render_mode, CommandResult.env_map, CommandResult.file_list, NounValue
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation
+
+`src/schema_registry/mod.rs`
+Internal schema registry — machine-readable descriptions of every noun surface, projection, and result envelope exposed by ROY. [ENTRY] [COUPLING:pure]
+Exports: FieldDef, SchemaEntry.full_description, SchemaEntry.list_line, SchemaEntry
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation
 
 `src/session/mod.rs`
 Session and transcript event ledger. [ENTRY] [HOTSPOT] [GLOBAL-UTIL]
@@ -508,9 +544,21 @@ Representative: src/commands/ast_tests.rs, src/commands/ast_tests_basic.rs
 Tests for diagnostics::pane — build_trace and DiagSeverity. [COUPLING:pure]
 Semantic: pure computation
 
+`src/nouns/noun_tests.rs`
+Registry completeness tests for the noun layer. [COUPLING:mixed] [BEHAVIOR:panics-on-error]
+Semantic: side-effecting that panics on error
+
 `src/policy/engine_tests.rs`
 Tests for crate. [COUPLING:mixed] [BEHAVIOR:persists]
 Semantic: side-effecting adapter
+
+`src/render/render_tests.rs`
+Tests proving the same CommandResult can be rendered multiple ways without re-execution or semantic drift (REND-01 core contract). [COUPLING:mixed] [BEHAVIOR:panics-on-error] [QUALITY:error-boundary]
+Semantic: side-effecting that panics on error
+
+`src/schema_registry/schema_tests.rs`
+CI-enforced schema coverage tests. [COUPLING:mixed] [BEHAVIOR:panics-on-error] [QUALITY:error-boundary]
+Semantic: side-effecting that panics on error
 
 `src/session/artifacts_tests.rs`
 Tests for super. [COUPLING:mixed] [BEHAVIOR:panics-on-error]
@@ -551,7 +599,7 @@ Semantic: synchronized side-effecting adapter that panics on error
 DependencyGraph:
   # --- Entrypoints ---
   main.rs:
-    Imports: [agents/mod.rs, app/mod.rs, ast.rs, boundary.rs, capabilities/mod.rs, commands/mod.rs, diagnostics/mod.rs, policy/mod.rs, session/mod.rs, shell/mod.rs, storage/mod.rs, ui/mod.rs, workspace/mod.rs]
+    Imports: [agents/mod.rs, app/mod.rs, ast.rs, boundary.rs, capabilities/mod.rs, commands/mod.rs, diagnostics/mod.rs, nouns/mod.rs, policy/mod.rs, render/mod.rs, session/mod.rs, shell/mod.rs, storage/mod.rs, ui/mod.rs, workspace/mod.rs]
     ImportedBy: []
   # --- High Fan-In Hotspots ---
   agents/mod.rs:
@@ -562,7 +610,7 @@ DependencyGraph:
     ImportedBy: [ast_parse_helpers.rs, ast_tests.rs, command_line.rs, plan_tests.rs, runtime_builtins.rs]
   boundary.rs:
     Imports: [workspace/mod.rs]
-    ImportedBy: [adapter.rs, adapter_tests.rs, artifacts_tests.rs, ast.rs, ast_parse.rs, ast_parse_helpers.rs, ast_tokenise.rs, capabilities/fs.rs, capabilities/validation.rs, capability_tests.rs, cockpit.rs, cwd.rs, env.rs, helpers.rs, host.rs, io.rs, main.rs, pane.rs, pane_tests.rs, plan_tests.rs, policy/engine.rs, policy/engine_tests.rs, profile.rs, registry.rs, resolve.rs, runtime.rs, runtime_agent.rs, runtime_builtins.rs, runtime_native.rs, runtime_tests_agent.rs, runtime_tests_builtins.rs, runtime_tests_discoverability.rs, runtime_tests_native.rs, runtime_tests_policy.rs, session.rs, session/artifacts.rs, session/engine.rs, session/engine_tests.rs, sqlite.rs, store_tests.rs, store_tests_lang.rs, store_tests_lang_migrations.rs, store_tests_lang_refs.rs, store_tests_query_artifacts.rs, store_tests_query_sessions.rs, terminal_grid.rs, terminal_model.rs, terminal_model_tests.rs, terminal_model_tests_submit.rs, terminal_spans.rs, terminal_submit_handle.rs, terminal_submit_parse.rs, terminal_view.rs, traps.rs, workspace/mod.rs]
+    ImportedBy: [adapter.rs, adapter_tests.rs, artifacts_tests.rs, ast.rs, ast_parse.rs, ast_parse_helpers.rs, ast_tokenise.rs, capabilities/fs.rs, capabilities/validation.rs, capability_tests.rs, cockpit.rs, cwd.rs, env.rs, helpers.rs, host.rs, human.rs, io.rs, main.rs, noun_tests.rs, nouns/mod.rs, pane.rs, pane_tests.rs, plan_tests.rs, policy/engine.rs, policy/engine_tests.rs, profile.rs, registry.rs, render/mod.rs, render_tests.rs, resolve.rs, runtime.rs, runtime_agent.rs, runtime_builtins.rs, runtime_native.rs, runtime_tests_agent.rs, runtime_tests_builtins.rs, runtime_tests_discoverability.rs, runtime_tests_native.rs, runtime_tests_policy.rs, schema_registry/mod.rs, schema_tests.rs, session.rs, session/artifacts.rs, session/engine.rs, session/engine_tests.rs, sqlite.rs, store_tests.rs, store_tests_lang.rs, store_tests_lang_migrations.rs, store_tests_lang_refs.rs, store_tests_query_artifacts.rs, store_tests_query_sessions.rs, terminal_grid.rs, terminal_model.rs, terminal_model_tests.rs, terminal_model_tests_submit.rs, terminal_spans.rs, terminal_submit_handle.rs, terminal_submit_parse.rs, terminal_view.rs, traps.rs, workspace/mod.rs]
   capabilities/mod.rs:
     Imports: [capabilities/fs.rs, capabilities/validation.rs, registry.rs, workspace/mod.rs]
     ImportedBy: [capability_tests.rs, commands/fs.rs, commands/mod.rs, commands/validation.rs, host.rs, main.rs, runtime.rs, runtime_native.rs]
@@ -571,7 +619,7 @@ DependencyGraph:
     ImportedBy: [agent_contract_tests.rs, agents/mod.rs, claude_code_tests.rs, codex_tests.rs, runtime_agent.rs]
   commands/mod.rs:
     Imports: [ast.rs, capabilities/mod.rs, commands/fs.rs, commands/validation.rs, plan.rs, registry.rs, schema.rs]
-    ImportedBy: [builtins.rs, capability_tests.rs, compat.rs, main.rs, pane.rs, pane_tests.rs, plan_tests.rs, policy/engine.rs, profile.rs, registry.rs, registry_data.rs, resolve.rs, runtime.rs, traps.rs]
+    ImportedBy: [builtins.rs, capability_tests.rs, compat.rs, main.rs, pane.rs, pane_tests.rs, plan_tests.rs, policy/engine.rs, profile.rs, registry.rs, registry_data.rs, render/mod.rs, resolve.rs, runtime.rs, traps.rs]
   env.rs:
     Imports: [boundary.rs, workspace/mod.rs]
     ImportedBy: [claude_code_tests.rs, codex_tests.rs, cwd.rs, diag_drawer.rs, host.rs, runtime_builtins.rs, runtime_native.rs, runtime_tests_builtins.rs, runtime_tests_native.rs, runtime_tests_policy.rs, shell/mod.rs, workspace.rs]
@@ -581,21 +629,27 @@ DependencyGraph:
   io.rs:
     Imports: [boundary.rs]
     ImportedBy: [runtime.rs, runtime_agent.rs, runtime_builtins.rs, runtime_native.rs, shell/mod.rs]
+  nouns/mod.rs:
+    Imports: [boundary.rs, noun_registry_data.rs]
+    ImportedBy: [main.rs, noun_tests.rs, plan.rs, schema_tests.rs]
   policy/mod.rs:
     Imports: [policy/engine.rs, profile.rs]
     ImportedBy: [main.rs, policy/engine_tests.rs, runtime.rs, runtime_tests_policy.rs]
   registry.rs:
     Imports: [boundary.rs, commands/mod.rs]
-    ImportedBy: [activity.rs, activity_drawer.rs, artifacts_row.rs, ast_parse.rs, ast_parse_helpers.rs, capabilities/mod.rs, claude_code_tests.rs, codex_tests.rs, commands/mod.rs, commands/validation.rs, helpers.rs, pane.rs, runtime.rs, runtime_agent.rs, runtime_builtins.rs, runtime_native.rs, session/artifacts.rs, session/engine.rs, terminal_spans.rs, terminal_submit_lines.rs, terminal_view.rs, ui/artifacts.rs]
+    ImportedBy: [activity.rs, activity_drawer.rs, artifacts_row.rs, ast_parse.rs, ast_parse_helpers.rs, capabilities/mod.rs, claude_code_tests.rs, codex_tests.rs, commands/mod.rs, commands/validation.rs, helpers.rs, human.rs, pane.rs, runtime.rs, runtime_agent.rs, runtime_builtins.rs, runtime_native.rs, schema_registry/mod.rs, session/artifacts.rs, session/engine.rs, terminal_spans.rs, terminal_submit_lines.rs, terminal_view.rs, ui/artifacts.rs]
+  render/mod.rs:
+    Imports: [boundary.rs, commands/mod.rs, human.rs, json.rs, session/mod.rs]
+    ImportedBy: [main.rs, render_tests.rs, result.rs, runtime_builtins.rs, runtime_tests_builtins.rs]
   runtime.rs:
     Imports: [agents/mod.rs, boundary.rs, capabilities/mod.rs, commands/mod.rs, io.rs, policy/engine.rs, policy/mod.rs, registry.rs, session/artifacts.rs, session/mod.rs, workspace/mod.rs]
     ImportedBy: [diag_drawer.rs, footer.rs, runtime_tests_policy.rs, shell/mod.rs, terminal_submit_handle.rs, terminal_view.rs]
   session/artifacts.rs:
     Imports: [boundary.rs, registry.rs]
-    ImportedBy: [adapter.rs, artifacts_tests.rs, ast_parse_helpers.rs, runtime.rs, runtime_native.rs, session/mod.rs, terminal_model_tests_submit.rs]
+    ImportedBy: [adapter.rs, artifacts_tests.rs, ast_parse_helpers.rs, runtime.rs, runtime_native.rs, runtime_tests_builtins.rs, session/mod.rs, terminal_model_tests_submit.rs]
   session/mod.rs:
     Imports: [events.rs, session/artifacts.rs, session/engine.rs]
-    ImportedBy: [activity.rs, activity_drawer.rs, artifacts_row.rs, attention_drawer.rs, chrome.rs, diag_drawer.rs, events.rs, footer.rs, helpers.rs, main.rs, pane.rs, pane_tests.rs, result.rs, review_drawer.rs, runtime.rs, runtime_agent.rs, runtime_native.rs, session/engine_tests.rs, sqlite.rs, store_tests.rs, store_tests_lang.rs, store_tests_query_artifacts.rs, terminal.rs, terminal_model_tests.rs, terminal_model_tests_submit.rs, terminal_submit_handle.rs, terminal_submit_parse.rs, terminal_submit_record.rs, terminal_view.rs, ui/artifacts.rs, workspace.rs]
+    ImportedBy: [activity.rs, activity_drawer.rs, artifacts_row.rs, attention_drawer.rs, chrome.rs, diag_drawer.rs, events.rs, footer.rs, helpers.rs, main.rs, pane.rs, pane_tests.rs, render/mod.rs, result.rs, review_drawer.rs, runtime.rs, runtime_agent.rs, runtime_native.rs, session/engine_tests.rs, sqlite.rs, store_tests.rs, store_tests_lang.rs, store_tests_query_artifacts.rs, terminal.rs, terminal_model_tests.rs, terminal_model_tests_submit.rs, terminal_submit_handle.rs, terminal_submit_parse.rs, terminal_submit_record.rs, terminal_view.rs, ui/artifacts.rs, workspace.rs]
   shell/mod.rs:
     Imports: [env.rs, io.rs, resolve.rs, result.rs, runtime.rs, traps.rs]
     ImportedBy: [chrome.rs, cockpit.rs, diag_drawer.rs, footer.rs, main.rs, runtime_builtins.rs, runtime_tests_agent.rs, runtime_tests_builtins.rs, runtime_tests_discoverability.rs, runtime_tests_native.rs, runtime_tests_policy.rs, terminal.rs, terminal_model_tests.rs, terminal_submit_record.rs, terminal_view.rs, workspace.rs]
@@ -676,11 +730,14 @@ DependencyGraph:
   host.rs:
     Imports: [adapter.rs, boundary.rs, capabilities/mod.rs, env.rs]
     ImportedBy: [agents/mod.rs]
+  noun_registry_data.rs:
+    Imports: []
+    ImportedBy: [nouns/mod.rs]
   pane.rs:
     Imports: [boundary.rs, commands/mod.rs, registry.rs, session/mod.rs]
     ImportedBy: [diagnostics/mod.rs, footer.rs, pane_tests.rs]
   plan.rs:
-    Imports: []
+    Imports: [nouns/mod.rs]
     ImportedBy: [commands/mod.rs]
   plan_impl.rs:
     Imports: [schema.rs]
@@ -695,13 +752,13 @@ DependencyGraph:
     Imports: [boundary.rs, commands/mod.rs]
     ImportedBy: [shell/mod.rs]
   result.rs:
-    Imports: [session/mod.rs]
+    Imports: [render/mod.rs, session/mod.rs]
     ImportedBy: [shell/mod.rs]
   runtime_agent.rs:
     Imports: [adapter.rs, agents/mod.rs, boundary.rs, claude_code.rs, io.rs, registry.rs, session/mod.rs]
     ImportedBy: [runtime_tests_agent.rs, terminal_submit_handle.rs, terminal_view.rs]
   runtime_builtins.rs:
-    Imports: [ast_parse.rs, boundary.rs, env.rs, io.rs, registry.rs, shell/mod.rs]
+    Imports: [ast_parse.rs, boundary.rs, env.rs, io.rs, registry.rs, render/mod.rs, shell/mod.rs]
     ImportedBy: []
   runtime_native.rs:
     Imports: [boundary.rs, capabilities/mod.rs, env.rs, io.rs, registry.rs, session/artifacts.rs, session/mod.rs]
@@ -709,6 +766,9 @@ DependencyGraph:
   schema.rs:
     Imports: []
     ImportedBy: [commands/mod.rs, plan_impl.rs]
+  schema_data.rs:
+    Imports: []
+    ImportedBy: [schema_registry/mod.rs]
   session.rs:
     Imports: [agents/mod.rs, boundary.rs]
     ImportedBy: [agents/mod.rs]
@@ -764,6 +824,12 @@ DependencyGraph:
   helpers.rs:
     Imports: [agents/mod.rs, boundary.rs, registry.rs, session/mod.rs]
     ImportedBy: [layout/mod.rs]
+  human.rs:
+    Imports: [boundary.rs, registry.rs]
+    ImportedBy: [render/mod.rs]
+  json.rs:
+    Imports: []
+    ImportedBy: [render/mod.rs, render_tests.rs]
   sqlite_lang.rs:
     Imports: []
     ImportedBy: [store_tests_lang_lang.rs, store_tests_lang_migrations.rs, store_tests_query_denials.rs]
@@ -786,6 +852,9 @@ DependencyGraph:
   panels/mod.rs:
     Imports: [command_line.rs, terminal.rs, terminal_model.rs]
     ImportedBy: [layout/mod.rs]
+  schema_registry/mod.rs:
+    Imports: [boundary.rs, registry.rs, schema_data.rs]
+    ImportedBy: [schema_tests.rs]
   storage/mod.rs:
     Imports: [sqlite.rs]
     ImportedBy: [main.rs]
@@ -811,6 +880,9 @@ DependencyGraph:
   claude_code_tests.rs, codex_tests.rs:
     Imports: [claude_code.rs, env.rs, registry.rs]
     ImportedBy: []
+  noun_tests.rs:
+    Imports: [boundary.rs, nouns/mod.rs]
+    ImportedBy: []
   pane_tests.rs:
     Imports: [boundary.rs, commands/mod.rs, pane.rs, session/mod.rs]
     ImportedBy: []
@@ -820,11 +892,14 @@ DependencyGraph:
   policy/engine_tests.rs:
     Imports: [boundary.rs, policy/engine.rs, policy/mod.rs, profile.rs]
     ImportedBy: []
+  render_tests.rs:
+    Imports: [boundary.rs, json.rs, render/mod.rs]
+    ImportedBy: []
   runtime_tests_agent.rs:
     Imports: [agents/mod.rs, boundary.rs, runtime_agent.rs, shell/mod.rs]
     ImportedBy: []
   runtime_tests_builtins.rs:
-    Imports: [boundary.rs, env.rs, shell/mod.rs, workspace/mod.rs]
+    Imports: [boundary.rs, env.rs, render/mod.rs, session/artifacts.rs, shell/mod.rs, workspace/mod.rs]
     ImportedBy: []
   runtime_tests_discoverability.rs:
     Imports: [boundary.rs, shell/mod.rs]
@@ -834,6 +909,9 @@ DependencyGraph:
     ImportedBy: []
   runtime_tests_policy.rs:
     Imports: [boundary.rs, env.rs, policy/mod.rs, runtime.rs, shell/mod.rs, workspace/mod.rs]
+    ImportedBy: []
+  schema_tests.rs:
+    Imports: [boundary.rs, nouns/mod.rs, schema_registry/mod.rs]
     ImportedBy: []
   session/engine_tests.rs:
     Imports: [agents/mod.rs, boundary.rs, events.rs, session/engine.rs, session/mod.rs]
