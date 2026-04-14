@@ -1,70 +1,70 @@
 # Agent Protocol (SEMMAP-first)
 
-You can browse the repo, but orientation and verification MUST be SEMMAP/Neti-driven. Act without unnecessary permission prompts, but still follow any real tool, sandbox, or approval requirements. Neti and SEMMAP binaries are installed in the system path and can be invoked directly, for example `neti check`, `semmap generate`, `semmap trace`, and `semmap cat`.
+Repo browsing allowed, but orientation/verification MUST be SEMMAP/Neti-driven. Act without unnecessary permission prompts, while still obeying real tool, sandbox, and approval constraints. `neti` and `semmap` are on PATH (`neti check`, `semmap generate`, `semmap trace`, `semmap cat`).
 
 ## Hard rule: no source before orientation
 
-Before reading implementation source beyond the task-defining docs, you MUST:
+Before reading implementation source beyond task-defining docs, you MUST:
 
-1. run `semmap generate` (if not already done for this repo state),
-2. read `SEMMAP.md` and cite the specific line(s) you used (Purpose plus the relevant layer entries and hotspots),
+1. run `semmap generate` (unless already current for this repo state),
+2. read `SEMMAP.md` and cite exact lines used (Purpose, relevant layer entries, hotspots),
 3. run `semmap trace <entry_file>` when flow, ownership, or execution path matters,
-4. state your **minimal working set** (the 2-5 files you intend to read next, and why).
+4. state minimal working set: 2-5 files to read next, and why.
 
-You may read the task-defining docs first: this prompt. Issue discovery and issue updates must go through the `ishoo` CLI against the canonical store. After orientation, if you read additional files beyond the working set, you MUST justify why SEMMAP and the trace output were insufficient.
+You may read task-defining docs first: this prompt. Issue discovery and updates MUST go through `ishoo` CLI against canonical store. After orientation, if you read files beyond working set, justify why SEMMAP + trace were insufficient.
 
 ## Required evidence per iteration
 
-In any iteration where you plan or change code, include:
+In any iteration that plans or changes code, include:
 
-- the SEMMAP line(s) you used (Purpose plus relevant layer entries and hotspots)
-- the exact `semmap trace ...` command(s) you ran, when applicable
-- the exact `neti check` result after changes; consult `neti-report.txt` if output is truncated
+- SEMMAP lines used (Purpose + relevant layer entries + hotspots),
+- exact `semmap trace ...` command(s), when applicable,
+- exact `neti check` result after changes; read `neti-report.txt` if output truncates.
 
-`neti check` is the canonical verification command. It already runs the configured verification suite, including `cargo test`, the configured Clippy gate, and Neti scan. Do not treat ad hoc `cargo test` or `cargo clippy` runs as a substitute for `neti check`.
+`neti check` is canonical verification. It already runs configured verification suite, including `cargo test`, configured Clippy gate, and Neti scan. Ad hoc `cargo test` / `cargo clippy` do **not** substitute.
 
-If you cannot provide this evidence, stop and run the missing SEMMAP/Neti steps first.
+If any evidence missing, stop and run missing SEMMAP/Neti steps first.
 
 ## Workflow
 
-1. Run `semmap generate` and read `SEMMAP.md`. Use the `ishoo` CLI to inspect issues. You can also run `semmap deps` if you need a dependency graph.
-2. Write a short Orientation (Purpose, entrypoint, trace target, hotspots, plan).
-3. Use `semmap trace <entry_file>` for flow-dependent work or unclear ownership.
-4. Declare a minimal working set, then read only those files (prefer `semmap cat`; use other tools if needed).
-5. Make minimal edits that respect SEMMAP boundaries; hotspots = smaller diffs + stronger tests.
-6. After the change set is in place, delete any existing `neti-report.txt`, then run `neti check` from the repo/worktree root (view the regenerated `neti-report.txt` there for full output). Iterate until clean, or until only clearly pre-existing failures remain and are called out explicitly. You must resolve all technical debt before moving forward, you are not allowed to say "I didnt break it so im leaving it broken", EVER.
-7. If you manually exercise a CLI or user-facing flow, report the exact command, the important output, and the exit code when relevant.
+1. Run `semmap generate`, read `SEMMAP.md`, inspect issues with `ishoo`. Use `semmap deps` if dependency graph needed.
+2. Write short Orientation: Purpose, entrypoint, trace target, hotspots, plan.
+3. Run `semmap trace <entry_file>` for flow-dependent work or unclear ownership.
+4. Declare minimal working set; read only those files (prefer `semmap cat`).
+5. Make minimal edits within SEMMAP boundaries; in hotspots, keep diffs smaller and tests stronger.
+6. After changes, delete existing `neti-report.txt`, then run `neti check` from repo/worktree root. Inspect regenerated `neti-report.txt` there for full output. Iterate until clean, or until only clearly pre-existing failures remain and are called out explicitly. You must resolve all technical debt before moving forward; never say “I didnt break it so im leaving it broken”.
+7. If you manually exercise a CLI or user-facing flow, report exact command, important output, and exit code when relevant.
 
 ## Issue discipline
 
-Work exclusively from the canonical issue store through the CLI. The storage file is a compressed binary; do not attempt to read or modify it directly.
+Work only through canonical issue store via CLI. Storage file is compressed binary; do not read or modify it directly.
 
-Use these commands as your primary control surface:
+Primary commands:
 
-- `ishoo agenda --next` (Your primary source of truth for "What's next")
-- `ishoo list --compact` (Query the state of the board)
-- `ishoo show <ID>` (Read full details/description of a task)
-- `ishoo new "<Title>" --category <CAT> --labels <labels>` (Create new work)
-- `ishoo edit <ID> --description "<Text>" --depends-on <ID>` (Refine/Link work)
-- `ishoo set <ID> <status>` (Update status: active, backlog, done)
-- `ishoo help --all` (See all commands and how to use them)
+- `ishoo agenda --next` — source of truth for what is next
+- `ishoo list --compact` — board state
+- `ishoo show <ID>` — full task details
+- `ishoo new "<Title>" --category <CAT> --labels <labels>` — create work
+- `ishoo edit <ID> --description "<Text>" --depends-on <ID>` — refine/link work
+- `ishoo set <ID> <status>` — set status (`active`, `backlog`, `done`)
+- `ishoo help --all` — full command help
 
-When refining or closing an issue, your `Resolution` update MUST include:
+When refining or closing an issue, `Resolution` MUST include:
 
-1. **What changed:** Concrete summary of code changes.
-2. **Why:** Architectural justification.
-3. **Verification:** The exact commands run and the outcome of `neti check`.
-4. **Handoff:** If this enables a blocked issue, mention it.
+1. **What changed:** concrete code-change summary.
+2. **Why:** architectural justification.
+3. **Verification:** exact commands run + `neti check` outcome.
+4. **Handoff:** note any newly unblocked issue.
 
-An issue is only DONE when `neti check` is PASS and the status is updated via `ishoo set <ID> done`.
+Issue is only DONE when `neti check` = PASS and status is updated with `ishoo set <ID> done`.
 
 ## Minimal close-out
 
-A compliant final report for code work should usually contain:
+Final report for code work should usually include:
 
-1. the issue handled
-2. the SEMMAP evidence used
-3. the key files changed
-4. the exact `neti check` outcome
-5. any manual CLI or UX verification that was performed
-6. whether issue records were updated
+1. issue handled,
+2. SEMMAP evidence used,
+3. key files changed,
+4. exact `neti check` outcome,
+5. any manual CLI/UX verification,
+6. whether issue records were updated.
