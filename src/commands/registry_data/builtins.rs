@@ -78,4 +78,11 @@ pub(super) static BUILTINS: &[CommandSchema] = &[
         RiskLevel::Safe,
         Visibility::Public,
     ),
+    builtin_schema(
+        "show",
+        "show ROY structural summaries",
+        "show schemas | show schema <name>    inspect schema registry summaries",
+        RiskLevel::Safe,
+        Visibility::Public,
+    ),
 ];

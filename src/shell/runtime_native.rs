@@ -1,9 +1,21 @@
 use super::*;
 use crate::capabilities::CapabilityOutput;
+use crate::schema_registry::SchemaRegistry;
 use crate::session::SessionArtifact;
 
 impl ShellRuntime {
     pub(super) fn dispatch_native(&mut self, command: &str, args: &[&str]) -> DispatchResult {
+        if command == "read" {
+            match args {
+                ["schema", name] => return self.dispatch_read_schema(name),
+                ["schema"] => {
+                    return self
+                        .native_usage_error(command, "usage: read schema <name>".to_string())
+                }
+                _ => {}
+            }
+        }
+
         let request = match parse_native_request(command, args) {
             Ok(Some(request)) => request,
             Ok(None) => return self.not_found(command),
@@ -48,6 +60,31 @@ impl ShellRuntime {
                     artifacts: Vec::new(),
                 }
             }
+        }
+    }
+
+    fn dispatch_read_schema(&mut self, name: &str) -> DispatchResult {
+        let registry = SchemaRegistry::new();
+        let Some(schema) = registry.lookup(name) else {
+            let msg = format!(
+                "read: unknown schema '{name}' — run `show schemas` to list available schemas"
+            );
+            self.io.write_error(&msg);
+            self.last_exit_status = Some(1);
+            return DispatchResult::Executed {
+                output: msg,
+                exit_code: 1,
+                artifacts: Vec::new(),
+            };
+        };
+
+        let output = schema.full_description();
+        self.io.write_line(&output);
+        self.last_exit_status = Some(0);
+        DispatchResult::Executed {
+            output,
+            exit_code: 0,
+            artifacts: Vec::new(),
         }
     }
 

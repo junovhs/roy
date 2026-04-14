@@ -182,8 +182,7 @@ impl ShellRuntime {
             "exit" | "quit" => self.dispatch_exit(args),
             "help" | "roy" | "?" => self.dispatch_help(),
             "commands" => self.dispatch_commands(),
-            "schema" => self.dispatch_schema(args),
-            "schemas" => self.dispatch_schemas(),
+            "show" => self.dispatch_show(args),
             _ => self.not_found(command),
         }
     }

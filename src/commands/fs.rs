@@ -13,8 +13,8 @@ static FS_COMMANDS: &[CommandSchema] = &[
     },
     CommandSchema {
         name: "read",
-        purpose: "read a file from the workspace",
-        help_text: "read <path>   print a file from the workspace",
+        purpose: "read a workspace file or internal schema contract",
+        help_text: "read <path> | read schema <name>   print a workspace file or schema contract",
         risk_level: RiskLevel::Safe,
         visibility: Visibility::Public,
         backend: Backend::RoyNative,
