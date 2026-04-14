@@ -118,6 +118,9 @@
 
 ## Layer 0 -- Config
 
+`CLAUDE.md`
+Support file for CLAUDE.
+
 `Cargo.toml`
 Workspace configuration.
 
@@ -673,7 +676,7 @@ DependencyGraph:
     Imports: [boundary.rs, cwd.rs]
     ImportedBy: [boundary.rs, capabilities/mod.rs, cwd.rs, env.rs, main.rs, runtime.rs, runtime_tests_builtins.rs, runtime_tests_policy.rs]
   # --- Layer 0 -- Config ---
-  Cargo.toml, SEMMAP.md, neti.toml:
+  CLAUDE.md, Cargo.toml, SEMMAP.md, neti.toml:
     Imports: []
     ImportedBy: []
   # --- Layer 1 -- Domain (Engine) ---
