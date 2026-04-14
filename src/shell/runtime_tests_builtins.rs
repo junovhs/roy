@@ -92,31 +92,38 @@ fn cd_no_args_returns_cwd_unchanged() {
 
 #[test]
 fn env_output_contains_path_and_shell() {
+    use crate::render::NounValue;
     let mut rt = rt();
     match rt.dispatch("env", &[]) {
-        DispatchResult::Executed {
-            output, exit_code, ..
-        } => {
-            assert_eq!(exit_code, 0);
-            assert!(output.contains("PATH="), "env must include PATH");
-            assert!(output.contains("SHELL=roy"), "env must include SHELL=roy");
+        DispatchResult::Typed { result } => {
+            assert_eq!(rt.last_exit_status(), Some(0));
+            let NounValue::EnvMap(pairs) = &result.value else {
+                panic!("expected EnvMap, got {:?}", result.value);
+            };
+            let keys: Vec<&str> = pairs.iter().map(|(k, _)| k.as_str()).collect();
+            assert!(keys.contains(&"PATH"), "env must include PATH");
+            assert!(keys.contains(&"SHELL"), "env must include SHELL");
+            let shell_val = pairs.iter().find(|(k, _)| k == "SHELL").map(|(_, v)| v.as_str());
+            assert_eq!(shell_val, Some("roy"), "SHELL must equal roy");
         }
-        other => panic!("expected Executed, got {other:?}"),
+        other => panic!("expected Typed, got {other:?}"),
     }
 }
 
 #[test]
 fn env_filter_narrows_output() {
+    use crate::render::NounValue;
     let mut rt = rt();
     match rt.dispatch("env", &["SHELL"]) {
-        DispatchResult::Executed {
-            output, exit_code, ..
-        } => {
-            assert_eq!(exit_code, 0);
-            assert!(output.contains("SHELL=roy"));
-            assert!(!output.contains("PATH="), "filter should exclude PATH");
+        DispatchResult::Typed { result } => {
+            assert_eq!(rt.last_exit_status(), Some(0));
+            let NounValue::EnvMap(pairs) = &result.value else {
+                panic!("expected EnvMap, got {:?}", result.value);
+            };
+            assert!(pairs.iter().any(|(k, _)| k == "SHELL"), "SHELL must be present");
+            assert!(!pairs.iter().any(|(k, _)| k == "PATH"), "PATH must be filtered out");
         }
-        other => panic!("expected Executed, got {other:?}"),
+        other => panic!("expected Typed, got {other:?}"),
     }
 }
 

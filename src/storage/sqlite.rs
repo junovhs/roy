@@ -12,6 +12,15 @@ mod issues;
 #[path = "sqlite_lang.rs"]
 mod lang;
 
+#[path = "sqlite_approvals.rs"]
+mod approvals;
+
+#[path = "sqlite_artifacts.rs"]
+mod artifacts_queries;
+
+#[path = "sqlite_sessions.rs"]
+mod sessions_queries;
+
 use std::path::Path;
 
 use rusqlite::{params, Connection};

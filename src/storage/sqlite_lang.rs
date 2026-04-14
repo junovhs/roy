@@ -56,23 +56,61 @@ impl RoyStore {
 
     /// List all denials for a session, ordered by time.
     pub fn list_denials(&self, session_id: u64) -> Result<Vec<StoredDenial>, StoreError> {
+        self.query_denials_by(
+            session_id,
+            &DenialQuery {
+                command: None,
+                since: None,
+                until: None,
+                limit: None,
+                offset: None,
+            },
+        )
+    }
+
+    /// Filtered denial query with optional command/time constraints and pagination.
+    ///
+    /// `limit` defaults to 1000 when `None`; `offset` defaults to 0.
+    pub fn query_denials_by(
+        &self,
+        session_id: u64,
+        q: &DenialQuery<'_>,
+    ) -> Result<Vec<StoredDenial>, StoreError> {
+        let limit = q.limit.unwrap_or(1000) as i64;
+        let offset = q.offset.unwrap_or(0) as i64;
         let mut stmt = self.conn.prepare(
             "SELECT id, session_id, command, args, reason, suggestion, redirect, ts
-             FROM structured_denials WHERE session_id = ?1 ORDER BY ts, id",
+             FROM structured_denials
+             WHERE session_id = ?1
+               AND (?2 IS NULL OR command = ?2)
+               AND (?3 IS NULL OR ts >= ?3)
+               AND (?4 IS NULL OR ts <= ?4)
+             ORDER BY ts, id
+             LIMIT ?5 OFFSET ?6",
         )?;
         let rows = stmt
-            .query_map(params![session_id as i64], |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, i64>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, String>(4)?,
-                    row.get::<_, Option<String>>(5)?,
-                    row.get::<_, Option<String>>(6)?,
-                    row.get::<_, i64>(7)?,
-                ))
-            })?
+            .query_map(
+                params![
+                    session_id as i64,
+                    q.command,
+                    q.since.map(|t| t as i64),
+                    q.until.map(|t| t as i64),
+                    limit,
+                    offset,
+                ],
+                |row| {
+                    Ok((
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, i64>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, Option<String>>(5)?,
+                        row.get::<_, Option<String>>(6)?,
+                        row.get::<_, i64>(7)?,
+                    ))
+                },
+            )?
             .collect::<Result<Vec<_>, _>>()?;
 
         rows.into_iter()
@@ -95,133 +133,23 @@ impl RoyStore {
     }
 }
 
-// ── pending approvals ─────────────────────────────────────────────────────────
+// ── denial query type ─────────────────────────────────────────────────────────
 
-/// An approval-pending change record.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StoredApproval {
-    pub id: i64,
-    pub session_id: u64,
-    pub command: String,
-    pub args: Vec<String>,
-    pub reason: String,
-    pub requested_at: u64,
-    pub resolved_at: Option<u64>,
-    pub resolution: Option<String>,
+/// Filtered query for structured denials within a session.
+///
+/// All filter fields are optional; unset fields match any value.
+#[derive(Debug, Default)]
+pub struct DenialQuery<'a> {
+    /// Restrict to denials of this command name (e.g. `"bash"`, `"curl"`).
+    pub command: Option<&'a str>,
+    /// Lower-bound timestamp (inclusive).
+    pub since: Option<u64>,
+    /// Upper-bound timestamp (inclusive).
+    pub until: Option<u64>,
+    /// Maximum rows. `None` → capped at 1000.
+    pub limit: Option<u64>,
+    /// Rows to skip.
+    pub offset: Option<u64>,
 }
 
-/// Parameters for recording a pending approval.
-pub struct ApprovalRecord<'a> {
-    pub command: &'a str,
-    pub args: &'a [&'a str],
-    pub reason: &'a str,
-    pub requested_at: u64,
-}
-
-impl RoyStore {
-    /// Record a pending-approval entry; returns the row id.
-    pub fn insert_pending_approval(
-        &self,
-        session_id: u64,
-        approval: ApprovalRecord<'_>,
-    ) -> Result<i64, StoreError> {
-        let args_json = serde_json::to_string(approval.args)?;
-        self.conn.execute(
-            "INSERT INTO pending_approvals (session_id, command, args, reason, requested_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![
-                session_id as i64,
-                approval.command,
-                args_json,
-                approval.reason,
-                approval.requested_at as i64
-            ],
-        )?;
-        Ok(self.conn.last_insert_rowid())
-    }
-
-    /// Resolve an approval with the given outcome.
-    pub fn resolve_approval(
-        &self,
-        id: i64,
-        resolved_at: u64,
-        resolution: &str,
-    ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "UPDATE pending_approvals SET resolved_at = ?1, resolution = ?2 WHERE id = ?3",
-            params![resolved_at as i64, resolution, id],
-        )?;
-        Ok(())
-    }
-
-    /// List only unresolved approvals for a session.
-    pub fn list_pending_approvals(
-        &self,
-        session_id: u64,
-    ) -> Result<Vec<StoredApproval>, StoreError> {
-        self.query_approvals(session_id, true)
-    }
-
-    /// List all approvals (pending and resolved) for a session.
-    pub fn list_all_approvals(&self, session_id: u64) -> Result<Vec<StoredApproval>, StoreError> {
-        self.query_approvals(session_id, false)
-    }
-
-    fn query_approvals(
-        &self,
-        session_id: u64,
-        pending_only: bool,
-    ) -> Result<Vec<StoredApproval>, StoreError> {
-        let sql = if pending_only {
-            "SELECT id, session_id, command, args, reason, requested_at, resolved_at, resolution
-             FROM pending_approvals WHERE session_id = ?1 AND resolved_at IS NULL
-             ORDER BY requested_at, id"
-        } else {
-            "SELECT id, session_id, command, args, reason, requested_at, resolved_at, resolution
-             FROM pending_approvals WHERE session_id = ?1
-             ORDER BY requested_at, id"
-        };
-        let mut stmt = self.conn.prepare(sql)?;
-        let rows = stmt
-            .query_map(params![session_id as i64], |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, i64>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, String>(4)?,
-                    row.get::<_, i64>(5)?,
-                    row.get::<_, Option<i64>>(6)?,
-                    row.get::<_, Option<String>>(7)?,
-                ))
-            })?
-            .collect::<Result<Vec<_>, _>>()?;
-
-        rows.into_iter()
-            .map(
-                |(
-                    id,
-                    stored_session_id,
-                    command,
-                    args_json,
-                    reason,
-                    requested_at,
-                    resolved_at,
-                    resolution,
-                )| {
-                    let args = serde_json::from_str(&args_json)?;
-                    Ok(StoredApproval {
-                        id,
-                        session_id: stored_session_id as u64,
-                        command,
-                        args,
-                        reason,
-                        requested_at: requested_at as u64,
-                        resolved_at: resolved_at.map(|v| v as u64),
-                        resolution,
-                    })
-                },
-            )
-            .collect()
-    }
-}
+// Pending-approval APIs live in sqlite_approvals.rs to keep this file within token limits.

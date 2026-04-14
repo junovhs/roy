@@ -70,5 +70,14 @@ pub(crate) fn record_session_outcome(
                 ts += 1;
             }
         }
+        DispatchResult::Typed { result } => {
+            for artifact in &result.artifacts {
+                session.push(SessionEvent::ArtifactCreated {
+                    artifact: artifact.clone(),
+                    ts,
+                });
+                ts += 1;
+            }
+        }
     }
 }

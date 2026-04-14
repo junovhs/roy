@@ -11,6 +11,7 @@
 
 pub mod ast;
 pub mod fs;
+pub mod plan;
 pub mod registry;
 pub mod schema;
 pub mod validation;

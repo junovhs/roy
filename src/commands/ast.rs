@@ -73,7 +73,11 @@ pub struct Command {
 impl Command {
     /// Flatten to an argv-style `(verb, args)` pair for the existing
     /// `ShellRuntime::dispatch` interface. Lossy — flags, refiners, and
-    /// typed filters are not yet propagated. Will be removed in LANG-02.
+    /// typed filters are not propagated. The [`plan`] module supersedes
+    /// this; remove once the runtime is wired to use [`Plan`] directly.
+    ///
+    /// [`plan`]: crate::commands::plan
+    /// [`Plan`]: crate::commands::plan::Plan
     pub fn to_argv(&self) -> (&str, Vec<String>) {
         let mut args: Vec<String> = Vec::new();
         if let Some(t) = &self.target {

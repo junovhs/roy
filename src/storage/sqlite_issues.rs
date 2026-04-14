@@ -78,18 +78,85 @@ impl RoyStore {
         };
         let mut stmt = self.conn.prepare(sql)?;
         let rows = stmt
-            .query_map(params![session_id as i64], |row| {
-                Ok(StoredIssue {
-                    id: row.get(0)?,
-                    session_id: row.get::<_, i64>(1)? as u64,
-                    kind: row.get(2)?,
-                    message: row.get(3)?,
-                    command: row.get(4)?,
-                    ts: row.get::<_, i64>(5)? as u64,
-                    resolved_at: row.get::<_, Option<i64>>(6)?.map(|v| v as u64),
-                })
-            })?
+            .query_map(params![session_id as i64], decode_issue_row)?
             .collect::<Result<Vec<_>, _>>()?;
         Ok(rows)
     }
+
+    /// Filtered issue query with optional kind/command/time constraints and pagination.
+    ///
+    /// `limit` defaults to 1000 when `None`; `offset` defaults to 0.
+    pub fn query_issues_by(
+        &self,
+        session_id: u64,
+        q: &IssueQuery<'_>,
+    ) -> Result<Vec<StoredIssue>, StoreError> {
+        let limit = q.limit.unwrap_or(1000) as i64;
+        let offset = q.offset.unwrap_or(0) as i64;
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, kind, message, command, ts, resolved_at
+             FROM issues
+             WHERE session_id = ?1
+               AND (?2 IS NULL OR kind    = ?2)
+               AND (?3 IS NULL OR command = ?3)
+               AND (?4 = 0     OR resolved_at IS NULL)
+               AND (?5 IS NULL OR ts >= ?5)
+               AND (?6 IS NULL OR ts <= ?6)
+             ORDER BY ts, id
+             LIMIT ?7 OFFSET ?8",
+        )?;
+        let rows = stmt
+            .query_map(
+                params![
+                    session_id as i64,
+                    q.kind,
+                    q.command,
+                    q.open_only as i64,
+                    q.since.map(|t| t as i64),
+                    q.until.map(|t| t as i64),
+                    limit,
+                    offset,
+                ],
+                decode_issue_row,
+            )?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+}
+
+// ── query type ────────────────────────────────────────────────────────────────
+
+/// Filtered query for issues within a session.
+///
+/// All filter fields are optional; unset fields match any value.
+#[derive(Debug, Default)]
+pub struct IssueQuery<'a> {
+    /// Restrict to issues of this kind (e.g. `"parse_error"`, `"not_found"`).
+    pub kind: Option<&'a str>,
+    /// Restrict to issues triggered by this command.
+    pub command: Option<&'a str>,
+    /// When `true`, return only unresolved issues.
+    pub open_only: bool,
+    /// Lower-bound timestamp (inclusive).
+    pub since: Option<u64>,
+    /// Upper-bound timestamp (inclusive).
+    pub until: Option<u64>,
+    /// Maximum rows. `None` → capped at 1000.
+    pub limit: Option<u64>,
+    /// Rows to skip.
+    pub offset: Option<u64>,
+}
+
+// ── row decoder ───────────────────────────────────────────────────────────────
+
+fn decode_issue_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredIssue> {
+    Ok(StoredIssue {
+        id: row.get(0)?,
+        session_id: row.get::<_, i64>(1)? as u64,
+        kind: row.get(2)?,
+        message: row.get(3)?,
+        command: row.get(4)?,
+        ts: row.get::<_, i64>(5)? as u64,
+        resolved_at: row.get::<_, Option<i64>>(6)?.map(|v| v as u64),
+    })
 }

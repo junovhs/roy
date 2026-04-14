@@ -1,8 +1,11 @@
 //! Integration tests for v0.2 language-state storage.
 
-pub(super) use super::issues::IssueRecord;
-pub(super) use super::lang::{ApprovalRecord, DenialRecord};
+pub(super) use super::artifacts_queries::ArtifactQuery;
+pub(super) use super::issues::{IssueQuery, IssueRecord};
+pub(super) use super::approvals::ApprovalRecord;
+pub(super) use super::lang::{DenialQuery, DenialRecord};
 pub(super) use super::refs::NamedRefRecord;
+pub(super) use super::sessions_queries::SessionQuery;
 pub(super) use super::RoyStore;
 pub(super) use crate::session::{Session, SessionEvent};
 pub(super) use rusqlite::{params, Connection};
@@ -53,3 +56,15 @@ mod issues;
 
 #[path = "store_tests_lang_lang.rs"]
 mod lang;
+
+#[path = "store_tests_query_artifacts.rs"]
+mod query_artifacts;
+
+#[path = "store_tests_query_sessions.rs"]
+mod query_sessions;
+
+#[path = "store_tests_query_denials.rs"]
+mod query_denials;
+
+#[path = "store_tests_query_issues.rs"]
+mod query_issues;

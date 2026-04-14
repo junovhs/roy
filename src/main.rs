@@ -3,6 +3,8 @@ mod app;
 mod capabilities;
 mod commands;
 mod diagnostics;
+mod nouns;
+mod render;
 mod policy;
 mod session;
 mod shell;

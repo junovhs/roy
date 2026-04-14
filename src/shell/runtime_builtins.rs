@@ -1,4 +1,5 @@
 use super::*;
+use crate::render::CommandResult;
 use crate::shell::ShellError;
 
 impl ShellRuntime {
@@ -65,19 +66,24 @@ impl ShellRuntime {
     pub(super) fn dispatch_env(&mut self, args: &[&str]) -> DispatchResult {
         let snap = self.env.snapshot();
         let filter = args.first().copied();
-        let mut lines: Vec<String> = snap
-            .iter()
+        let mut pairs: Vec<(String, String)> = snap
+            .into_iter()
             .filter(|(k, _)| filter.is_none_or(|f| k.contains(f)))
-            .map(|(k, v)| format!("{k}={v}"))
             .collect();
-        lines.sort();
-        let output = lines.join("\n");
+        pairs.sort_by(|(a, _), (b, _)| a.cmp(b));
+
+        // Write to transcript buffer (legacy path; renderers are the canonical
+        // output surface for REND-01 consumers).
+        let output = pairs
+            .iter()
+            .map(|(k, v)| format!("{k}={v}"))
+            .collect::<Vec<_>>()
+            .join("\n");
         self.io.write_line(&output);
         self.last_exit_status = Some(0);
-        DispatchResult::Executed {
-            output,
-            exit_code: 0,
-            artifacts: Vec::new(),
+
+        DispatchResult::Typed {
+            result: CommandResult::env_map(pairs),
         }
     }
 
