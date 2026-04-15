@@ -6,9 +6,7 @@ use std::thread;
 
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 
-use super::adapter::{AgentError, AgentHandle, AgentMeta, LaunchConfig, SupervisionEvent};
-#[cfg(test)]
-use super::adapter::AgentKind;
+use super::adapter::{AgentError, AgentHandle, AgentKind, AgentMeta, LaunchConfig, SupervisionEvent};
 
 /// Terminal dimensions reported to the hosted agent.
 const PTY_COLS: u16 = 220;

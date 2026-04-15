@@ -208,7 +208,7 @@ fn send_agent_input_forwards_line_with_newline() {
 
 #[test]
 fn send_agent_input_without_agent_returns_error() {
-    let mut rt = rt();
+    let rt = rt();
     let err = rt
         .send_agent_input("status")
         .expect_err("missing agent must error");

@@ -65,7 +65,7 @@ pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>)
     rsx! {
         div {
             id: "shell-output",
-            style: "flex:1;padding:22px 28px;font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1.75;overflow-y:auto;overflow-x:hidden;color:{super::INK_DIM};",
+            style: "flex:1;padding:22px 28px;font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1.75;overflow-y:auto;overflow-x:clip;color:{super::INK_DIM};",
             onclick: move |_| { let _ = document::eval("document.getElementById('pty-cap')?.focus();"); },
             onwheel: move |evt| {
                 if !runtime.read().agent_active() {
@@ -97,12 +97,12 @@ pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>)
                 }
                 input {
                     id: "pty-cap",
-                    r#type: "text", value: "", autofocus: true,
-                    style: "position:absolute;left:-9999px;width:1px;height:1px;opacity:0;",
+                    r#type: "text", autofocus: true,
+                    style: "position:fixed;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;",
                     onkeydown: move |evt| {
                         let bytes = key_to_pty_bytes(&evt);
                         if let Some(bytes) = bytes {
-                            let _ = runtime.write().send_agent_raw(&bytes);
+                            let _ = runtime.read().send_agent_raw(&bytes);
                             evt.prevent_default();
                         }
                     },
@@ -118,6 +118,7 @@ pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>)
                             "{prompt}"
                         }
                         input {
+                            id: "shell-input",
                             r#type: "text", value: "{input_text}", autofocus: true,
                             style: "flex:1;background:transparent;border:none;outline:none;color:{super::INK};font-family:'JetBrains Mono',monospace;font-size:14px;caret-color:{super::CORAL};padding:0;",
                             oninput: move |evt| *input_text.write() = evt.value(),
@@ -138,7 +139,7 @@ async fn poll_agent_output(
     mut grid_tick: Signal<u64>,
 ) {
     loop {
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(16)).await;
         if !runtime.peek().agent_active() {
             continue;
         }

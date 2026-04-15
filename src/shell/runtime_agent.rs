@@ -138,15 +138,15 @@ impl ShellRuntime {
         (lines, exited)
     }
 
-    /// Forward one submitted line to the active embedded agent (appends \r\n).
-    pub fn send_agent_input(&mut self, line: &str) -> Result<(), String> {
+    /// Forward one submitted line to the active embedded agent (appends \r).
+    pub fn send_agent_input(&self, line: &str) -> Result<(), String> {
         self.send_agent_raw(format!("{line}\r").as_bytes())
     }
 
     /// Forward raw PTY bytes to the active embedded agent without modification.
     ///
     /// Used for keystroke passthrough: arrow keys, ctrl chords, escape sequences.
-    pub fn send_agent_raw(&mut self, bytes: &[u8]) -> Result<(), String> {
+    pub fn send_agent_raw(&self, bytes: &[u8]) -> Result<(), String> {
         let Some(handle) = &self.agent_handle else {
             return Err("no embedded agent is active".to_string());
         };

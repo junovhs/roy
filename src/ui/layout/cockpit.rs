@@ -39,6 +39,18 @@ pub fn Cockpit() -> Element {
                 color: {INK};
                 box-sizing: border-box;
             ",
+            // Click anywhere → focus whichever input is live (pty-cap in agent
+            // mode, shell-input otherwise).  Both IDs are present exclusively,
+            // so the first match always wins.
+            onclick: move |_| {
+                let _ = document::eval(
+                    "(function(){\
+                        var el=document.getElementById('pty-cap')\
+                               ||document.getElementById('shell-input');\
+                        if(el)el.focus();\
+                    })();"
+                );
+            },
 
             WindowResizeZones {}
 
