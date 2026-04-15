@@ -1,25 +1,25 @@
-[package]
-name = "roy"
-version = "0.1.4"
-edition = "2021"
-description = "ROY — a controlled shell host for terminal-native agents"
+[workspace]
+members = [
+    "alacritty",
+    "alacritty_terminal",
+    "alacritty_config",
+    "alacritty_config_derive",
+]
+resolver = "2"
 
-[[bin]]
-name = "roy"
-path = "src/main.rs"
-
-[dependencies]
-dioxus = { version = "0.7", features = ["desktop"] }
-tokio = { version = "1", features = ["full"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-rusqlite = { version = "0.31", features = ["bundled"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-alacritty_terminal = { path = "vendor/alacritty_terminal" }
-portable-pty = "0.9.0"
+[workspace.package]
+edition = "2024"
+rust-version = "1.85.0"
 
 [profile.release]
-opt-level = 3
-lto = true
-codegen-units = 1
+lto = "thin"
+debug = 1
+incremental = false
+
+[workspace.dependencies]
+toml = "0.9.11"
+toml_edit = "0.24.0"
+
+# TODO: Validation of fix for #6978. Remove before next release and use released `x11-clipboard`.
+[patch.crates-io]
+x11-clipboard = { git = "https://github.com/quininer/x11-clipboard.git", rev = "19ab2163cf0bd0db607e827a5214571990307866" }

@@ -1,5 +1,4 @@
+target
 **/.ishoo/*.local.toml
 **/.ishoo/cache/
 **/.ishoo/worktrees/
-/target/
-neti-report-full.txt
