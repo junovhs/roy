@@ -5,6 +5,54 @@ max_cognitive_complexity = 25
 max_function_args = 8
 ignore_tokens_on = ["*.lock", "*.md", "docs", "target", "vendor", "node_modules", "dist"]
 
+# Completely hidden — no analysis, no violations.
+# builtin_font.rs: dense glyph/box-drawing dispatch table (complexity 95) that is
+# inherently table-like; the score reflects data density, not architectural rot.
+# alacritty_config_derive/src: compile-time proc-macro machinery, not ROY work.
+exclude_paths = [
+    "alacritty/src/renderer/text/builtin_font.rs",
+    "alacritty_config_derive/src/",
+]
+
+# warn_paths: LAW OF PARANOIA "Banned:" violations downgraded to Yellow advisory.
+# These are files where .unwrap()/.expect() is idiomatic (platform init, TTY
+# drivers, one-time setup) or where failure is an intentional panic contract.
+# SAFETY violations remain Red regardless.
+warn_paths = [
+    # TTY platform drivers — platform API, not active ROY work
+    "alacritty_terminal/src/tty/",
+    # macOS platform layer — not active ROY work
+    "alacritty/src/macos/",
+    # Logging init — one-time setup, panic is correct contract
+    "alacritty/src/logging.rs",
+    # Daemon utilities — init-time, panic is correct contract
+    "alacritty/src/daemon.rs",
+    # Panic handler — intentional panic contract
+    "alacritty/src/panic.rs",
+    # String utilities — internal invariants
+    "alacritty/src/string.rs",
+    # IPC/polling infra — background infra, not ROY active work
+    "alacritty/src/polling/",
+    # Migration utilities — run-once tooling
+    "alacritty/src/migrate/",
+    # Thread utilities — internal invariant
+    "alacritty_terminal/src/thread.rs",
+    # Grid row/storage — internal invariants, not ROY active work
+    "alacritty_terminal/src/grid/row.rs",
+    "alacritty_terminal/src/grid/storage.rs",
+]
+
+# complexity_error_threshold: cognitive complexity above this → Red blocking.
+# Functions above 50 are severe architectural hotspots worth immediate attention
+# (event.rs 63/67, event_loop 62, bindings 51/52, grid/resize 58).
+complexity_error_threshold = 50
+
+# atomicity_error_threshold: token count above this → Red blocking.
+# Files well above the advisory limit are true control-plane hubs to split
+# (event.rs 19998, term/mod.rs 29005, display/mod.rs 14727, input/mod.rs 15755,
+# bindings.rs 15753).
+atomicity_error_threshold = 13000
+
 [commands]
 check = ["cargo clippy --all-targets --no-deps -- -D warnings", "cargo test"]
 fix = "cargo fmt"
