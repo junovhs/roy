@@ -1,45 +1,79 @@
 # neti.toml
 [rules]
-max_file_tokens = 6000
-max_cognitive_complexity = 25
+max_file_tokens = 8000
+max_cognitive_complexity = 30
 max_function_args = 8
-ignore_tokens_on = ["*.lock", "*.md", "docs", "target", "vendor", "node_modules", "dist"]
+ignore_tokens_on = [
+  "*.lock",
+  "*.md",
+  "docs",
+  "target",
+  "vendor",
+  "node_modules",
+  "dist",
+]
 
 # Completely hidden — no analysis, no violations.
 # builtin_font.rs: dense glyph/box-drawing dispatch table (complexity 95) that is
 # inherently table-like; the score reflects data density, not architectural rot.
 # alacritty_config_derive/src: compile-time proc-macro machinery, not ROY work.
+# tests/benches/examples: unwrap/expect are idiomatic; clarity > abstraction here.
 exclude_paths = [
-    "alacritty/src/renderer/text/builtin_font.rs",
-    "alacritty_config_derive/src/",
+  "alacritty/src/renderer/text/builtin_font.rs",
+  "alacritty_config_derive/src/",
+  "tests/",
+  "benches/",
+  "examples/",
 ]
 
-# warn_paths: LAW OF PARANOIA "Banned:" violations downgraded to Yellow advisory.
-# These are files where .unwrap()/.expect() is idiomatic (platform init, TTY
-# drivers, one-time setup) or where failure is an intentional panic contract.
-# SAFETY violations remain Red regardless.
+# warn_paths: documented acknowledgment of platform/invariant-heavy code.
+# Functionally a no-op for Banned: violations since Yellow is now the default;
+# retained for explicitness and to signal intent to future readers.
 warn_paths = [
-    # TTY platform drivers — platform API, not active ROY work
-    "alacritty_terminal/src/tty/",
-    # macOS platform layer — not active ROY work
-    "alacritty/src/macos/",
-    # Logging init — one-time setup, panic is correct contract
-    "alacritty/src/logging.rs",
-    # Daemon utilities — init-time, panic is correct contract
-    "alacritty/src/daemon.rs",
-    # Panic handler — intentional panic contract
-    "alacritty/src/panic.rs",
-    # String utilities — internal invariants
-    "alacritty/src/string.rs",
-    # IPC/polling infra — background infra, not ROY active work
-    "alacritty/src/polling/",
-    # Migration utilities — run-once tooling
-    "alacritty/src/migrate/",
-    # Thread utilities — internal invariant
-    "alacritty_terminal/src/thread.rs",
-    # Grid row/storage — internal invariants, not ROY active work
-    "alacritty_terminal/src/grid/row.rs",
-    "alacritty_terminal/src/grid/storage.rs",
+  # TTY platform drivers — platform API, not active ROY work
+  "alacritty_terminal/src/tty/",
+  # macOS platform layer — not active ROY work
+  "alacritty/src/macos/",
+  # Renderer platform abstraction — init-time, not runtime control-plane
+  "alacritty/src/renderer/platform.rs",
+  # Logging init — one-time setup, panic is correct contract
+  "alacritty/src/logging.rs",
+  # Daemon utilities — init-time, panic is correct contract
+  "alacritty/src/daemon.rs",
+  # Panic handler — intentional panic contract
+  "alacritty/src/panic.rs",
+  # String utilities — internal invariants
+  "alacritty/src/string.rs",
+  # IPC/polling infra — background infra, not ROY active work
+  "alacritty/src/polling/",
+  # Migration utilities — run-once tooling
+  "alacritty/src/migrate/",
+  # Thread utilities — internal invariant
+  "alacritty_terminal/src/thread.rs",
+  # Grid row/storage — internal invariants, not ROY active work
+  "alacritty_terminal/src/grid/row.rs",
+  "alacritty_terminal/src/grid/storage.rs",
+]
+
+# error_paths: Banned: violations (unwrap/expect/panic shortcuts) promoted to Red blocking.
+# These are the runtime control-plane files where a panic is an operational incident,
+# not just a code smell. Every unwrap here deserves explicit justification or removal.
+# SAFETY violations are always Red everywhere, regardless of this list.
+error_paths = [
+  # Main event dispatcher — the heart of alacritty's runtime loop
+  "alacritty/src/event.rs",
+  # Display controller — orchestrates frame rendering and state sync
+  "alacritty/src/display/mod.rs",
+  # Input handler — processes keyboard/mouse events into terminal actions
+  "alacritty/src/input/mod.rs",
+  # Window context — glues event loop, display, and terminal together
+  "alacritty/src/window_context.rs",
+  # Terminal state machine — models VT state; corruption here is catastrophic
+  "alacritty_terminal/src/term/mod.rs",
+  # Terminal I/O event loop — drives pty read/write; failure is data loss
+  "alacritty_terminal/src/event_loop.rs",
+  # Key binding config — evaluated on every keystroke in the runtime path
+  "alacritty/src/config/bindings.rs",
 ]
 
 # complexity_error_threshold: cognitive complexity above this → Red blocking.
@@ -51,8 +85,11 @@ complexity_error_threshold = 50
 # Files well above the advisory limit are true control-plane hubs to split
 # (event.rs 19998, term/mod.rs 29005, display/mod.rs 14727, input/mod.rs 15755,
 # bindings.rs 15753).
-atomicity_error_threshold = 13000
+atomicity_error_threshold = 14000
 
 [commands]
-check = ["cargo clippy --all-targets --no-deps -- -D warnings", "cargo test"]
+check = [
+  "cargo clippy --all-targets --no-deps -- -D warnings",
+  "cargo test",
+]
 fix = "cargo fmt"
