@@ -1,0 +1,66 @@
+NETI REPORT — FAIL | 223 blocking | 27 advisory
+
+COMMANDS
+  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (478ms)
+  cargo test ... PASS (4077ms)
+LOCALITY: PASS | 0 edges | 0 violations | 7 cycles
+  [X] cycle 1: alacritty\src\cli.rs -> alacritty\src\logging.rs -> alacritty\src\cli.rs
+  [X] cycle 2: alacritty\src\cli.rs -> alacritty\src\logging.rs -> alacritty\src\event.rs -> alacritty\src\cli.rs
+  [X] cycle 3: alacritty\src\logging.rs -> alacritty\src\event.rs -> alacritty\src\logging.rs
+  [X] cycle 4: alacritty\src\event.rs -> alacritty\src\scheduler.rs -> alacritty\src\event.rs
+  [X] cycle 5: alacritty\src\cli.rs -> alacritty\src\logging.rs -> alacritty\src\event.rs -> alacritty\src\window_context.rs -> alacritty\src\cli.rs
+  [X] cycle 6: alacritty\src\event.rs -> alacritty\src\window_context.rs -> alacritty\src\event.rs
+  [X] cycle 7: alacritty\src\logging.rs -> alacritty\src\event.rs -> alacritty\src\window_context.rs -> alacritty\src\logging.rs
+
+ISSUES
+  alacritty_terminal\src\tty\unix.rs: .unwrap() x19
+  alacritty_config_derive\tests\config.rs: .unwrap() x16
+  alacritty\src\renderer\shader.rs: .unwrap() x13
+  alacritty\src\renderer\mod.rs: .unwrap() x12
+  alacritty\src\display\mod.rs: 14727 tokens (limit 6000) | complexity 37 (limit 25) | .unwrap() x11 | Calculator `compute_timeout` mutates state
+  alacritty_terminal\src\tty\windows\conpty.rs: .unwrap() x10
+  alacritty\src\display\window.rs: .unwrap() x8 | syntax error
+  alacritty\src\renderer\text\glsl3.rs: .unwrap() x9
+  alacritty\src\renderer\platform.rs: .unwrap() x9
+  alacritty\src\macos\locale.rs: .unwrap() x9
+  alacritty\src\renderer\text\gles2.rs: .unwrap() x8
+  alacritty_terminal\tests\ref.rs: .unwrap() x8
+  alacritty\src\window_context.rs: .unwrap() x6
+  alacritty\src\main.rs: .unwrap() x6
+  alacritty\src\daemon.rs: .unwrap() x6
+  alacritty\src\event.rs: 19998 tokens (limit 6000) | complexity 63–67 (limit 25) x2 | .unwrap() x5
+  alacritty_terminal\src\event_loop.rs: complexity 62 (limit 25) | .unwrap() x5
+  alacritty\src\display\content.rs: .unwrap() x5
+  alacritty\src\cli.rs: .unwrap() x5
+  alacritty\src\renderer\rects.rs: .unwrap() x5
+  alacritty_terminal\src\tty\windows\child.rs: .unwrap() x5
+  alacritty\src\clipboard.rs: .unwrap() x5
+  alacritty\build.rs: .unwrap() x4
+  alacritty_terminal\src\term\mod.rs: 29005 tokens (limit 6000) | .unwrap() x3
+  alacritty\src\input\keyboard.rs: 7359 tokens (limit 6000) | .unwrap() x3
+  alacritty\src\renderer\text\atlas.rs: .unwrap() x3
+  alacritty\src\renderer\text\mod.rs: .unwrap() x3
+  alacritty\src\macos\proc.rs: .unwrap() | syntax error
+  alacritty\src\migrate\mod.rs: .unwrap() x2
+  alacritty\src\logging.rs: .unwrap() x2
+  alacritty_terminal\src\tty\mod.rs: .unwrap() x2
+  alacritty\src\renderer\text\builtin_font.rs: 11816 tokens (limit 10000) | complexity 95 (limit 50) | .unwrap()
+  alacritty_terminal\src\term\search.rs: 11697 tokens (limit 6000) | complexity 39 (limit 25) | .unwrap()
+  alacritty_terminal\src\grid\row.rs: .unwrap() | Getter `is_clear` mutates state
+  alacritty_terminal\src\grid\storage.rs: .unwrap()
+  alacritty\src\string.rs: .unwrap()
+  alacritty\src\polling\ipc.rs: .unwrap()
+  alacritty_config_derive\src\config_deserialize\de_struct.rs: .unwrap()
+  alacritty_config_derive\src\serde_replace.rs: .unwrap()
+  alacritty\src\polling\mod.rs: .unwrap()
+  alacritty\src\panic.rs: .unwrap()
+  alacritty\src\macos\mod.rs: .unwrap()
+  alacritty_terminal\src\thread.rs: .unwrap()
+  alacritty\src\input\mod.rs: 15755 tokens (limit 6000) | complexity 28–33 (limit 25) x2
+  alacritty\src\config\bindings.rs: 15753 tokens (limit 6000) | complexity 51–52 (limit 25) x2
+  alacritty_terminal\src\grid\resize.rs: complexity 33–58 (limit 25) x2
+  alacritty_terminal\src\vi_mode.rs: 8672 tokens (limit 6000)
+  alacritty_terminal\src\selection.rs: 6264 tokens (limit 6000)
+  alacritty\src\display\hint.rs: 6079 tokens (limit 6000)
+  alacritty\src\display\color.rs: complexity 29 (limit 25)
+  alacritty\src\renderer\text\glyph_cache.rs: Getter `get` mutates state
