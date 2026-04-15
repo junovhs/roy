@@ -84,7 +84,7 @@ pub(crate) fn ShellPane(runtime: Signal<ShellRuntime>, session: Signal<Session>)
 
             if agent_active {
                 div {
-                    style: "color:{super::INK};margin-top:4px;overflow:hidden;font-family:'Cascadia Mono','JetBrains Mono','Consolas',monospace;font-size:14px;line-height:1;letter-spacing:0;font-kerning:none;font-variant-ligatures:none;font-feature-settings:'liga' 0,'calt' 0;text-rendering:optimizeSpeed;tab-size:8;",
+                    style: "color:{super::INK};margin-top:4px;overflow:hidden;max-width:100%;padding-right:1ch;box-sizing:border-box;user-select:none;-webkit-user-select:none;cursor:default;font-family:'Cascadia Mono','JetBrains Mono','Consolas',monospace;font-size:14px;line-height:1;letter-spacing:0;font-kerning:none;font-variant-ligatures:none;font-feature-settings:'liga' 0,'calt' 0;text-rendering:optimizeSpeed;tab-size:8;",
                     {
                         let snap = grid_snapshot.as_ref().unwrap();
                         let cursor = snap.cursor;

@@ -13,8 +13,6 @@ pub(super) fn row_spans_with_cursor(
     cursor: Option<(usize, CursorShapeKind)>,
 ) -> Vec<(String, String)> {
     let mut spans = Vec::new();
-    let mut text = String::new();
-    let mut style: Option<String> = None;
 
     for (idx, cell) in row.iter().enumerate() {
         // Wide-char spacers carry no printable content of their own; skip them.
@@ -23,42 +21,20 @@ pub(super) fn row_spans_with_cursor(
             continue;
         }
 
-        let mut next_style = cell_css(cell, palette);
-        if let Some((cursor_col, cursor_shape)) = cursor.filter(|(col, _)| *col == idx) {
-            let _ = cursor_col;
-            next_style.push_str(cursor_css(cursor_shape, cell.c));
+        let mut style = cell_css(cell, palette);
+        if let Some((_, cursor_shape)) = cursor.filter(|(col, _)| *col == idx) {
+            style.push_str(cursor_css(cursor_shape, cell.c));
         }
-
-        if style.as_ref() == Some(&next_style) {
-            text.push(cell.c);
-            for &zw in &cell.zerowidth {
-                text.push(zw);
-            }
-            continue;
-        }
-
-        if let Some(active_style) = style.take() {
-            spans.push((std::mem::take(&mut text), active_style));
-        }
-        text.push(cell.c);
-        for &zw in &cell.zerowidth {
-            text.push(zw);
-        }
-        style = Some(next_style);
+        spans.push((cell_text(cell), style));
     }
 
-    if let Some(active_style) = style {
-        spans.push((text, active_style));
-    }
     spans.retain(|(text, _)| !text.is_empty());
     spans
 }
 
 fn cursor_css(shape: CursorShapeKind, _ch: char) -> &'static str {
     match shape {
-        CursorShapeKind::Block => {
-            "background:rgba(232,120,88,.28);box-shadow:inset 0 0 0 1px rgba(232,120,88,.72);"
-        }
+        CursorShapeKind::Block => "background:#e87858;color:#16171a;",
         CursorShapeKind::Underline => "box-shadow:inset 0 -2px 0 #e87858;",
         CursorShapeKind::Beam => "box-shadow:inset 2px 0 0 #e87858;",
     }
@@ -77,11 +53,27 @@ fn rgba_css(rgba: u32) -> Option<String> {
 fn cell_css(cell: &SnapCell, palette: &Colors) -> String {
     let fg = color_rgba_with_palette(cell.fg, palette);
     let bg = color_rgba_with_palette(cell.bg, palette);
-    let mut css = String::from("white-space:pre;line-height:1em;letter-spacing:0;");
+    let mut css = String::from(
+        "display:inline-block;box-sizing:border-box;vertical-align:top;overflow:hidden;white-space:pre;height:1em;line-height:1em;letter-spacing:0;",
+    );
+    if cell.flags.contains(Flags::WIDE_CHAR) {
+        css.push_str("width:2ch;");
+    } else {
+        css.push_str("width:1ch;");
+    }
     push_color_css(&mut css, fg, bg, cell.flags);
     push_font_css(&mut css, cell.flags);
     push_decoration_css(&mut css, cell.flags, cell.underline_color, palette);
     css
+}
+
+fn cell_text(cell: &SnapCell) -> String {
+    let mut text = String::new();
+    text.push(if cell.c == ' ' { '\u{00a0}' } else { cell.c });
+    for &zw in &cell.zerowidth {
+        text.push(zw);
+    }
+    text
 }
 
 fn push_color_css(css: &mut String, fg: u32, bg: u32, flags: Flags) {
@@ -108,9 +100,6 @@ fn push_color_css(css: &mut String, fg: u32, bg: u32, flags: Flags) {
 fn push_font_css(css: &mut String, flags: Flags) {
     if flags.contains(Flags::BOLD) {
         css.push_str("font-weight:bold;");
-    }
-    if flags.contains(Flags::DIM) {
-        css.push_str("opacity:.75;");
     }
     if flags.contains(Flags::ITALIC) {
         css.push_str("font-style:italic;");
@@ -206,7 +195,8 @@ mod tests {
             make_cell(' ', 0, 0, Flags::empty()),
         ];
         let spans = row_spans_with_cursor(&row, &palette, None);
-        assert_eq!(spans, vec![("x  ".to_string(), cell_css(&row[0], &palette))]);
+        let combined: String = spans.iter().map(|(t, _)| t.as_str()).collect();
+        assert_eq!(combined, "x\u{00a0}\u{00a0}");
     }
 
     #[test]
@@ -236,5 +226,51 @@ mod tests {
         assert!(combined.contains('x'), "normal char missing");
         // Spacer column should not contribute a separate character.
         assert_eq!(combined.chars().count(), 2, "expected W and x only");
+    }
+
+    #[test]
+    fn single_width_cells_render_as_fixed_boxes() {
+        let palette = empty_palette();
+        let row = vec![make_cell('x', 0, 0, Flags::empty())];
+        let spans = row_spans_with_cursor(&row, &palette, None);
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].0, "x");
+        assert!(
+            spans[0].1.contains("display:inline-block;"),
+            "cells must render as standalone boxes"
+        );
+        assert!(
+            spans[0].1.contains("width:1ch;"),
+            "normal cells must reserve one column"
+        );
+    }
+
+    #[test]
+    fn wide_cells_reserve_two_columns() {
+        let palette = empty_palette();
+        let row = vec![make_cell('W', 0, 0, Flags::WIDE_CHAR)];
+        let spans = row_spans_with_cursor(&row, &palette, None);
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].0, "W");
+        assert!(
+            spans[0].1.contains("width:2ch;"),
+            "wide glyphs must reserve both terminal columns"
+        );
+    }
+
+    #[test]
+    fn block_cursor_uses_solid_terminal_cell_style() {
+        let palette = empty_palette();
+        let row = vec![make_cell(' ', 0, 0, Flags::empty())];
+        let spans = row_spans_with_cursor(&row, &palette, Some((0, CursorShapeKind::Block)));
+        assert_eq!(spans.len(), 1);
+        assert!(
+            spans[0].1.contains("background:#e87858;"),
+            "block cursor should render as a solid filled cell"
+        );
+        assert!(
+            !spans[0].1.contains("box-shadow"),
+            "block cursor should not use an outline box"
+        );
     }
 }

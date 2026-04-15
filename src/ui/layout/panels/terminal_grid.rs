@@ -16,7 +16,8 @@ use alacritty_terminal::term::{Config as TermConfig, RenderableCursor, TermMode}
 use alacritty_terminal::vte::ansi::{Color, CursorShape, NamedColor, Processor};
 use alacritty_terminal::Term;
 
-pub(super) const TERM_COLS: usize = 220;
+/// Must stay aligned with the PTY width until live resize is plumbed through.
+pub(super) const TERM_COLS: usize = 96;
 const TERM_ROWS: usize = 50;
 
 struct TermDims;

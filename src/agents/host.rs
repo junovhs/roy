@@ -9,7 +9,11 @@ use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use super::adapter::{AgentError, AgentHandle, AgentKind, AgentMeta, LaunchConfig, SupervisionEvent};
 
 /// Terminal dimensions reported to the hosted agent.
-const PTY_COLS: u16 = 220;
+///
+/// Until ROY wires live pane resize back into the PTY, keep the default width
+/// conservative so Claude Code wraps inside the visible terminal instead of
+/// painting straight into the right edge.
+const PTY_COLS: u16 = 96;
 const PTY_ROWS: u16 = 50;
 
 pub(super) fn launch_supervised_agent(

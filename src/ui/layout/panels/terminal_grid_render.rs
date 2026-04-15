@@ -34,7 +34,7 @@ pub(super) fn render_grid_row(
     rsx! {
         div {
             key: "{row_index}",
-            style: "display:block;white-space:pre;height:1em;line-height:1em;",
+            style: "display:block;white-space:pre;height:1em;line-height:1em;user-select:none;-webkit-user-select:none;",
             if spans.is_empty() { "\u{00a0}" }
             for (span_index, (text, css)) in spans.into_iter().enumerate() {
                 span { key: "{span_index}", style: "{css}", "{text}" }
