@@ -118,17 +118,8 @@
 
 ## Layer 0 -- Config
 
-`CLAUDE.md`
-Support file for CLAUDE.
-
-`Cargo.toml`
-Workspace configuration.
-
-`SEMMAP.md`
-Generated semantic map.
-
-`neti.toml`
-Configuration for neti.
+`root/` (5 files: 3 .md, 2 .toml)
+Representative: AGENTS.md, CLAUDE.md
 
 ## Layer 1 -- Domain (Engine)
 
@@ -676,7 +667,7 @@ DependencyGraph:
     Imports: [boundary.rs, cwd.rs]
     ImportedBy: [boundary.rs, capabilities/mod.rs, cwd.rs, env.rs, main.rs, runtime.rs, runtime_tests_builtins.rs, runtime_tests_policy.rs]
   # --- Layer 0 -- Config ---
-  CLAUDE.md, Cargo.toml, SEMMAP.md, neti.toml:
+  AGENTS.md, CLAUDE.md, Cargo.toml, SEMMAP.md, neti.toml:
     Imports: []
     ImportedBy: []
   # --- Layer 1 -- Domain (Engine) ---
