@@ -67,7 +67,7 @@ impl<'a> StrShortener<'a> {
         let mut iter = text.chars().rev().enumerate();
 
         while let Some((idx, ch)) = iter.next() {
-            let ch_width = ch.width().unwrap_or(1);
+            let ch_width = ch.width().map_or(1, |width| width);
             current_len += ch_width;
 
             match current_len.cmp(&max_width) {
@@ -132,7 +132,7 @@ impl Iterator for StrShortener<'_> {
             },
             TextAction::Char => {
                 let ch = self.chars.next()?;
-                let ch_width = ch.width().unwrap_or(1);
+                let ch_width = ch.width().map_or(1, |width| width);
 
                 // Advance width.
                 self.accumulated_len += ch_width;
@@ -147,7 +147,7 @@ impl Iterator for StrShortener<'_> {
                     // We should terminate after that.
                     self.text_action = TextAction::Terminate;
 
-                    return has_next.then(|| self.shortener.unwrap()).or(Some(ch));
+                    return has_next.then_some(self.shortener).flatten().or(Some(ch));
                 }
 
                 // Add a spacer for wide character.

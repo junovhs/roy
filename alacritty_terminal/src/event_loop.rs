@@ -146,8 +146,11 @@ where
             };
 
             // Write a copy of the bytes to the ref test file.
-            if let Some(writer) = &mut writer {
-                writer.write_all(&buf[..unprocessed]).unwrap();
+            if let Some(ref mut recording) = writer {
+                if let Err(err) = recording.write_all(&buf[..unprocessed]) {
+                    error!("Failed to write PTY recording bytes: {err}");
+                    writer = None;
+                }
             }
 
             // Parse the incoming bytes.
@@ -216,10 +219,16 @@ where
                 return (self, state);
             }
 
-            let mut events = Events::with_capacity(NonZeroUsize::new(1024).unwrap());
+            let mut events = Events::with_capacity(NonZeroUsize::MIN);
 
             let mut pipe = if self.ref_test {
-                Some(File::create("./alacritty.recording").expect("create alacritty recording"))
+                match File::create("./alacritty.recording") {
+                    Ok(file) => Some(file),
+                    Err(err) => {
+                        error!("Failed to create alacritty recording: {err}");
+                        None
+                    },
+                }
             } else {
                 None
             };
@@ -312,7 +321,10 @@ where
                     interest.writable = needs_write;
 
                     // Re-register with new interest.
-                    self.pty.reregister(&self.poll, interest, poll_opts).unwrap();
+                    if let Err(err) = self.pty.reregister(&self.poll, interest, poll_opts) {
+                        error!("Error reregistering PTY interest: {err}");
+                        break 'event_loop;
+                    }
                 }
             }
 

@@ -209,7 +209,9 @@ fn move_value(document: &mut DocumentMut, origin: &[&str], target: &[&str]) -> R
             table.insert(element, origin_item);
             // Move original key decorations.
             if let Some((leaf, dotted)) = origin_key_decor {
-                let mut key = table.key_mut(element).unwrap();
+                let Some(mut key) = table.key_mut(element) else {
+                    return Err(format!("missing target key after insert: {}", element));
+                };
                 *key.leaf_decor_mut() = leaf;
                 *key.dotted_decor_mut() = dotted;
             }
@@ -237,7 +239,8 @@ where
         );
     } else if !options.dry_run {
         // Atomically replace the configuration file.
-        let tmp = NamedTempFile::new_in(path.parent().unwrap())
+        let parent = path.parent().ok_or_else(|| "missing parent directory".to_string())?;
+        let tmp = NamedTempFile::new_in(parent)
             .map_err(|err| format!("could not create temporary file: {err}"))?;
         fs::write(tmp.path(), toml).map_err(|err| format!("filesystem error: {err}"))?;
         tmp.persist(path).map_err(|err| format!("atomic replacement failed: {err}"))?;
@@ -298,15 +301,19 @@ table_value = 5
 not_moved = 9
         "#;
 
-        let mut document = input.parse::<DocumentMut>().unwrap();
+        let Ok(mut document) = input.parse::<DocumentMut>() else {
+            panic!("test input should parse");
+        };
 
-        move_value(&mut document, &["root_value"], &["new_table", "root_value"]).unwrap();
-        move_value(
-            &mut document,
-            &["table", "table_value"],
-            &["preexisting", "subtable", "new_name"],
-        )
-        .unwrap();
+        assert!(move_value(&mut document, &["root_value"], &["new_table", "root_value"]).is_ok());
+        assert!(
+            move_value(
+                &mut document,
+                &["table", "table_value"],
+                &["preexisting", "subtable", "new_name"],
+            )
+            .is_ok()
+        );
 
         let output = document.to_string();
 
@@ -330,6 +337,6 @@ root_value = 3
 
     #[test]
     fn migrate_empty() {
-        assert!(migrate_toml(String::new()).unwrap().to_string().is_empty());
+        assert!(migrate_toml(String::new()).is_ok_and(|document| document.to_string().is_empty()));
     }
 }

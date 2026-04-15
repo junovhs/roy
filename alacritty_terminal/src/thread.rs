@@ -7,5 +7,8 @@ where
     T: Send + 'static,
     S: Into<String>,
 {
-    Builder::new().name(name.into()).spawn(f).expect("thread spawn works")
+    match Builder::new().name(name.into()).spawn(f) {
+        Ok(handle) => handle,
+        Err(err) => panic!("failed to spawn named thread: {err}"),
+    }
 }

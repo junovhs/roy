@@ -157,7 +157,7 @@ pub fn socket_dir() -> PathBuf {
         .map(ToOwned::to_owned)
         .ok()
         .and_then(|path| fs::create_dir_all(&path).map(|_| path).ok())
-        .unwrap_or_else(env::temp_dir)
+        .map_or_else(env::temp_dir, |path| path)
 }
 
 /// Directory for the IPC socket file.
@@ -221,7 +221,9 @@ fn find_socket(socket_path: Option<PathBuf>) -> IoResult<UnixStream> {
 /// display servers running for the same user.
 #[cfg(not(target_os = "macos"))]
 pub fn socket_prefix() -> String {
-    let display = env::var("WAYLAND_DISPLAY").or_else(|_| env::var("DISPLAY")).unwrap_or_default();
+    let display = env::var("WAYLAND_DISPLAY")
+        .or_else(|_| env::var("DISPLAY"))
+        .map_or_else(|_| String::new(), |value| value);
     format!("Alacritty-{}", display.replace('/', "-"))
 }
 

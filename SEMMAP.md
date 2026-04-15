@@ -217,14 +217,14 @@ utility for build via file I/O. [COUPLING:mixed] [BEHAVIOR:panics-on-error]
 Semantic: side-effecting that panics on error
 
 `alacritty/src/clipboard.rs`
-Implements clipboard.new nop. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:panics-on-error] [QUALITY:undocumented,error-boundary]
+Implements clipboard.new nop. [HOTSPOT] [COUPLING:pure] [QUALITY:undocumented]
 Exports: Clipboard.new_nop, Clipboard, Clipboard.default, Clipboard.load
-Semantic: side-effecting that panics on error
+Semantic: pure computation
 
 `alacritty/src/daemon.rs`
-utility for daemon via file I/O. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:persists,panics-on-error,propagates-errors] [QUALITY:error-boundary]
+utility for daemon via file I/O. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:persists,propagates-errors] [QUALITY:error-boundary]
 Exports: foreground_process_path, spawn_daemon
-Semantic: side-effecting adapter that panics on error
+Semantic: side-effecting adapter that propagates errors
 
 `alacritty/src/display/bell.rs`
 Visual bell animation. [HOTSPOT] [COUPLING:pure] [QUALITY:undocumented]
@@ -237,9 +237,9 @@ Exports: List.fill_gray_ramp, CellRgbVisitor.expecting, DIM_FACTOR, Rgb.as_tuple
 Semantic: side-effecting stateful module that propagates errors
 
 `alacritty/src/display/content.rs`
-Implements renderable content<'a>.cursor. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error,propagates-errors] [QUALITY:undocumented,complex-flow,error-boundary]
+Implements renderable content<'a>.cursor. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:undocumented,complex-flow]
 Exports: MIN_CURSOR_CONTRAST, RenderableCellExtra, HintMatches<'_>.deref, RenderableContent<'_>.next
-Semantic: side-effecting stateful module that panics on error
+Semantic: side-effecting stateful module that propagates errors
 
 `alacritty/src/display/cursor.rs`
 Convert a cursor into an iterator of rects. [HOTSPOT] [COUPLING:pure] [BEHAVIOR:propagates-errors] [QUALITY:undocumented]
@@ -264,24 +264,24 @@ Exports: Sampler<'_>.drop, Meter, Meter.average, Meter.sampler
 Semantic: side-effecting stateful module
 
 `alacritty/src/display/window.rs`
-Window icon for `_NET_WM_ICON` property. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error,propagates-errors] [QUALITY:undocumented,error-boundary,syntax-degraded]
+Window icon for `_NET_WM_ICON` property. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error,propagates-errors] [QUALITY:undocumented,syntax-degraded]
 Exports: Window.select_tab_at_index, Window.set_option_as_alt, Window.pre_present_notify, Window.update_ime_position
 Semantic: side-effecting stateful module that panics on error
 
 `alacritty/src/input/keyboard.rs`
-Implements sequence modifiers.from. [COUPLING:mixed] [BEHAVIOR:panics-on-error] [QUALITY:undocumented,complex-flow]
+Implements sequence modifiers.from. [COUPLING:pure] [BEHAVIOR:propagates-errors] [QUALITY:undocumented,complex-flow]
 Exports: SequenceModifiers.encode_esc_sequence, Processor<T, A>.key_input, SequenceBase, SequenceBuilder
-Semantic: side-effecting that panics on error
+Semantic: pure computation that propagates errors
 
 `alacritty/src/logging.rs`
-Logging for Alacritty. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,persists,sync-primitives,panics-on-error,propagates-errors] [QUALITY:undocumented,error-boundary]
+Logging for Alacritty. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,persists,sync-primitives,propagates-errors] [QUALITY:undocumented]
 Exports: OnDemandLogFile.flush, OnDemandLogFile.write, LOG_TARGET_IPC_CONFIG, LOG_TARGET_WINIT
-Semantic: synchronized side-effecting stateful adapter that panics on error
+Semantic: synchronized side-effecting stateful adapter that propagates errors
 
 `alacritty/src/macos/locale.rs`
-Sets the locale environment. [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error]
+Sets the locale environment. [COUPLING:mixed] [BEHAVIOR:owns-state]
 Exports: set_locale_environment
-Semantic: side-effecting stateful module that panics on error
+Semantic: side-effecting stateful module
 
 `alacritty/src/macos/proc.rs`
 Error during working directory retrieval. [TYPE] [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:undocumented,syntax-degraded]
@@ -290,7 +290,7 @@ Touch: Contains inline Rust tests alongside runtime code.
 Semantic: side-effecting stateful module that propagates errors
 
 `alacritty/src/message_bar.rs`
-Message for display in the MessageBuffer. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error] [QUALITY:complex-flow,error-boundary]
+Message for display in the MessageBuffer. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error] [QUALITY:complex-flow]
 Exports: CLOSE_BUTTON_TEXT, Message.set_target, MessageBuffer.is_empty, MessageBuffer.is_queued
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: side-effecting stateful module that panics on error
@@ -322,9 +322,9 @@ Touch: Contains inline Rust tests alongside runtime code.
 Semantic: side-effecting that panics on error
 
 `alacritty/src/event.rs`
-Process window events. [CORE] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,persists,panics-on-error,propagates-errors] [QUALITY:undocumented,complex-flow,error-boundary]
+Process window events. [CORE] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,persists,propagates-errors] [QUALITY:undocumented,complex-flow,error-boundary]
 Exports: ActionContext<'a, N, T>.on_terminal_input_start, ActionContext<'a, N, T>.selection_is_empty, ActionContext<'a, N, T>.write_to_pty, Processor.about_to_wait
-Semantic: side-effecting stateful adapter that panics on error
+Semantic: side-effecting stateful adapter that propagates errors
 
 `alacritty/src/panic.rs`
 Implements attach handler. [CORE] [COUPLING:pure]
@@ -332,9 +332,9 @@ Exports: attach_handler
 Semantic: pure computation
 
 `alacritty/src/renderer/platform.rs`
-The graphics platform that is used by the renderer. [UTIL] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:persists,panics-on-error,propagates-errors] [QUALITY:undocumented,error-boundary]
+The graphics platform that is used by the renderer. [UTIL] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:persists,propagates-errors] [QUALITY:undocumented]
 Exports: pick_gl_config, create_gl_context, create_gl_display, create_gl_surface
-Semantic: side-effecting adapter that panics on error
+Semantic: side-effecting adapter that propagates errors
 
 `alacritty/src/renderer/rects.rs`
 Formats lines.update for output. [UTIL] [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:undocumented,error-boundary]
@@ -373,9 +373,9 @@ Exports: GlyphCache.update_font_size, GlyphCache.load_common_glyphs, GlyphCache.
 Semantic: pure computation that propagates errors
 
 `alacritty/src/window_context.rs`
-Terminal window context. [CORE] [COUPLING:mixed] [BEHAVIOR:persists,sync-primitives,panics-on-error,propagates-errors] [QUALITY:error-boundary]
+Terminal window context. [CORE] [COUPLING:mixed] [BEHAVIOR:persists,sync-primitives,propagates-errors] [QUALITY:error-boundary]
 Exports: WindowContext.write_ref_test_results, WindowContext.add_window_config, WindowContext.reset_window_config, WindowContext.handle_event
-Semantic: synchronized side-effecting adapter that panics on error
+Semantic: synchronized side-effecting adapter that propagates errors
 
 `alacritty/src/cli.rs`
 CLI options for the main Alacritty executable. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:persists,panics-on-error,propagates-errors] [QUALITY:undocumented,error-boundary]
@@ -406,9 +406,9 @@ Exports: disable_autofill, locale, proc
 Semantic: pure computation
 
 `alacritty/src/main.rs`
-Alacritty - The GPU Enhanced Terminal. [ENTRY] [COUPLING:mixed] [BEHAVIOR:persists,panics-on-error,propagates-errors] [QUALITY:error-boundary]
+Alacritty - The GPU Enhanced Terminal. [ENTRY] [COUPLING:mixed] [BEHAVIOR:persists,propagates-errors] [QUALITY:error-boundary]
 Exports: TemporaryFiles.drop
-Semantic: side-effecting adapter that panics on error
+Semantic: side-effecting adapter that propagates errors
 
 `alacritty/src/migrate/mod.rs`
 Configuration file migration. [ENTRY] [COUPLING:mixed] [BEHAVIOR:persists,panics-on-error,propagates-errors] [QUALITY:complex-flow,error-boundary]
@@ -422,9 +422,9 @@ Exports: IoListenerHandle, IoListener.drop, IoListener.spawn, IoListener
 Semantic: side-effecting stateful module that propagates errors
 
 `alacritty/src/renderer/mod.rs`
-Implements renderer.draw string. [UTIL] [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error,propagates-errors] [QUALITY:undocumented,error-boundary]
+Implements renderer.draw string. [UTIL] [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:undocumented,error-boundary]
 Exports: GL_FUNS_LOADED, Renderer.was_context_reset, Renderer.set_viewport, Renderer.with_loader
-Semantic: side-effecting stateful module that panics on error
+Semantic: side-effecting stateful module that propagates errors
 
 `alacritty/src/renderer/text/mod.rs`
 Rendering passes, for both GLES2 and GLSL3 renderer. [UTIL] [COUPLING:pure] [QUALITY:undocumented]
@@ -491,7 +491,7 @@ Exports: OnResize, WindowSize, VoidListener, send_event
 Semantic: pure computation
 
 `alacritty_terminal/src/event_loop.rs`
-The main event loop which performs I/O on the pseudoterminal. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,persists,sync-primitives,panics-on-error,propagates-errors] [QUALITY:undocumented,complex-flow,error-boundary]
+The main event loop which performs I/O on the pseudoterminal. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,persists,sync-primitives,panics-on-error,propagates-errors] [QUALITY:undocumented,complex-flow]
 Exports: EventLoopSendError, EventLoopSendError.fmt, EventLoopSendError.source, Notifier.on_resize
 Semantic: synchronized side-effecting stateful adapter that panics on error
 
@@ -506,7 +506,7 @@ Exports: Row<T>.front_split_off, Row<T>.from_vec, Row<T>.is_clear, &'a Row<T>.in
 Semantic: pure computation
 
 `alacritty_terminal/src/grid/storage.rs`
-Implements storage<t>.shrink visible lines. [COUPLING:mixed] [BEHAVIOR:owns-state] [QUALITY:undocumented]
+Implements storage<t>.rotate down. [COUPLING:mixed] [BEHAVIOR:owns-state] [QUALITY:undocumented]
 Exports: Storage<T>.grow_visible_lines, Storage<T>.shrink_visible_lines, Storage<T>.replace_inner, Storage<T>.take_all
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: side-effecting stateful module
@@ -545,10 +545,10 @@ Exports: spawn_named
 Semantic: side-effecting that panics on error
 
 `alacritty_terminal/src/tty/unix.rs`
-TTY related functionality. [COUPLING:mixed] [BEHAVIOR:owns-state,persists,sync-primitives,panics-on-error,propagates-errors] [QUALITY:undocumented,error-boundary]
+TTY related functionality. [COUPLING:mixed] [BEHAVIOR:owns-state,persists,sync-primitives,propagates-errors] [QUALITY:undocumented,error-boundary]
 Exports: Pty.next_child_event, Pty.on_resize, from_fd, ToWinsize
 Touch: Contains inline Rust tests alongside runtime code.
-Semantic: synchronized side-effecting stateful adapter that panics on error
+Semantic: synchronized side-effecting stateful adapter that propagates errors
 
 `alacritty_terminal/src/tty/windows/blocking.rs`
 Code for running a reader/writer on another thread while driving it through `polling`. [COUPLING:mixed] [BEHAVIOR:sync-primitives,panics-on-error] [QUALITY:undocumented,error-boundary]
@@ -1074,7 +1074,7 @@ DependencyGraph:
     ImportedBy: [config/mod.rs, display/window.rs, keyboard.rs, window_context.rs]
   content.rs:
     Imports: [alacritty_config/src/lib.rs, config/bell.rs, config/cursor.rs, hint.rs, message_bar.rs, monitor.rs, src/selection.rs]
-    ImportedBy: [alacritty/src/event.rs, builtin_font.rs, damage.rs, display/mod.rs, hint.rs, keyboard.rs, platform.rs, search.rs, string.rs, tests.rs, unix.rs]
+    ImportedBy: [alacritty/src/event.rs, builtin_font.rs, damage.rs, display/mod.rs, hint.rs, keyboard.rs, platform.rs, search.rs, string.rs, tests.rs]
   daemon.rs:
     Imports: [config/cursor.rs, monitor.rs, polling/mod.rs]
     ImportedBy: [alacritty/src/event.rs, input/mod.rs, main.rs]
@@ -1134,7 +1134,7 @@ DependencyGraph:
     ImportedBy: []
   message_bar.rs:
     Imports: [config/bell.rs, config/cursor.rs, monitor.rs]
-    ImportedBy: [alacritty/src/event.rs, bindings.rs, blocking.rs, cell.rs, cli.rs, config/mod.rs, conpty.rs, content.rs, de_struct.rs, display/mod.rs, display/window.rs, event_loop.rs, gles2.rs, glsl3.rs, grid/mod.rs, hint.rs, input/mod.rs, keyboard.rs, logging.rs, main.rs, migrate/mod.rs, monitor.rs, rects.rs, renderer/mod.rs, row.rs, scheduler.rs, serde_replace.rs, src/selection.rs, string.rs, term/mod.rs, text/mod.rs, window_context.rs, windows/mod.rs]
+    ImportedBy: [alacritty/src/event.rs, bindings.rs, blocking.rs, cell.rs, cli.rs, config/mod.rs, conpty.rs, content.rs, de_struct.rs, display/mod.rs, display/window.rs, event_loop.rs, gles2.rs, glsl3.rs, grid/mod.rs, hint.rs, input/mod.rs, keyboard.rs, logging.rs, main.rs, migrate/mod.rs, monitor.rs, rects.rs, renderer/mod.rs, row.rs, scheduler.rs, serde_replace.rs, src/selection.rs, string.rs, term/mod.rs, text/mod.rs, unix.rs, window_context.rs, windows/mod.rs]
   meter.rs:
     Imports: [config/cursor.rs, monitor.rs]
     ImportedBy: [display/mod.rs]
@@ -1295,7 +1295,7 @@ DependencyGraph:
     Imports: [config/cursor.rs, unix.rs, windows/mod.rs]
     ImportedBy: [alacritty_terminal/src/lib.rs, main.rs]
   unix.rs:
-    Imports: [config/cursor.rs, content.rs, gles2.rs, monitor.rs, polling/mod.rs]
+    Imports: [config/cursor.rs, gles2.rs, message_bar.rs, monitor.rs, polling/mod.rs]
     ImportedBy: [event_loop.rs, tty/mod.rs]
   vi_mode.rs:
     Imports: [builtin_font.rs, config/bell.rs, index.rs, monitor.rs, row.rs, tests.rs]

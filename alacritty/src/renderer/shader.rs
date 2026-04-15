@@ -144,16 +144,12 @@ fn get_program_info_log(program: GLuint) -> String {
 
     // Read the info log.
     let mut actual_length: GLint = 0;
-    let mut buf: Vec<u8> = Vec::with_capacity(max_length as usize);
+    let mut buf = vec![0; max_length.max(0) as usize];
     unsafe {
         gl::GetProgramInfoLog(program, max_length, &mut actual_length, buf.as_mut_ptr() as *mut _);
     }
 
-    // Build a string.
-    unsafe {
-        buf.set_len(actual_length as usize);
-    }
-
+    buf.truncate(actual_length.max(0) as usize);
     String::from_utf8_lossy(&buf).to_string()
 }
 
@@ -166,16 +162,12 @@ fn get_shader_info_log(shader: GLuint) -> String {
 
     // Read the info log.
     let mut actual_length: GLint = 0;
-    let mut buf: Vec<u8> = Vec::with_capacity(max_length as usize);
+    let mut buf = vec![0; max_length.max(0) as usize];
     unsafe {
         gl::GetShaderInfoLog(shader, max_length, &mut actual_length, buf.as_mut_ptr() as *mut _);
     }
 
-    // Build a string.
-    unsafe {
-        buf.set_len(actual_length as usize);
-    }
-
+    buf.truncate(actual_length.max(0) as usize);
     String::from_utf8_lossy(&buf).to_string()
 }
 

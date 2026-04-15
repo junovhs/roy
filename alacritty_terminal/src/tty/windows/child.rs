@@ -43,9 +43,10 @@ extern "system" fn child_exit_callback(ctx: *mut c_void, timed_out: BOOLEAN) {
     let exit_status = if status == FALSE { None } else { Some(ExitStatus::from_raw(exit_code)) };
     event_tx.sender.send(ChildEvent::Exited(exit_status)).ok();
 
-    let interest = event_tx.interest.lock().unwrap();
-    if let Some(interest) = interest.as_ref() {
-        interest.poller.post(CompletionPacket::new(interest.event)).ok();
+    if let Ok(interest) = event_tx.interest.lock() {
+        if let Some(interest) = interest.as_ref() {
+            interest.poller.post(CompletionPacket::new(interest.event)).ok();
+        }
     }
 }
 
@@ -99,11 +100,15 @@ impl ChildExitWatcher {
     }
 
     pub fn register(&self, poller: &Arc<Poller>, event: Event) {
-        *self.interest.lock().unwrap() = Some(Interest { poller: poller.clone(), event });
+        if let Ok(mut interest) = self.interest.lock() {
+            *interest = Some(Interest { poller: poller.clone(), event });
+        }
     }
 
     pub fn deregister(&self) {
-        *self.interest.lock().unwrap() = None;
+        if let Ok(mut interest) = self.interest.lock() {
+            *interest = None;
+        }
     }
 
     /// Retrieve the process handle of the underlying child process.
@@ -146,18 +151,28 @@ mod tests {
     pub fn event_is_emitted_when_child_exits() {
         const WAIT_TIMEOUT: Duration = Duration::from_millis(200);
 
-        let poller = Arc::new(Poller::new().unwrap());
+        let Ok(poller) = Poller::new() else {
+            panic!("poller creation should succeed");
+        };
+        let poller = Arc::new(poller);
 
-        let mut child = Command::new("cmd.exe").spawn().unwrap();
-        let child_exit_watcher = ChildExitWatcher::new(child.as_raw_handle() as HANDLE).unwrap();
+        let Ok(mut child) = Command::new("cmd.exe").spawn() else {
+            panic!("cmd.exe should spawn");
+        };
+        let Ok(child_exit_watcher) = ChildExitWatcher::new(child.as_raw_handle() as HANDLE) else {
+            panic!("watcher should initialize");
+        };
         child_exit_watcher.register(&poller, Event::readable(PTY_CHILD_EVENT_TOKEN));
 
-        child.kill().unwrap();
+        assert!(child.kill().is_ok());
 
         // Poll for the event or fail with timeout if nothing has been sent.
         let mut events = polling::Events::new();
-        poller.wait(&mut events, Some(WAIT_TIMEOUT)).unwrap();
-        assert_eq!(events.iter().next().unwrap().key, PTY_CHILD_EVENT_TOKEN);
+        assert!(poller.wait(&mut events, Some(WAIT_TIMEOUT)).is_ok());
+        assert_eq!(
+            events.iter().next().map(|event| event.key),
+            Some(PTY_CHILD_EVENT_TOKEN)
+        );
         // Verify that at least one `ChildEvent::Exited` was received.
         let expected_status = ExitStatus::from_raw(1);
         assert_eq!(

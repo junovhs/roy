@@ -11,7 +11,9 @@ use objc2_foundation::{NSLocale, NSObjectProtocol};
 const FALLBACK_LOCALE: &str = "UTF-8";
 
 pub fn set_locale_environment() {
-    let env_locale_c = CString::new("").unwrap();
+    let Ok(env_locale_c) = CString::new("") else {
+        return;
+    };
     let env_locale_ptr = unsafe { setlocale(LC_ALL, env_locale_c.as_ptr()) };
     if !env_locale_ptr.is_null() {
         let env_locale = unsafe { CStr::from_ptr(env_locale_ptr).to_string_lossy() };
@@ -26,7 +28,13 @@ pub fn set_locale_environment() {
     let system_locale = system_locale();
 
     // Set locale to system locale.
-    let system_locale_c = CString::new(system_locale.clone()).expect("nul byte in system locale");
+    let system_locale_c = match CString::new(system_locale.clone()) {
+        Ok(system_locale_c) => system_locale_c,
+        Err(err) => {
+            debug!("Invalid system locale {:?}: {}", system_locale, err);
+            return;
+        },
+    };
     let lc_all = unsafe { setlocale(LC_ALL, system_locale_c.as_ptr()) };
 
     // Check if system locale was valid or not.
@@ -34,8 +42,9 @@ pub fn set_locale_environment() {
         // Use fallback locale.
         debug!("Using fallback locale: {}", FALLBACK_LOCALE);
 
-        let fallback_locale_c = CString::new(FALLBACK_LOCALE).unwrap();
-        unsafe { setlocale(LC_CTYPE, fallback_locale_c.as_ptr()) };
+        if let Ok(fallback_locale_c) = CString::new(FALLBACK_LOCALE) {
+            unsafe { setlocale(LC_CTYPE, fallback_locale_c.as_ptr()) };
+        }
 
         unsafe { env::set_var("LC_CTYPE", FALLBACK_LOCALE) };
     } else {

@@ -15,7 +15,7 @@ use glutin::error::ErrorKind;
 use glutin::prelude::*;
 use glutin::surface::{Surface, SwapInterval, WindowSurface};
 
-use log::{debug, info};
+use log::{debug, info, warn};
 use parking_lot::MutexGuard;
 use serde::{Deserialize, Serialize};
 use winit::dpi::PhysicalSize;
@@ -483,7 +483,9 @@ impl Display {
         // On Wayland we can safely ignore this call, since the window isn't visible until you
         // actually draw something into it and commit those changes.
         if !is_wayland {
-            surface.swap_buffers(&context).expect("failed to swap buffers.");
+            if let Err(err) = surface.swap_buffers(&context) {
+                panic!("failed to swap buffers: {err}");
+            }
             renderer.finish();
         }
 
@@ -554,7 +556,9 @@ impl Display {
 
     pub fn make_not_current(&mut self) {
         if self.context.is_current() {
-            self.context.make_not_current_in_place().expect("failed to disable context");
+            if let Err(err) = self.context.make_not_current_in_place() {
+                panic!("failed to disable context: {err}");
+            }
         }
     }
 
@@ -581,8 +585,14 @@ impl Display {
         let gl_display = self.context.display();
         let gl_config = self.context.config();
         let raw_window_handle = Some(self.window.raw_window_handle());
-        let context = platform::create_gl_context(&gl_display, &gl_config, raw_window_handle)
-            .expect("failed to recreate context.");
+        let context = match platform::create_gl_context(&gl_display, &gl_config, raw_window_handle)
+        {
+            Ok(context) => context,
+            Err(err) => {
+                warn!("Failed to recreate context after gpu reset: {err}");
+                return;
+            },
+        };
 
         // Drop the old context and renderer.
         unsafe {
@@ -593,11 +603,19 @@ impl Display {
         // Activate new context.
         let context = context.treat_as_possibly_current();
         self.context = ManuallyDrop::new(context);
-        self.context.make_current(&self.surface).expect("failed to reativate context after reset.");
+        if let Err(err) = self.context.make_current(&self.surface) {
+            warn!("Failed to reactivate context after gpu reset: {err}");
+            return;
+        }
 
         // Recreate renderer.
-        let renderer = Renderer::new(&self.context, self.renderer_preference)
-            .expect("failed to recreate renderer after reset");
+        let renderer = match Renderer::new(&self.context, self.renderer_preference) {
+            Ok(renderer) => renderer,
+            Err(err) => {
+                warn!("Failed to recreate renderer after gpu reset: {err}");
+                return;
+            },
+        };
         self.renderer = ManuallyDrop::new(renderer);
 
         // Resize the renderer.

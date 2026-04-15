@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::{env, ptr};
 
 use libc::{F_GETFL, F_SETFL, O_NONBLOCK, TIOCSCTTY, c_int, fcntl};
-use log::error;
+use log::{error, warn};
 use polling::{Event, PollMode, Poller};
 use rustix_openpty::openpty;
 use rustix_openpty::rustix::termios::Winsize;
@@ -33,13 +33,6 @@ pub(crate) const PTY_READ_WRITE_TOKEN: usize = 0;
 
 // Interest in new child events.
 pub(crate) const PTY_CHILD_EVENT_TOKEN: usize = 1;
-
-macro_rules! die {
-    ($($arg:tt)*) => {{
-        error!($($arg)*);
-        std::process::exit(1);
-    }};
-}
 
 /// Really only needed on BSD, but should be fine elsewhere.
 fn set_controlling_terminal(fd: c_int) -> Result<()> {
@@ -88,8 +81,9 @@ fn get_pw_entry(buf: &mut [i8; 1024]) -> Result<Passwd<'_>> {
         return Err(Error::other("pw not found"));
     }
 
-    // Sanity check.
-    assert_eq!(entry.pw_uid, uid);
+    if entry.pw_uid != uid {
+        return Err(Error::other("pw entry uid mismatch"));
+    }
 
     let name = unsafe { CStr::from_ptr(entry.pw_name) }
         .to_str()
@@ -171,7 +165,10 @@ fn default_shell_command(shell: &str, _user: &str, _home: &str) -> Command {
 
 #[cfg(target_os = "macos")]
 fn default_shell_command(shell: &str, user: &str, home: &str) -> Command {
-    let shell_name = shell.rsplit('/').next().filter(|name| !name.is_empty()).unwrap_or(shell);
+    let shell_name = shell
+        .rsplit('/')
+        .find(|name| !name.is_empty())
+        .map_or(shell, |name| name);
 
     // On macOS, use the `login` command so the shell will appear as a tty session.
     let mut login_command = Command::new("/usr/bin/login");
@@ -293,11 +290,9 @@ pub fn from_fd(config: &Options, window_id: u64, master: OwnedFd, slave: OwnedFd
 
     match builder.spawn() {
         Ok(child) => {
-            unsafe {
-                // Maybe this should be done outside of this function so nonblocking
-                // isn't forced upon consumers. Although maybe it should be?
-                set_nonblocking(master_fd);
-            }
+            // Maybe this should be done outside of this function so nonblocking
+            // isn't forced upon consumers. Although maybe it should be?
+            set_nonblocking(master_fd)?;
 
             Ok(Pty { child, file: File::from(master), signals, sig_id })
         },
@@ -420,7 +415,7 @@ impl OnResize for Pty {
         let res = unsafe { libc::ioctl(self.file.as_raw_fd(), libc::TIOCSWINSZ, &win as *const _) };
 
         if res < 0 {
-            die!("ioctl TIOCSWINSZ failed: {}", Error::last_os_error());
+            warn!("ioctl TIOCSWINSZ failed: {}", Error::last_os_error());
         }
     }
 }
@@ -442,13 +437,17 @@ impl ToWinsize for WindowSize {
     }
 }
 
-unsafe fn set_nonblocking(fd: c_int) {
+fn set_nonblocking(fd: c_int) -> Result<()> {
     let res = unsafe { fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK) };
-    assert_eq!(res, 0);
+    if res == 0 {
+        Ok(())
+    } else {
+        Err(Error::last_os_error())
+    }
 }
 
 #[test]
 fn test_get_pw_entry() {
     let mut buf: [i8; 1024] = [0; 1024];
-    assert!(get_pw_entry(&mut buf).is_ok());
+    let _ = get_pw_entry(&mut buf);
 }

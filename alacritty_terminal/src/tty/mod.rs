@@ -111,8 +111,8 @@ pub fn setup_env() {
 /// Check if a terminfo entry exists on the system.
 fn terminfo_exists(terminfo: &str) -> bool {
     // Get first terminfo character for the parent directory.
-    let first = terminfo.get(..1).unwrap_or_default();
-    let first_hex = format!("{:x}", first.chars().next().unwrap_or_default() as usize);
+    let first = terminfo.get(..1).map_or("", |value| value);
+    let first_hex = format!("{:x}", first.chars().next().map_or('\0', |ch| ch) as usize);
 
     // Return true if the terminfo file exists at the specified location.
     macro_rules! check_path {

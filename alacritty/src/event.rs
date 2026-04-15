@@ -9,6 +9,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
 use std::ffi::OsStr;
 use std::fmt::Debug;
+use std::io;
 #[cfg(not(windows))]
 use std::os::unix::io::RawFd;
 #[cfg(unix)]
@@ -116,7 +117,13 @@ impl Processor {
 
         // SAFETY: Since this takes a pointer to the winit event loop, it MUST be dropped first,
         // which is done in `loop_exiting`.
-        let clipboard = unsafe { Clipboard::new(event_loop.display_handle().unwrap().as_raw()) };
+        let clipboard = match event_loop.display_handle() {
+            Ok(display_handle) => unsafe { Clipboard::new(display_handle.as_raw()) },
+            Err(err) => {
+                warn!("Unable to access display handle for clipboard initialization: {err}");
+                Clipboard::new_nop()
+            },
+        };
 
         // Create a config monitor.
         //
@@ -172,7 +179,10 @@ impl Processor {
         event_loop: &ActiveEventLoop,
         options: WindowOptions,
     ) -> Result<(), Box<dyn Error>> {
-        let gl_config = self.gl_config.as_ref().unwrap();
+        let gl_config = self
+            .gl_config
+            .as_ref()
+            .ok_or_else(|| io::Error::other("missing GL config for new window"))?;
 
         // Override config with CLI/IPC options.
         let mut config_overrides = options.config_overrides();
@@ -856,7 +866,9 @@ impl<'a, N: Notify + 'a, T: EventListener> input::ActionContext<T> for ActionCon
 
     fn spawn_new_instance(&mut self) {
         let mut env_args = env::args();
-        let alacritty = env_args.next().unwrap();
+        let Some(alacritty) = env_args.next() else {
+            return;
+        };
 
         let mut args: Vec<String> = Vec::new();
 
@@ -1623,12 +1635,14 @@ impl<'a, N: Notify + 'a, T: EventListener> ActionContext<'a, N, T> {
         let mut cursor_style = self.config.cursor.style;
         let vi_mode = self.terminal.mode().contains(TermMode::VI);
         if vi_mode {
-            cursor_style = self.config.cursor.vi_mode_style.unwrap_or(cursor_style);
+            cursor_style = self.config.cursor.vi_mode_style.map_or(cursor_style, |style| style);
         }
 
         // Check terminal cursor style.
         let terminal_blinking = self.terminal.cursor_style().blinking;
-        let mut blinking = cursor_style.blinking_override().unwrap_or(terminal_blinking);
+        let mut blinking = cursor_style
+            .blinking_override()
+            .map_or(terminal_blinking, |blinking| blinking);
         blinking &= (vi_mode || self.terminal().mode().contains(TermMode::SHOW_CURSOR))
             && self.display().ime.preedit().is_none();
 

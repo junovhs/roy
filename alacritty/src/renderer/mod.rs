@@ -373,16 +373,18 @@ impl GlExtensions {
                 gl::GetIntegerv(gl::NUM_EXTENSIONS, &mut extensions_number);
 
                 (0..extensions_number as gl::types::GLuint)
-                    .flat_map(|i| {
+                    .map(|i| {
                         let extension = CStr::from_ptr(gl::GetStringi(gl::EXTENSIONS, i) as *mut _);
-                        extension.to_str()
+                        Box::leak(extension.to_string_lossy().into_owned().into_boxed_str())
+                            as &'static str
                     })
                     .collect()
             } else {
-                match CStr::from_ptr(extensions as *mut _).to_str() {
-                    Ok(ext) => ext.split_whitespace().collect(),
-                    Err(_) => Default::default(),
-                }
+                let extensions = CStr::from_ptr(extensions as *mut _).to_string_lossy();
+                extensions
+                    .split_whitespace()
+                    .map(|ext| Box::leak(ext.to_owned().into_boxed_str()) as &'static str)
+                    .collect()
             }
         }
     }
