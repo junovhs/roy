@@ -1,6 +1,6 @@
 COMMANDS
-  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (508ms)
-  cargo test ... PASS (4611ms)
+  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (454ms)
+  cargo test ... PASS (3801ms)
 
 LOCALITY: PASS | 0 edges | 0 violations | 7 cycles
   cycle 1: alacritty\src\cli.rs -> alacritty\src\logging.rs -> alacritty\src\cli.rs
@@ -707,4 +707,4 @@ error: [140 of 140] Unsafe block missing justification. Add '// SAFETY:' comment
   --> alacritty_terminal\src\tty\windows\conpty.rs:305
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
-X Neti found 143 errors, 14 warnings (424ms).
+X Neti found 143 errors, 14 warnings (391ms).

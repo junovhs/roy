@@ -1,8 +1,8 @@
 NETI REPORT — FAIL | 143 blocking | 14 advisory
 
 COMMANDS
-  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (508ms)
-  cargo test ... PASS (4611ms)
+  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (454ms)
+  cargo test ... PASS (3801ms)
 LOCALITY: PASS | 0 edges | 0 violations | 7 cycles
   [X] cycle 1: alacritty\src\cli.rs -> alacritty\src\logging.rs -> alacritty\src\cli.rs
   [X] cycle 2: alacritty\src\cli.rs -> alacritty\src\logging.rs -> alacritty\src\event.rs -> alacritty\src\cli.rs
