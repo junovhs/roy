@@ -71,6 +71,8 @@ where
         .ok()
         .and_then(|path| CString::new(path.into_os_string().into_vec()).ok());
 
+    // SAFETY: `pre_exec` is only used to run async-signal-safe libc calls in the child between
+    // `fork` and `exec`, and the captured data is fully owned before entering the closure.
     unsafe {
         command
             .pre_exec(move || {
@@ -118,6 +120,8 @@ pub fn foreground_process_path(
     master_fd: RawFd,
     shell_pid: u32,
 ) -> Result<PathBuf, Box<dyn Error>> {
+    // SAFETY: `master_fd` is the PTY master file descriptor owned by the caller; `tcgetpgrp`
+    // only queries the controlling foreground process group for that descriptor.
     let mut pid = unsafe { libc::tcgetpgrp(master_fd) };
     if pid < 0 {
         pid = shell_pid as pid_t;
@@ -142,16 +146,25 @@ pub fn foreground_process_path(
     master_fd: RawFd,
     shell_pid: u32,
 ) -> Result<PathBuf, Box<dyn Error>> {
+    // SAFETY: `master_fd` is the PTY master file descriptor owned by the caller; `tcgetpgrp`
+    // only queries the controlling foreground process group for that descriptor.
     let mut pid = unsafe { libc::tcgetpgrp(master_fd) };
     if pid < 0 {
         pid = shell_pid as pid_t;
     }
     let name = [libc::CTL_KERN, libc::KERN_PROC_CWD, pid];
     let mut buf = [0u8; libc::PATH_MAX as usize];
+    let name_len = name
+        .len()
+        .try_into()
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "sysctl name length overflow"))?;
+    // SAFETY: `name` and `buf` are valid stack allocations for the duration of the call, their
+    // pointers and lengths match the OpenBSD `sysctl` contract, and no aliasing mutable access
+    // occurs while the kernel fills `buf`.
     let result = unsafe {
         libc::sysctl(
             name.as_ptr(),
-            name.len().try_into().unwrap(),
+            name_len,
             buf.as_mut_ptr() as *mut _,
             &mut buf.len() as *mut _,
             ptr::null_mut(),
@@ -161,6 +174,8 @@ pub fn foreground_process_path(
     if result != 0 {
         Err(io::Error::last_os_error().into())
     } else {
+        // SAFETY: successful `sysctl(KERN_PROC_CWD, ..)` writes a NUL-terminated path into `buf`,
+        // so interpreting the returned bytes as a C string is valid until `buf` is dropped.
         let foreground_path = unsafe { CStr::from_ptr(buf.as_ptr().cast()) }.to_str()?;
         Ok(PathBuf::from(foreground_path))
     }

@@ -245,7 +245,7 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
             }
         }
 
-        suppress_chars.unwrap_or(false)
+        suppress_chars.unwrap_or_default()
     }
 
     /// Handle key release.
@@ -387,9 +387,17 @@ impl SequenceBuilder {
 
         if character.chars().count() == 1 {
             let shift = self.modifiers.contains(SequenceModifiers::SHIFT);
-
-            let ch = character.chars().next().unwrap();
-            let unshifted_ch = if shift { ch.to_lowercase().next().unwrap() } else { ch };
+            let mut chars = character.chars();
+            let ch = chars.next()?;
+            let unshifted_ch = if shift {
+                let mut lowercase = ch.to_lowercase();
+                match lowercase.next() {
+                    Some(ch) => ch,
+                    None => ch,
+                }
+            } else {
+                ch
+            };
 
             let alternate_key_code = u32::from(ch);
             let mut unicode_key_code = u32::from(unshifted_ch);
@@ -399,7 +407,10 @@ impl SequenceBuilder {
             // However it should only be performed when `SHIFT` is pressed.
             if shift && alternate_key_code == unicode_key_code {
                 if let Key::Character(unmodded) = key.key_without_modifiers().as_ref() {
-                    unicode_key_code = u32::from(unmodded.chars().next().unwrap_or(unshifted_ch));
+                    unicode_key_code = match unmodded.chars().next() {
+                        Some(ch) => u32::from(ch),
+                        None => u32::from(unshifted_ch),
+                    };
                 }
             }
 
@@ -713,6 +724,10 @@ impl From<ModifiersState> for SequenceModifiers {
 fn is_control_character(text: &str) -> bool {
     // 0x7f (DEL) is included here since it has a dedicated control code (`^?`) which generally
     // does not match the reported text (`^H`), despite not technically being part of C0 or C1.
-    let codepoint = text.bytes().next().unwrap();
-    text.len() == 1 && (codepoint < 0x20 || (0x7f..=0x9f).contains(&codepoint))
+    match text.as_bytes().first().copied() {
+        Some(codepoint) => {
+            text.len() == 1 && (codepoint < 0x20 || (0x7f..=0x9f).contains(&codepoint))
+        },
+        None => false,
+    }
 }

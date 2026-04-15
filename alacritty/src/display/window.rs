@@ -28,6 +28,7 @@ use {
 };
 
 use bitflags::bitflags;
+use log::warn;
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event_loop::ActiveEventLoop;
 use winit::monitor::MonitorHandle;
@@ -201,7 +202,13 @@ impl Window {
 
         let scale_factor = window.scale_factor();
         log::info!("Window scale factor: {scale_factor}");
-        let is_x11 = matches!(window.window_handle().unwrap().as_raw(), RawWindowHandle::Xlib(_));
+        let is_x11 = match window.window_handle() {
+            Ok(handle) => matches!(handle.as_raw(), RawWindowHandle::Xlib(_)),
+            Err(err) => {
+                warn!("failed to acquire raw window handle during window init: {err}");
+                false
+            },
+        };
 
         Ok(Self {
             hold: options.terminal_options.hold,
@@ -219,7 +226,10 @@ impl Window {
 
     #[inline]
     pub fn raw_window_handle(&self) -> RawWindowHandle {
-        self.window.window_handle().unwrap().as_raw()
+        match self.window.window_handle() {
+            Ok(handle) => handle.as_raw(),
+            Err(err) => panic!("failed to acquire raw window handle: {err}"),
+        }
     }
 
     #[inline]
@@ -297,11 +307,28 @@ impl Window {
         let icon = {
             let mut decoder = Decoder::new(Cursor::new(WINDOW_ICON));
             decoder.set_transformations(png::Transformations::normalize_to_color8());
-            let mut reader = decoder.read_info().expect("invalid embedded icon");
+            let mut reader = match decoder.read_info() {
+                Ok(reader) => reader,
+                Err(err) => {
+                    warn!("invalid embedded icon metadata: {err}");
+                    let builder = WinitWindow::default_attributes()
+                        .with_name(&identity.class.general, &identity.class.instance)
+                        .with_decorations(window_config.decorations != Decorations::None);
+                    return builder;
+                },
+            };
             let mut buf = vec![0; reader.output_buffer_size()];
             let _ = reader.next_frame(&mut buf);
-            Icon::from_rgba(buf, reader.info().width, reader.info().height)
-                .expect("invalid embedded icon format")
+            match Icon::from_rgba(buf, reader.info().width, reader.info().height) {
+                Ok(icon) => icon,
+                Err(err) => {
+                    warn!("invalid embedded icon format: {err}");
+                    let builder = WinitWindow::default_attributes()
+                        .with_name(&identity.class.general, &identity.class.instance)
+                        .with_decorations(window_config.decorations != Decorations::None);
+                    return builder;
+                },
+            }
         };
 
         let builder = WinitWindow::default_attributes()
@@ -480,7 +507,11 @@ impl Window {
             _ => return,
         };
 
-        view.window().unwrap().setHasShadow(has_shadows);
+        let Some(window) = view.window() else {
+            return;
+        };
+
+        window.setHasShadow(has_shadows);
     }
 
     /// Select tab at the given `index`.
@@ -525,13 +556,22 @@ bitflags! {
 
 #[cfg(target_os = "macos")]
 fn use_srgb_color_space(window: &WinitWindow) {
-    let view = match window.window_handle().unwrap().as_raw() {
-        RawWindowHandle::AppKit(handle) => {
-            assert!(MainThreadMarker::new().is_some());
-            unsafe { handle.ns_view.cast::<NSView>().as_ref() }
+    let view = match window.window_handle() {
+        Ok(handle) => match handle.as_raw() {
+            RawWindowHandle::AppKit(handle) => {
+                assert!(MainThreadMarker::new().is_some());
+                unsafe { handle.ns_view.cast::<NSView>().as_ref() }
+            },
+            _ => return,
         },
-        _ => return,
+        Err(err) => {
+            warn!("failed to acquire macOS window handle: {err}");
+            return;
+        },
+    };
+    let Some(window) = view.window() else {
+        return;
     };
 
-    view.window().unwrap().setColorSpace(Some(&NSColorSpace::sRGBColorSpace()));
+    window.setColorSpace(Some(&NSColorSpace::sRGBColorSpace()));
 }

@@ -17,11 +17,23 @@ pub struct Clipboard {
     selection: Option<Box<dyn ClipboardProvider>>,
 }
 
+fn nop_clipboard() -> Box<dyn ClipboardProvider> {
+    match NopClipboardContext::new() {
+        Ok(clipboard) => Box::new(clipboard),
+        Err(err) => {
+            warn!("Unable to initialize nop clipboard provider: {err}");
+            Box::new(NopClipboardContext)
+        },
+    }
+}
+
 impl Clipboard {
     pub unsafe fn new(display: RawDisplayHandle) -> Self {
         match display {
             #[cfg(all(feature = "wayland", not(any(target_os = "macos", windows))))]
             RawDisplayHandle::Wayland(display) => {
+                // SAFETY: `display.display` comes from winit's live Wayland display handle and
+                // remains valid for clipboard provider construction during this call.
                 let (selection, clipboard) = unsafe {
                     wayland_clipboard::create_clipboards_from_external(display.display.as_ptr())
                 };
@@ -34,19 +46,36 @@ impl Clipboard {
     /// Used for tests, to handle missing clipboard provider when built without the `x11`
     /// feature, and as default clipboard value.
     pub fn new_nop() -> Self {
-        Self { clipboard: Box::new(NopClipboardContext::new().unwrap()), selection: None }
+        Self { clipboard: nop_clipboard(), selection: None }
     }
 }
 
 impl Default for Clipboard {
     fn default() -> Self {
         #[cfg(any(target_os = "macos", windows))]
-        return Self { clipboard: Box::new(ClipboardContext::new().unwrap()), selection: None };
+        return match ClipboardContext::new() {
+            Ok(clipboard) => Self { clipboard: Box::new(clipboard), selection: None },
+            Err(err) => {
+                warn!("Unable to initialize clipboard provider: {err}");
+                Self::new_nop()
+            },
+        };
 
         #[cfg(all(feature = "x11", not(any(target_os = "macos", windows))))]
-        return Self {
-            clipboard: Box::new(ClipboardContext::new().unwrap()),
-            selection: Some(Box::new(X11ClipboardContext::<X11SelectionClipboard>::new().unwrap())),
+        return match (ClipboardContext::new(), X11ClipboardContext::<X11SelectionClipboard>::new())
+        {
+            (Ok(clipboard), Ok(selection)) => {
+                Self { clipboard: Box::new(clipboard), selection: Some(Box::new(selection)) }
+            },
+            (clipboard_result, selection_result) => {
+                if let Err(err) = clipboard_result {
+                    warn!("Unable to initialize X11 clipboard provider: {err}");
+                }
+                if let Err(err) = selection_result {
+                    warn!("Unable to initialize X11 selection provider: {err}");
+                }
+                Self::new_nop()
+            },
         };
 
         #[cfg(not(any(feature = "x11", target_os = "macos", windows)))]
@@ -62,9 +91,9 @@ impl Clipboard {
             _ => &mut self.clipboard,
         };
 
-        clipboard.set_contents(text.into()).unwrap_or_else(|err| {
+        if let Err(err) = clipboard.set_contents(text.into()) {
             warn!("Unable to store text in clipboard: {err}");
-        });
+        }
     }
 
     pub fn load(&mut self, ty: ClipboardType) -> String {

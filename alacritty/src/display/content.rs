@@ -21,6 +21,12 @@ use crate::event::SearchState;
 /// Minimum contrast between a fixed cursor color and the cell's background.
 pub const MIN_CURSOR_CONTRAST: f64 = 1.5;
 
+#[inline]
+fn non_zero_width(width: u32) -> NonZeroU32 {
+    // SAFETY: all callsites pass hardcoded positive widths for cursor rendering.
+    unsafe { NonZeroU32::new_unchecked(width) }
+}
+
 /// Renderable terminal content.
 ///
 /// This provides the terminal cursor and an iterator over all non-empty cells.
@@ -49,7 +55,7 @@ impl<'a> RenderableContent<'a> {
         let terminal_content = term.renderable_content();
 
         // Find terminal cursor shape.
-        let cursor_shape = if terminal_content.cursor.shape == CursorShape::Hidden
+        let mut cursor_shape = if terminal_content.cursor.shape == CursorShape::Hidden
             || display.cursor_hidden
             || search_state.regex().is_some()
             || display.ime.preedit().is_some()
@@ -64,7 +70,13 @@ impl<'a> RenderableContent<'a> {
         // Convert terminal cursor point to viewport position.
         let cursor_point = terminal_content.cursor.point;
         let display_offset = terminal_content.display_offset;
-        let cursor_point = term::point_to_viewport(display_offset, cursor_point).unwrap();
+        let cursor_point = match term::point_to_viewport(display_offset, cursor_point) {
+            Some(point) => point,
+            None => {
+                cursor_shape = CursorShape::Hidden;
+                Point::default()
+            },
+        };
 
         let hint = if display.hint_state.active() {
             display.hint_state.update_matches(term);
@@ -102,7 +114,10 @@ impl<'a> RenderableContent<'a> {
 
     /// Get the RGB value for a color index.
     pub fn color(&self, color: usize) -> Rgb {
-        self.terminal_content.colors[color].map(Rgb).unwrap_or(self.colors[color])
+        match self.terminal_content.colors[color].map(Rgb) {
+            Some(rgb) => rgb,
+            None => self.colors[color],
+        }
     }
 
     pub fn selection_range(&self) -> Option<SelectionRange> {
@@ -136,9 +151,9 @@ impl<'a> RenderableContent<'a> {
         }
 
         let width = if cell.flags.contains(Flags::WIDE_CHAR) {
-            NonZeroU32::new(2).unwrap()
+            non_zero_width(2)
         } else {
-            NonZeroU32::new(1).unwrap()
+            non_zero_width(1)
         };
         RenderableCursor {
             width,
@@ -250,7 +265,9 @@ impl RenderableCell {
                 flags.insert(Flags::UNDERLINE);
             }
 
-            character = c.unwrap_or(character);
+            if let Some(c) = c {
+                character = c;
+            }
         } else if is_selected {
             let config_fg = colors.selection.foreground;
             let config_bg = colors.selection.background;
@@ -279,7 +296,7 @@ impl RenderableCell {
 
         // Convert cell point to viewport position.
         let cell_point = cell.point;
-        let point = term::point_to_viewport(display_offset, cell_point).unwrap();
+        let point = term::point_to_viewport(display_offset, cell_point).unwrap_or_default();
 
         let underline = cell
             .underline_color()
@@ -411,7 +428,7 @@ impl RenderableCursor {
         let shape = CursorShape::Hidden;
         let cursor_color = Rgb::default();
         let text_color = Rgb::default();
-        let width = NonZeroU32::new(1).unwrap();
+        let width = non_zero_width(1);
         let point = Point::default();
         Self { shape, cursor_color, text_color, width, point }
     }
@@ -483,15 +500,17 @@ impl Hint<'_> {
         // Position within the hint label.
         let line_delta = point.line.0 - start.line.0;
         let col_delta = point.column.0 as i32 - start.column.0 as i32;
-        let label_position = usize::try_from(line_delta * num_cols as i32 + col_delta).unwrap_or(0);
+        let label_position =
+            usize::try_from(line_delta * num_cols as i32 + col_delta).unwrap_or_default();
         let is_first = label_position == 0;
 
         // Hint label character.
-        let hint_char = self.labels[self.matches.index]
-            .get(label_position)
-            .copied()
-            .map(|c| (Some(c), is_first))
-            .unwrap_or((None, false));
+        let hint_char = self.labels[self.matches.index].get(label_position).copied();
+
+        let hint_char = match hint_char {
+            Some(c) => (Some(c), is_first),
+            None => (None, false),
+        };
 
         Some(hint_char)
     }

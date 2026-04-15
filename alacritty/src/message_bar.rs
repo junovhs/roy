@@ -78,7 +78,7 @@ impl Message {
             line.push(c);
 
             // Reserve extra column for fullwidth characters.
-            let width = c.width().unwrap_or(0);
+            let width = c.width().map_or(0, |width| width);
             if width == 2 {
                 line.push(' ');
             }
@@ -195,6 +195,13 @@ mod tests {
 
     use crate::display::SizeInfo;
 
+    fn queued_message_lines(message_buffer: &MessageBuffer, size: &SizeInfo) -> Vec<String> {
+        match message_buffer.message() {
+            Some(message) => message.text(size),
+            None => panic!("expected queued message"),
+        }
+    }
+
     #[test]
     fn appends_close_button() {
         let input = "a";
@@ -202,7 +209,7 @@ mod tests {
         message_buffer.push(Message::new(input.into(), MessageType::Error));
         let size = SizeInfo::new(7., 10., 1., 1., 0., 0., false);
 
-        let lines = message_buffer.message().unwrap().text(&size);
+        let lines = queued_message_lines(&message_buffer, &size);
 
         assert_eq!(lines, vec![String::from("a   [X]")]);
     }
@@ -214,7 +221,7 @@ mod tests {
         message_buffer.push(Message::new(input.into(), MessageType::Error));
         let size = SizeInfo::new(6., 10., 1., 1., 0., 0., false);
 
-        let lines = message_buffer.message().unwrap().text(&size);
+        let lines = queued_message_lines(&message_buffer, &size);
 
         assert_eq!(lines, vec![String::from("fo [X]"), String::from("bar   ")]);
     }
@@ -226,7 +233,7 @@ mod tests {
         message_buffer.push(Message::new(input.into(), MessageType::Error));
         let size = SizeInfo::new(6., 10., 1., 1., 0., 0., false);
 
-        let lines = message_buffer.message().unwrap().text(&size);
+        let lines = queued_message_lines(&message_buffer, &size);
 
         assert_eq!(lines.len(), 2);
     }
@@ -238,7 +245,7 @@ mod tests {
         message_buffer.push(Message::new(input.into(), MessageType::Error));
         let size = SizeInfo::new(6., 10., 1., 1., 0., 0., false);
 
-        let lines = message_buffer.message().unwrap().text(&size);
+        let lines = queued_message_lines(&message_buffer, &size);
 
         assert_eq!(lines.len(), 2);
     }
@@ -250,7 +257,7 @@ mod tests {
         message_buffer.push(Message::new(input.into(), MessageType::Error));
         let size = SizeInfo::new(6., 0., 1., 1., 0., 0., false);
 
-        let lines = message_buffer.message().unwrap().text(&size);
+        let lines = queued_message_lines(&message_buffer, &size);
 
         assert_eq!(lines.len(), 0);
     }
@@ -262,12 +269,12 @@ mod tests {
         message_buffer.push(Message::new(input.into(), MessageType::Error));
         let size = SizeInfo::new(22., (MIN_FREE_LINES + 2) as f32, 1., 1., 0., 0., false);
 
-        let lines = message_buffer.message().unwrap().text(&size);
+        let lines = queued_message_lines(&message_buffer, &size);
 
-        assert_eq!(lines, vec![
-            String::from("hahahahahahahahaha [X]"),
-            String::from("[MESSAGE TRUNCATED]   ")
-        ]);
+        assert_eq!(
+            lines,
+            vec![String::from("hahahahahahahahaha [X]"), String::from("[MESSAGE TRUNCATED]   ")]
+        );
     }
 
     #[test]
@@ -277,7 +284,7 @@ mod tests {
         message_buffer.push(Message::new(input.into(), MessageType::Error));
         let size = SizeInfo::new(2., 10., 1., 1., 0., 0., false);
 
-        let lines = message_buffer.message().unwrap().text(&size);
+        let lines = queued_message_lines(&message_buffer, &size);
 
         assert_eq!(lines, vec![String::from("ha")]);
     }
@@ -289,7 +296,7 @@ mod tests {
         message_buffer.push(Message::new(input.into(), MessageType::Error));
         let size = SizeInfo::new(2., (MIN_FREE_LINES + 2) as f32, 1., 1., 0., 0., false);
 
-        let lines = message_buffer.message().unwrap().text(&size);
+        let lines = queued_message_lines(&message_buffer, &size);
 
         assert_eq!(lines, vec![String::from("ha"), String::from("ha")]);
     }
@@ -301,7 +308,7 @@ mod tests {
         message_buffer.push(Message::new(input.into(), MessageType::Error));
         let size = SizeInfo::new(5., 10., 1., 1., 0., 0., false);
 
-        let lines = message_buffer.message().unwrap().text(&size);
+        let lines = queued_message_lines(&message_buffer, &size);
 
         assert_eq!(lines, vec![String::from("t [X]"), String::from("est  ")]);
     }
@@ -351,13 +358,12 @@ mod tests {
         message_buffer.push(Message::new(input.into(), MessageType::Error));
         let size = SizeInfo::new(5., 10., 1., 1., 0., 0., false);
 
-        let lines = message_buffer.message().unwrap().text(&size);
+        let lines = queued_message_lines(&message_buffer, &size);
 
-        assert_eq!(lines, vec![
-            String::from("a [X]"),
-            String::from("bc   "),
-            String::from("defg ")
-        ]);
+        assert_eq!(
+            lines,
+            vec![String::from("a [X]"), String::from("bc   "), String::from("defg ")]
+        );
     }
 
     #[test]
@@ -367,13 +373,12 @@ mod tests {
         message_buffer.push(Message::new(input.into(), MessageType::Error));
         let size = SizeInfo::new(7., 10., 1., 1., 0., 0., false);
 
-        let lines = message_buffer.message().unwrap().text(&size);
+        let lines = queued_message_lines(&message_buffer, &size);
 
-        assert_eq!(lines, vec![
-            String::from("ab  [X]"),
-            String::from("c 👩 d  "),
-            String::from("fgh    ")
-        ]);
+        assert_eq!(
+            lines,
+            vec![String::from("ab  [X]"), String::from("c 👩 d  "), String::from("fgh    ")]
+        );
     }
 
     #[test]
@@ -383,7 +388,7 @@ mod tests {
         message_buffer.push(Message::new(input.into(), MessageType::Error));
         let size = SizeInfo::new(3., 10., 1., 1., 0., 0., false);
 
-        let lines = message_buffer.message().unwrap().text(&size);
+        let lines = queued_message_lines(&message_buffer, &size);
 
         assert_eq!(lines, vec![String::from("[X]"), String::from("0 1"), String::from("2 3"),]);
     }

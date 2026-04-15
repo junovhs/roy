@@ -91,12 +91,18 @@ fn get_pw_entry(buf: &mut [i8; 1024]) -> Result<Passwd<'_>> {
     // Sanity check.
     assert_eq!(entry.pw_uid, uid);
 
+    let name = unsafe { CStr::from_ptr(entry.pw_name) }
+        .to_str()
+        .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
+    let dir = unsafe { CStr::from_ptr(entry.pw_dir) }
+        .to_str()
+        .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
+    let shell = unsafe { CStr::from_ptr(entry.pw_shell) }
+        .to_str()
+        .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
+
     // Build a borrowed Passwd struct.
-    Ok(Passwd {
-        name: unsafe { CStr::from_ptr(entry.pw_name).to_str().unwrap() },
-        dir: unsafe { CStr::from_ptr(entry.pw_dir).to_str().unwrap() },
-        shell: unsafe { CStr::from_ptr(entry.pw_shell).to_str().unwrap() },
-    })
+    Ok(Passwd { name, dir, shell })
 }
 
 pub struct Pty {
@@ -165,7 +171,7 @@ fn default_shell_command(shell: &str, _user: &str, _home: &str) -> Command {
 
 #[cfg(target_os = "macos")]
 fn default_shell_command(shell: &str, user: &str, home: &str) -> Command {
-    let shell_name = shell.rsplit('/').next().unwrap();
+    let shell_name = shell.rsplit('/').next().filter(|name| !name.is_empty()).unwrap_or(shell);
 
     // On macOS, use the `login` command so the shell will appear as a tty session.
     let mut login_command = Command::new("/usr/bin/login");
@@ -444,5 +450,5 @@ unsafe fn set_nonblocking(fd: c_int) {
 #[test]
 fn test_get_pw_entry() {
     let mut buf: [i8; 1024] = [0; 1024];
-    let _pw = get_pw_entry(&mut buf).unwrap();
+    assert!(get_pw_entry(&mut buf).is_ok());
 }

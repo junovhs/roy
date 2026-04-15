@@ -7,6 +7,7 @@ use glutin::context::{
     ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentContext, Robustness, Version,
 };
 use glutin::display::{Display, DisplayApiPreference, DisplayFeatures, GetGlDisplay};
+use glutin::error::ErrorKind;
 use glutin::error::Result as GlutinResult;
 use glutin::prelude::*;
 use glutin::surface::{Surface, SurfaceAttributesBuilder, WindowSurface};
@@ -27,10 +28,16 @@ pub fn create_gl_display(
     let preference = DisplayApiPreference::Cgl;
 
     #[cfg(windows)]
-    let preference = if _prefer_egl {
-        DisplayApiPreference::EglThenWgl(Some(_raw_window_handle.unwrap()))
+    let preference = if let Some(raw_window_handle) = _raw_window_handle {
+        if _prefer_egl {
+            DisplayApiPreference::EglThenWgl(Some(raw_window_handle))
+        } else {
+            DisplayApiPreference::WglThenEgl(Some(raw_window_handle))
+        }
     } else {
-        DisplayApiPreference::WglThenEgl(Some(_raw_window_handle.unwrap()))
+        return Err(
+            ErrorKind::NotSupported("missing raw window handle for Windows GL display").into()
+        );
     };
 
     #[cfg(all(feature = "x11", not(any(target_os = "macos", windows))))]
@@ -144,7 +151,10 @@ pub fn create_gl_context(
     }
 
     // If no context was built successfully, return an error for the most permissive one.
-    Err(error.unwrap())
+    match error {
+        Some(error) => Err(error),
+        None => Err(ErrorKind::NotSupported("failed to create GL context").into()),
+    }
 }
 
 pub fn create_gl_surface(
@@ -159,8 +169,14 @@ pub fn create_gl_surface(
     let surface_attributes =
         SurfaceAttributesBuilder::<WindowSurface>::new().with_srgb(Some(false)).build(
             raw_window_handle,
-            NonZeroU32::new(size.width).unwrap(),
-            NonZeroU32::new(size.height).unwrap(),
+            match NonZeroU32::new(size.width) {
+                Some(width) => width,
+                None => return Err(ErrorKind::NotSupported("window width cannot be zero").into()),
+            },
+            match NonZeroU32::new(size.height) {
+                Some(height) => height,
+                None => return Err(ErrorKind::NotSupported("window height cannot be zero").into()),
+            },
         );
 
     // Create the GL surface to draw into.

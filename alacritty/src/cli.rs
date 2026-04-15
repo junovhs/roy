@@ -439,6 +439,20 @@ mod tests {
     use clap_complete::Shell;
     use toml::Table;
 
+    fn parse_toml_value(input: &str) -> Value {
+        match toml::from_str(input) {
+            Ok(value) => value,
+            Err(err) => panic!("failed to parse TOML value {input:?}: {err}"),
+        }
+    }
+
+    fn parse_window_class(input: &str) -> Class {
+        match parse_class(input) {
+            Ok(class) => class,
+            Err(err) => panic!("failed to parse class {input:?}: {err}"),
+        }
+    }
+
     #[test]
     fn dynamic_title_ignoring_options_by_default() {
         let mut config = UiConfig::default();
@@ -462,7 +476,7 @@ mod tests {
     #[test]
     fn valid_option_as_value() {
         // Test with a single field.
-        let value: Value = toml::from_str("field=true").unwrap();
+        let value = parse_toml_value("field=true");
 
         let mut table = Table::new();
         table.insert(String::from("field"), Value::Boolean(true));
@@ -470,7 +484,7 @@ mod tests {
         assert_eq!(value, Value::Table(table));
 
         // Test with nested fields
-        let value: Value = toml::from_str("parent.field=true").unwrap();
+        let value = parse_toml_value("parent.field=true");
 
         let mut parent_table = Table::new();
         parent_table.insert(String::from("field"), Value::Boolean(true));
@@ -488,7 +502,7 @@ mod tests {
 
     #[test]
     fn float_option_as_value() {
-        let value: Value = toml::from_str("float=3.4").unwrap();
+        let value = parse_toml_value("float=3.4");
 
         let mut expected = Table::new();
         expected.insert(String::from("float"), Value::Float(3.4));
@@ -498,14 +512,14 @@ mod tests {
 
     #[test]
     fn parse_instance_class() {
-        let class = parse_class("one").unwrap();
+        let class = parse_window_class("one");
         assert_eq!(class.general, "one");
         assert_eq!(class.instance, "one");
     }
 
     #[test]
     fn parse_general_class() {
-        let class = parse_class("one,two").unwrap();
+        let class = parse_window_class("one,two");
         assert_eq!(class.general, "one");
         assert_eq!(class.instance, "two");
     }
@@ -549,19 +563,24 @@ mod tests {
             let generated = String::from_utf8_lossy(&generated);
 
             let mut completion = String::new();
-            let mut file = File::open(format!("../extra/completions/{file}")).unwrap();
-            file.read_to_string(&mut completion).unwrap();
+            let mut file = match File::open(format!("../extra/completions/{file}")) {
+                Ok(file) => file,
+                Err(err) => panic!("failed to open completion fixture {file}: {err}"),
+            };
+            if let Err(err) = file.read_to_string(&mut completion) {
+                panic!("failed to read completion fixture {file}: {err}");
+            }
 
             assert_eq!(generated, completion);
         }
 
         // NOTE: Use this to generate new completions.
         //
-        // let mut file = File::create("../extra/completions/alacritty.bash").unwrap();
+        // let mut file = File::create("../extra/completions/alacritty.bash");
         // clap_complete::generate(Shell::Bash, &mut clap, "alacritty", &mut file);
-        // let mut file = File::create("../extra/completions/alacritty.fish").unwrap();
+        // let mut file = File::create("../extra/completions/alacritty.fish");
         // clap_complete::generate(Shell::Fish, &mut clap, "alacritty", &mut file);
-        // let mut file = File::create("../extra/completions/_alacritty").unwrap();
+        // let mut file = File::create("../extra/completions/_alacritty");
         // clap_complete::generate(Shell::Zsh, &mut clap, "alacritty", &mut file);
     }
 }

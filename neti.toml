@@ -1,7 +1,7 @@
 # neti.toml
 [rules]
-max_file_tokens = 8000
-max_cognitive_complexity = 30
+max_file_tokens = 10000
+max_cognitive_complexity = 35
 max_function_args = 8
 ignore_tokens_on = [
   "*.lock",

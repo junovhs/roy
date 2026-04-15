@@ -74,6 +74,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     // to the console of the parent process, so we do it explicitly. This fails
     // silently if the parent has no console.
     #[cfg(windows)]
+    // SAFETY: attaching to the parent console is a process-wide Win32 operation and does not rely
+    // on Rust aliasing guarantees; failure is explicitly ignored per startup requirements.
     unsafe {
         AttachConsole(ATTACH_PARENT_PROCESS);
     }
@@ -138,24 +140,27 @@ fn alacritty(mut options: Options) -> Result<(), Box<dyn Error>> {
     let window_event_loop = EventLoop::<Event>::with_user_event().build()?;
 
     // Initialize the logger as soon as possible as to capture output from other subsystems.
-    let log_file = logging::initialize(&options, window_event_loop.create_proxy())
-        .expect("Unable to initialize logger");
+    let log_file = logging::initialize(&options, window_event_loop.create_proxy())?;
 
     info!("Welcome to Alacritty");
     info!("Version {}", env!("VERSION"));
 
     #[cfg(all(feature = "x11", not(any(target_os = "macos", windows))))]
-    info!(
-        "Running on {}",
-        if matches!(
-            window_event_loop.display_handle().unwrap().as_raw(),
-            RawDisplayHandle::Wayland(_)
-        ) {
-            "Wayland"
-        } else {
-            "X11"
-        }
-    );
+    {
+        let display_protocol = match window_event_loop.display_handle() {
+            Ok(display_handle)
+                if matches!(display_handle.as_raw(), RawDisplayHandle::Wayland(_)) =>
+            {
+                "Wayland"
+            },
+            Ok(_) => "X11",
+            Err(err) => {
+                log::warn!("Unable to determine display protocol: {err}");
+                "X11"
+            },
+        };
+        info!("Running on {display_protocol}");
+    }
     #[cfg(not(any(feature = "x11", target_os = "macos", windows)))]
     info!("Running on Wayland");
 
@@ -171,12 +176,16 @@ fn alacritty(mut options: Options) -> Result<(), Box<dyn Error>> {
 
     // Set env vars from config.
     for (key, value) in config.env.iter() {
+        // SAFETY: startup runs single-threaded here before worker threads are spawned, so process
+        // environment mutation cannot race with concurrent readers from this process.
         unsafe { env::set_var(key, value) };
     }
 
     // Switch to home directory.
     #[cfg(target_os = "macos")]
-    env::set_current_dir(home::home_dir().unwrap()).unwrap();
+    if let Some(home_dir) = home::home_dir() {
+        env::set_current_dir(home_dir)?;
+    }
 
     // Set macOS locale.
     #[cfg(target_os = "macos")]
@@ -231,6 +240,8 @@ fn alacritty(mut options: Options) -> Result<(), Box<dyn Error>> {
 
     // Without explicitly detaching the console cmd won't redraw it's prompt.
     #[cfg(windows)]
+    // SAFETY: detaching the process console is a process-wide Win32 operation performed during
+    // shutdown after terminal resources have been dropped in the required order above.
     unsafe {
         FreeConsole();
     }

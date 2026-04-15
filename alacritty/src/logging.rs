@@ -131,7 +131,7 @@ impl log::Log for Logger {
 
     fn log(&self, record: &log::Record<'_>) {
         // Get target crate.
-        let index = record.target().find(':').unwrap_or_else(|| record.target().len());
+        let index = record.target().find(':').map_or_else(|| record.target().len(), |index| index);
         let target = &record.target()[..index];
 
         // Only log our own crates, except when logging at Level::Trace.
@@ -230,7 +230,10 @@ impl OnDemandLogFile {
             }
         }
 
-        Ok(self.file.as_mut().unwrap())
+        match self.file.as_mut() {
+            Some(file) => Ok(file),
+            None => Err(io::Error::other("log file missing after creation")),
+        }
     }
 
     fn path(&self) -> &PathBuf {

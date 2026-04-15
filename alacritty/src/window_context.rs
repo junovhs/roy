@@ -14,7 +14,7 @@ use glutin::config::Config as GlutinConfig;
 use glutin::display::GetGlDisplay;
 #[cfg(all(feature = "x11", not(any(target_os = "macos", windows))))]
 use glutin::platform::x11::X11GlConfigExt;
-use log::info;
+use log::{error, info};
 use serde_json as json;
 use winit::event::{Event as WinitEvent, Modifiers, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
@@ -77,7 +77,7 @@ impl WindowContext {
         config: Rc<UiConfig>,
         mut options: WindowOptions,
     ) -> Result<Self, Box<dyn Error>> {
-        let raw_display_handle = event_loop.display_handle().unwrap().as_raw();
+        let raw_display_handle = event_loop.display_handle()?.as_raw();
 
         let mut identity = config.window.identity.clone();
         options.window_identity.override_identity_config(&mut identity);
@@ -505,25 +505,45 @@ impl WindowContext {
         grid.initialize_all();
         grid.truncate();
 
-        let serialized_grid = json::to_string(&grid).expect("serialize grid");
+        let serialized_grid = match json::to_string(&grid) {
+            Ok(serialized_grid) => serialized_grid,
+            Err(err) => {
+                error!("failed to serialize grid for ref test output: {err}");
+                return;
+            },
+        };
 
         let size_info = &self.display.size_info;
         let size = TermSize::new(size_info.columns(), size_info.screen_lines());
-        let serialized_size = json::to_string(&size).expect("serialize size");
+        let serialized_size = match json::to_string(&size) {
+            Ok(serialized_size) => serialized_size,
+            Err(err) => {
+                error!("failed to serialize size for ref test output: {err}");
+                return;
+            },
+        };
 
         let serialized_config = format!("{{\"history_size\":{}}}", grid.history_size());
 
-        File::create("./grid.json")
-            .and_then(|mut f| f.write_all(serialized_grid.as_bytes()))
-            .expect("write grid.json");
+        if let Err(err) =
+            File::create("./grid.json").and_then(|mut f| f.write_all(serialized_grid.as_bytes()))
+        {
+            error!("failed to write grid.json: {err}");
+            return;
+        }
 
-        File::create("./size.json")
-            .and_then(|mut f| f.write_all(serialized_size.as_bytes()))
-            .expect("write size.json");
+        if let Err(err) =
+            File::create("./size.json").and_then(|mut f| f.write_all(serialized_size.as_bytes()))
+        {
+            error!("failed to write size.json: {err}");
+            return;
+        }
 
-        File::create("./config.json")
-            .and_then(|mut f| f.write_all(serialized_config.as_bytes()))
-            .expect("write config.json");
+        if let Err(err) =
+            File::create("./config.json").and_then(|mut f| f.write_all(serialized_config.as_bytes()))
+        {
+            error!("failed to write config.json: {err}");
+        }
     }
 
     /// Submit the pending changes to the `Display`.

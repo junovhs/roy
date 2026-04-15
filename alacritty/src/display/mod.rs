@@ -79,6 +79,11 @@ const SHORTENER: char = '…';
 /// Color which is used to highlight damaged rects when debugging.
 const DAMAGE_RECT_COLOR: Rgb = Rgb::new(255, 0, 255);
 
+#[inline]
+fn unit_non_zero_u32() -> NonZeroU32 {
+    NonZeroU32::MIN
+}
+
 #[derive(Debug)]
 pub enum Error {
     /// Error with window management.
@@ -749,9 +754,12 @@ impl Display {
 
         // Resize renderer.
         if renderer_update.resize {
-            let width = NonZeroU32::new(self.size_info.width() as u32).unwrap();
-            let height = NonZeroU32::new(self.size_info.height() as u32).unwrap();
-            self.surface.resize(&self.context, width, height);
+            let width = NonZeroU32::new(self.size_info.width() as u32);
+            let height = NonZeroU32::new(self.size_info.height() as u32);
+
+            if let (Some(width), Some(height)) = (width, height) {
+                self.surface.resize(&self.context, width, height);
+            }
         }
 
         // Ensure we're modifying the correct OpenGL context.
@@ -930,7 +938,7 @@ impl Display {
                 if self.ime.preedit().is_none() {
                     let fg = config.colors.footer_bar_foreground();
                     let shape = CursorShape::Underline;
-                    let cursor_width = NonZeroU32::new(1).unwrap();
+                    let cursor_width = unit_non_zero_u32();
                     let cursor =
                         RenderableCursor::new(Point::new(line, column), shape, fg, cursor_width);
                     rects.extend(cursor.rects(&size_info, config.cursor.thickness()));
@@ -1198,7 +1206,7 @@ impl Display {
                 {
                     (CursorShape::HollowBlock, width)
                 } else {
-                    (CursorShape::Beam, NonZeroU32::new(1).unwrap())
+                    (CursorShape::Beam, unit_non_zero_u32())
                 };
 
                 let cursor_column = Column(
@@ -1366,8 +1374,14 @@ impl Display {
         self.damage_tracker.next_frame().damage_line(damage);
 
         let colors = &config.colors;
-        let fg = colors.line_indicator.foreground.unwrap_or(colors.primary.background);
-        let bg = colors.line_indicator.background.unwrap_or(colors.primary.foreground);
+        let fg = colors
+            .line_indicator
+            .foreground
+            .map_or(colors.primary.background, |foreground| foreground);
+        let bg = colors
+            .line_indicator
+            .background
+            .map_or(colors.primary.foreground, |background| background);
 
         // Do not render anything if it would obscure the vi mode cursor.
         if obstructed_column.is_none_or(|obstructed_column| obstructed_column < column) {
@@ -1415,10 +1429,13 @@ impl Display {
             // Convert hint bounds to viewport coordinates.
             let start = term::point_to_viewport(display_offset, start)
                 .filter(|point| point.line < num_lines)
-                .unwrap_or_default();
+                .map_or(Point::default(), |point| point);
             let end = term::point_to_viewport(display_offset, end)
                 .filter(|point| point.line < num_lines)
-                .unwrap_or_else(|| Point::new(num_lines - 1, self.size_info.last_column()));
+                .map_or_else(
+                    || Point::new(num_lines - 1, self.size_info.last_column()),
+                    |point| point,
+                );
 
             // Clear invalidated hints.
             if frame.intersects(start, end) {
@@ -1442,7 +1459,7 @@ impl Display {
                 .window
                 .current_monitor()
                 .and_then(|monitor| monitor.refresh_rate_millihertz())
-                .unwrap_or(60_000) as f64;
+                .map_or(60_000, |refresh_rate| refresh_rate) as f64;
 
         // Now convert it to micro seconds.
         let monitor_vblank_interval =
@@ -1526,10 +1543,12 @@ impl Preedit {
     pub fn new(text: String, cursor_byte_offset: Option<(usize, usize)>) -> Self {
         let cursor_end_offset = if let Some(byte_offset) = cursor_byte_offset {
             // Convert byte offset into char offset.
-            let start_to_end_offset =
-                text[byte_offset.0..].chars().fold(0, |acc, ch| acc + ch.width().unwrap_or(1));
-            let end_to_end_offset =
-                text[byte_offset.1..].chars().fold(0, |acc, ch| acc + ch.width().unwrap_or(1));
+            let start_to_end_offset = text[byte_offset.0..]
+                .chars()
+                .fold(0, |acc, ch| acc + ch.width().map_or(1, |width| width));
+            let end_to_end_offset = text[byte_offset.1..]
+                .chars()
+                .fold(0, |acc, ch| acc + ch.width().map_or(1, |width| width));
 
             Some((start_to_end_offset, end_to_end_offset))
         } else {
