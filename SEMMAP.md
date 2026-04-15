@@ -1,4 +1,4 @@
-# project -- Semantic Map
+# neti -- Semantic Map
 
 **Purpose:** Terminal
 
@@ -118,1192 +118,825 @@
 
 ## Layer 0 -- Config
 
-`root/` (8 files: 5 .md, 3 .toml)
-Representative: CHANGELOG.md, CONTRIBUTING.md
-
-`scripts/README.md`
-Project overview and usage guide.
-
-## Subprojects
-
-### alacritty
-
-`alacritty/CHANGELOG.md`
-Release history and notable changes.
-
-`alacritty/Cargo.toml`
+`Cargo.toml`
 Workspace configuration.
 
-`alacritty/README.md`
+`README.md`
 Project overview and usage guide.
 
-`alacritty/src/config/bell.rs`
-Visual bell animation function. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure] [QUALITY:undocumented]
-Exports: BellAnimation, BellConfig, BellConfig.default, BellConfig.duration
+`SEMMAP.md`
+Generated semantic map.
+
+`corpus/manifest.toml`
+Configuration for manifest.
+
+`corpus/results/run_1.md`
+Support file for the results subsystem.
+
+`neti.toml`
+Configuration for neti.
+
+`refactor.md`
+Support file for refactor.
+
+`src/config/io.rs`
+utility for io via file I/O. [COUPLING:mixed] [BEHAVIOR:persists,propagates-errors] [QUALITY:undocumented]
+Exports: apply_project_defaults, process_ignore_line, save_to_file, load_toml_config
+Semantic: side-effecting adapter that propagates errors
+
+`src/config/locality.rs`
+Configuration for the Law of Locality enforcement. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure]
+Exports: LocalityConfig.is_error_mode, LocalityConfig.to_validator_config, LocalityConfig.default, LocalityConfig.is_enabled
 Semantic: pure computation
 
-`alacritty/src/config/bindings.rs`
-Describes a state and action to take in that state. [HOTSPOT] [DOMAIN-CONTRACT] [COUPLING:pure] [BEHAVIOR:propagates-errors] [QUALITY:undocumented,complex-flow,error-boundary,syntax-degraded]
-Exports: Binding<T>.is_triggered_by, SerdeViMotion, SerdeViMotion.deserialize, default_mouse_bindings
+`src/config/types.rs`
+Implements safety config.default. [COUPLING:pure] [QUALITY:undocumented]
+Exports: CommandEntry, CommandEntry.into_vec, NetiToml, RuleConfig.default
+Semantic: pure computation
+
+`src/graph/tsconfig.rs`
+Parser for tsconfig.json / jsconfig.json path mappings. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:mixed] [BEHAVIOR:persists,propagates-errors] [QUALITY:error-boundary]
+Exports: TsConfig, TsConfig.load, TsConfig.resolve
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: side-effecting adapter that propagates errors
+
+## Layer 1 -- Domain (Engine)
+
+`corpus/results/summary.json`
+Implements summary functionality. data.
+
+`src/analysis/ast.rs`
+Implements analysis result. [COUPLING:pure] [QUALITY:undocumented]
+Exports: AnalysisResult, Analyzer, Analyzer.analyze, Analyzer.default
+Semantic: pure computation
+
+`src/analysis/checks.rs`
+AST-based complexity and style checks.
+Exports: check_dead_params, CheckContext, check_banned, check_syntax
+
+`src/analysis/checks/banned.rs`
+Banned construct checks (Law of Paranoia). [COUPLING:mixed] [BEHAVIOR:persists,sync-primitives]
+Exports: check_banned
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: synchronized side-effecting adapter
+
+`src/analysis/checks/dead_params.rs`
+Dead parameter detection (EPOCH-01f). [COUPLING:mixed] [BEHAVIOR:owns-state] [SURFACE:http-handler] [QUALITY:complex-flow]
+Exports: check_dead_params
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: side-effecting stateful module with HTTP handler surface
+
+`src/analysis/checks/syntax.rs`
+AST-level syntax error and malformed node detection. [HOTSPOT] [COUPLING:pure]
+Exports: check_syntax
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation
+
+`src/analysis/checks/syntax_rust.rs`
+Implements syntax rust. [COUPLING:pure]
+Semantic: pure computation
+
+`src/analysis/checks/syntax_ts.rs`
+Implements syntax ts. [COUPLING:pure]
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation
+
+`src/analysis/engine.rs`
+Main execution logic for the `Neti` analysis engine. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:persists]
+Exports: Engine.scan_with_progress, Engine, Engine.scan
+Semantic: side-effecting adapter
+
+`src/analysis/patterns/paranoia_universal.rs`
+Universal cross-language `LAW OF PARANOIA` checks. [COUPLING:pure] [QUALITY:complex-flow]
+Exports: check_paranoia
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation
+
+`src/analysis/patterns/semantic.rs`
+Actionable semantic checks: M03 and M05. [HOTSPOT] [COUPLING:pure]
+Exports: detect_universal, detect
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation
+
+`src/analysis/patterns/semantic_universal.rs`
+Universal semantic detectors for M03 and M05. [COUPLING:pure]
+Exports: detect_semantic_universal
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation
+
+`src/analysis/safety.rs`
+Validates safety source. [COUPLING:mixed] [BEHAVIOR:persists]
+Exports: check_safety_source, check_safety
+Semantic: side-effecting adapter
+
+`src/analysis/suppress.rs`
+Inline suppression parsing: `// neti:allow(CODE) reason`. [COUPLING:pure] [BEHAVIOR:propagates-errors] [QUALITY:complex-flow]
+Exports: apply
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: pure computation that propagates errors
 
-`alacritty/src/config/color.rs`
-Implements hint start colors.default. [COUPLING:pure] [BEHAVIOR:propagates-errors] [QUALITY:undocumented]
-Exports: Colors.footer_bar_background, Colors.footer_bar_foreground, InvertedCellColors.default, FocusedMatchColors.default
-Semantic: pure computation that propagates errors
+`src/analysis/worker.rs`
+Worker module for file parsing and analysis. [COUPLING:mixed] [BEHAVIOR:persists]
+Exports: is_ignored, scan_file
+Semantic: side-effecting adapter
 
-`alacritty/src/config/cursor.rs`
-The minimum blink interval value in milliseconds. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:mixed] [BEHAVIOR:owns-state] [QUALITY:undocumented]
-Exports: Cursor.vi_mode_style, ConfigCursorStyle.default, VteCursorShape.from, VteCursorStyle.from
-Semantic: side-effecting stateful module
-
-`alacritty/src/config/debug.rs`
-Implements renderer preference. [COUPLING:pure]
-Exports: RendererPreference, Debug, Debug.default
-Semantic: pure computation
-
-`alacritty/src/config/font.rs`
-Defines shared font for the config subsystem. [HOTSPOT] [DOMAIN-CONTRACT] [COUPLING:pure] [QUALITY:undocumented]
-Exports: SecondaryFontDescription.desc, SecondaryFontDescription, Font.with_size, NumVisitor.expecting
-Semantic: pure computation
-
-`alacritty/src/config/general.rs`
-Miscellaneous configuration options. [COUPLING:pure]
-Exports: General, General.default
-Semantic: pure computation
-
-`alacritty/src/config/monitor.rs`
-The fallback for `RecommendedWatcher` polling. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:mixed] [BEHAVIOR:owns-state,persists,sync-primitives] [QUALITY:complex-flow]
-Exports: ConfigMonitor.needs_restart, ConfigMonitor, ConfigMonitor.new, ConfigMonitor.shutdown
-Semantic: synchronized side-effecting stateful adapter
-
-`alacritty/src/config/mouse.rs`
-Implements mouse bindings.deserialize. [COUPLING:pure] [BEHAVIOR:propagates-errors] [QUALITY:undocumented]
-Exports: MouseBindings, MouseBindings.default, MouseBindings.deserialize, Mouse
-Semantic: pure computation that propagates errors
-
-`alacritty/src/config/scrolling.rs`
-Implements scrolling history.deserialize. [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:undocumented]
-Exports: MAX_SCROLLBACK_LINES, ScrollingHistory.default, ScrollingHistory.deserialize, Scrolling.default
-Semantic: side-effecting stateful module that propagates errors
-
-`alacritty/src/config/selection.rs`
-Implements Selection functionality. [COUPLING:pure]
-Exports: Selection, Selection.default
-Semantic: pure computation
-
-`alacritty/src/config/serde_utils.rs`
-Serde helpers. [COUPLING:pure]
-Exports: merge
+`src/baseline.rs`
+.neti-baseline.json` — violation snapshot for staged adoption. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,persists,propagates-errors]
+Exports: Baseline.apply_to_files, Baseline.from_scan, BASELINE_FILE, BaselineEntry
 Touch: Contains inline Rust tests alongside runtime code.
-Semantic: pure computation
-
-`alacritty/src/config/terminal.rs`
-OSC52 support mode. [COUPLING:pure] [BEHAVIOR:propagates-errors] [QUALITY:undocumented]
-Exports: SerdeOsc52, SerdeOsc52.deserialize, Terminal
-Semantic: pure computation that propagates errors
-
-`alacritty/src/config/ui_config.rs`
-Regex used for the default URL hint. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error,propagates-errors] [QUALITY:undocumented,error-boundary]
-Exports: UiConfig.live_config_reload, LazyRegexVariant, LazyRegexVariant.eq, HintInternalAction
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: side-effecting stateful module that panics on error
-
-`alacritty/src/config/window.rs`
-Defines shared window for the config subsystem. [HOTSPOT] [DOMAIN-CONTRACT] [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:undocumented]
-Exports: OptionAsAlt, WindowConfig.option_as_alt, WinitWindowLevel.from, DEFAULT_NAME
-Semantic: side-effecting stateful module that propagates errors
-
-`alacritty/build.rs`
-utility for build via file I/O. [COUPLING:mixed] [BEHAVIOR:panics-on-error]
-Semantic: side-effecting that panics on error
-
-`alacritty/src/clipboard.rs`
-Implements clipboard.new nop. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:panics-on-error] [QUALITY:undocumented,error-boundary]
-Exports: Clipboard.new_nop, Clipboard, Clipboard.default, Clipboard.load
-Semantic: side-effecting that panics on error
-
-`alacritty/src/daemon.rs`
-utility for daemon via file I/O. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:persists,panics-on-error,propagates-errors] [QUALITY:error-boundary]
-Exports: foreground_process_path, spawn_daemon
-Semantic: side-effecting adapter that panics on error
-
-`alacritty/src/display/bell.rs`
-Visual bell animation. [HOTSPOT] [COUPLING:pure] [QUALITY:undocumented]
-Exports: VisualBell.intensity_at_instant, VisualBell.update_config, VisualBell, VisualBell.completed
-Semantic: pure computation
-
-`alacritty/src/display/color.rs`
-Factor for automatic computation of dim colors. [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:undocumented,complex-flow]
-Exports: List.fill_gray_ramp, CellRgbVisitor.expecting, DIM_FACTOR, Rgb.as_tuple
-Semantic: side-effecting stateful module that propagates errors
-
-`alacritty/src/display/content.rs`
-Implements renderable content<'a>.cursor. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error,propagates-errors] [QUALITY:undocumented,complex-flow,error-boundary]
-Exports: MIN_CURSOR_CONTRAST, RenderableCellExtra, HintMatches<'_>.deref, RenderableContent<'_>.next
-Semantic: side-effecting stateful module that panics on error
-
-`alacritty/src/display/cursor.rs`
-Convert a cursor into an iterator of rects. [HOTSPOT] [COUPLING:pure] [BEHAVIOR:propagates-errors] [QUALITY:undocumented]
-Exports: RenderableCursor.rects, IntoRects, CursorRects.from, CursorRects.next
-Semantic: pure computation that propagates errors
-
-`alacritty/src/display/damage.rs`
-State of the damage tracking for the [`Display`]. [HOTSPOT] [COUPLING:pure] [BEHAVIOR:propagates-errors] [QUALITY:undocumented]
-Exports: damage_y_to_viewport_y, viewport_y_to_damage_y, FrameDamage.mark_fully_damaged, DamageTracker.damage_vi_cursor
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: pure computation that propagates errors
-
-`alacritty/src/display/hint.rs`
-Implements hint match.hyperlink. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error,propagates-errors] [QUALITY:undocumented,complex-flow,error-boundary]
-Exports: visible_unique_hyperlinks_iter, visible_regex_match_iter, MAX_SEARCH_LINES, HintMatch.should_highlight
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: side-effecting stateful module that panics on error
-
-`alacritty/src/display/meter.rs`
-Rendering time meter. [COUPLING:mixed] [BEHAVIOR:owns-state]
-Exports: Sampler<'_>.drop, Meter, Meter.average, Meter.sampler
-Semantic: side-effecting stateful module
-
-`alacritty/src/display/window.rs`
-Window icon for `_NET_WM_ICON` property. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error,propagates-errors] [QUALITY:undocumented,error-boundary,syntax-degraded]
-Exports: Window.select_tab_at_index, Window.set_option_as_alt, Window.pre_present_notify, Window.update_ime_position
-Semantic: side-effecting stateful module that panics on error
-
-`alacritty/src/input/keyboard.rs`
-Implements sequence modifiers.from. [COUPLING:mixed] [BEHAVIOR:panics-on-error] [QUALITY:undocumented,complex-flow]
-Exports: SequenceModifiers.encode_esc_sequence, Processor<T, A>.key_input, SequenceBase, SequenceBuilder
-Semantic: side-effecting that panics on error
-
-`alacritty/src/logging.rs`
-Logging for Alacritty. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,persists,sync-primitives,panics-on-error,propagates-errors] [QUALITY:undocumented,error-boundary]
-Exports: OnDemandLogFile.flush, OnDemandLogFile.write, LOG_TARGET_IPC_CONFIG, LOG_TARGET_WINIT
-Semantic: synchronized side-effecting stateful adapter that panics on error
-
-`alacritty/src/macos/locale.rs`
-Sets the locale environment. [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error]
-Exports: set_locale_environment
-Semantic: side-effecting stateful module that panics on error
-
-`alacritty/src/macos/proc.rs`
-Error during working directory retrieval. [TYPE] [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:undocumented,syntax-degraded]
-Exports: vnode_info_path, vinfo_stat, PROC_PIDVNODEPATHINFO, proc_vnodepathinfo
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: side-effecting stateful module that propagates errors
-
-`alacritty/src/message_bar.rs`
-Message for display in the MessageBuffer. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error] [QUALITY:complex-flow,error-boundary]
-Exports: CLOSE_BUTTON_TEXT, Message.set_target, MessageBuffer.is_empty, MessageBuffer.is_queued
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: side-effecting stateful module that panics on error
-
-`alacritty/src/migrate/yaml.rs`
-Migration of legacy YAML files to TOML. [COUPLING:pure] [BEHAVIOR:propagates-errors] [QUALITY:error-boundary]
-Exports: migrate
-Semantic: pure computation that propagates errors
-
-`alacritty/src/polling/ipc.rs`
-Alacritty socket IPC. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,persists,propagates-errors] [QUALITY:error-boundary]
-Exports: IpcListener, IpcListener.new, IpcListener.process_message, send_message
 Semantic: side-effecting stateful adapter that propagates errors
 
-`alacritty/src/polling/signal.rs`
-Unix signal listener. [COUPLING:pure] [BEHAVIOR:propagates-errors] [QUALITY:error-boundary]
-Exports: SignalListener, SignalListener.new, SignalListener.process_signal
+`src/cli/dispatch.rs`
+Command dispatch logic extracted from binary to reduce main function size. [COUPLING:pure] [BEHAVIOR:propagates-errors]
+Exports: execute
 Semantic: pure computation that propagates errors
 
-`alacritty/src/scheduler.rs`
-Scheduler for emitting events at a specific time in the future. [COUPLING:pure] [BEHAVIOR:propagates-errors]
-Exports: Scheduler.unschedule_window, TimerId, TimerId.new, Scheduler
-Semantic: pure computation that propagates errors
-
-`alacritty/src/string.rs`
-The action performed by [`StrShortener`]. [COUPLING:mixed] [BEHAVIOR:panics-on-error,propagates-errors]
-Exports: ShortenDirection, StrShortener<'_>.next, TextAction, StrShortener
+`src/cli/handlers/check_report.rs`
+Report building and scorecard display for `neti check`. [COUPLING:mixed] [BEHAVIOR:persists,panics-on-error] [QUALITY:complex-flow,error-boundary]
+Exports: build_full_detail_text, write_fix_packet, build_summary_text, print_commands_scorecard
 Touch: Contains inline Rust tests alongside runtime code.
-Semantic: side-effecting that panics on error
+Semantic: side-effecting adapter that panics on error
 
-`alacritty/src/event.rs`
-Process window events. [CORE] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,persists,panics-on-error,propagates-errors] [QUALITY:undocumented,complex-flow,error-boundary]
-Exports: ActionContext<'a, N, T>.on_terminal_input_start, ActionContext<'a, N, T>.selection_is_empty, ActionContext<'a, N, T>.write_to_pty, Processor.about_to_wait
-Semantic: side-effecting stateful adapter that panics on error
-
-`alacritty/src/panic.rs`
-Implements attach handler. [CORE] [COUPLING:pure]
-Exports: attach_handler
+`src/cli/handlers/dead.rs`
+Handler for `neti dead` — workspace-level dead code detection. [COUPLING:pure]
+Exports: handle_dead
 Semantic: pure computation
 
-`alacritty/src/renderer/platform.rs`
-The graphics platform that is used by the renderer. [UTIL] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:persists,panics-on-error,propagates-errors] [QUALITY:undocumented,error-boundary]
-Exports: pick_gl_config, create_gl_context, create_gl_display, create_gl_surface
-Semantic: side-effecting adapter that panics on error
+`src/cli/handlers/inspect.rs`
+model for inspect via file I/O. [TYPE] [COUPLING:mixed] [BEHAVIOR:persists,propagates-errors] [QUALITY:undocumented]
+Exports: DocCommentLink, InspectCapability, InspectReport, handle_inspect
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: side-effecting adapter that propagates errors
 
-`alacritty/src/renderer/rects.rs`
-Formats lines.update for output. [UTIL] [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:undocumented,error-boundary]
-Exports: RectShaderProgram, RectShaderProgram.new, RectShaderProgram.update_uniforms, RectKind
-Semantic: side-effecting stateful module that propagates errors
+`src/cli/handlers/scan_report.rs`
+Scan report display formatting. [COUPLING:pure]
+Exports: aggregate_by_law, build_summary_string, print
+Semantic: pure computation
 
-`alacritty/src/renderer/shader.rs`
-Implements shader program.drop. [UTIL] [HOTSPOT] [COUPLING:pure] [BEHAVIOR:propagates-errors] [QUALITY:undocumented]
-Exports: ShaderProgram.get_uniform_location, ShaderError, ShaderError.fmt, ShaderProgram
+`src/cli/locality.rs`
+Handler for locality scanning. [COUPLING:pure] [BEHAVIOR:propagates-errors] [QUALITY:error-boundary]
+Exports: is_locality_blocking, check_locality_silent, run_locality_check, LocalityResult
 Semantic: pure computation that propagates errors
 
-`alacritty/src/renderer/text/atlas.rs`
-Implements atlas insert error. [UTIL] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:undocumented]
-Exports: Atlas.room_in_row, AtlasInsertError, Atlas.load_glyph, Atlas.advance_row
-Semantic: side-effecting stateful module that propagates errors
-
-`alacritty/src/renderer/text/builtin_font.rs`
-Hand-rolled drawing of unicode characters that need to fully cover their character area. [UTIL] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:complex-flow]
-Exports: builtin_glyph, Pixel.add, Pixel.div
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: side-effecting stateful module that propagates errors
-
-`alacritty/src/renderer/text/gles2.rs`
-Implements renderapi<' >.render batch. [UTIL] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:undocumented]
-Exports: RenderApi<'_>.load_glyph, TextShaderProgram, TextShaderProgram.id, TextShaderProgram.new
-Semantic: side-effecting stateful module that propagates errors
-
-`alacritty/src/renderer/text/glsl3.rs`
-Implements renderapi<' >.render batch. [UTIL] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:undocumented,error-boundary]
-Exports: RenderApi<'_>.load_glyph, RenderApi<'_>.render_batch, TEXT_SHADER_F, TextShaderProgram
-Semantic: side-effecting stateful module that propagates errors
-
-`alacritty/src/renderer/text/glyph_cache.rs`
-LoadGlyph` allows for copying a rasterized glyph into graphics memory. [UTIL] [COUPLING:pure] [BEHAVIOR:propagates-errors] [QUALITY:undocumented,error-boundary]
-Exports: GlyphCache.update_font_size, GlyphCache.load_common_glyphs, GlyphCache.reset_glyph_cache, GlyphCache.font_metrics
-Semantic: pure computation that propagates errors
-
-`alacritty/src/window_context.rs`
-Terminal window context. [CORE] [COUPLING:mixed] [BEHAVIOR:persists,sync-primitives,panics-on-error,propagates-errors] [QUALITY:error-boundary]
-Exports: WindowContext.write_ref_test_results, WindowContext.add_window_config, WindowContext.reset_window_config, WindowContext.handle_event
-Semantic: synchronized side-effecting adapter that panics on error
-
-`alacritty/src/cli.rs`
-CLI options for the main Alacritty executable. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:persists,panics-on-error,propagates-errors] [QUALITY:undocumented,error-boundary]
-Exports: IpcGetConfig, ParsedOptions.override_config_rc, TerminalOptions.override_pty_config, WindowIdentity.override_identity_config
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: side-effecting adapter that panics on error
-
-`alacritty/src/config/mod.rs`
-Defines shared mod for the config subsystem. [ENTRY] [HOTSPOT] [DOMAIN-CONTRACT] [COUPLING:mixed] [BEHAVIOR:owns-state,persists,panics-on-error,propagates-errors] [QUALITY:undocumented,error-boundary]
-Exports: IMPORT_RECURSION_LIMIT, serde_utils, normalize_import, deserialize_config
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: side-effecting stateful adapter that panics on error
-
-`alacritty/src/display/mod.rs`
-The display subsystem including window management, font rasterization, and GPU drawing. [ENTRY] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error,propagates-errors] [QUALITY:undocumented,complex-flow,error-boundary]
-Exports: Display.update_highlighted_hints, Display.make_not_current, Display.process_renderer_update, DisplayUpdate.set_cursor_dirty
-Semantic: side-effecting stateful module that panics on error
-
-`alacritty/src/input/mod.rs`
-Handle input from winit. [ENTRY] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state] [QUALITY:undocumented,complex-flow]
-Exports: on_terminal_input_start, ActionContext<'_, T>.selection_is_empty, ActionContext<'_, T>.inline_search_state, Processor<T, A>.reset_mouse_cursor
+`src/constants.rs`
+Shared constants for file filtering and pattern matching. [COUPLING:mixed] [BEHAVIOR:owns-state] [QUALITY:undocumented]
+Exports: BIN_EXT_PATTERN, CODE_BARE_PATTERN, CODE_EXT_PATTERN, SKIP_DIRS
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: side-effecting stateful module
 
-`alacritty/src/macos/mod.rs`
-Implements disable autofill. [ENTRY] [COUPLING:pure]
-Exports: disable_autofill, locale, proc
+`src/corpus.rs`
+model for corpus via file I/O. [TYPE] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:persists,propagates-errors] [QUALITY:undocumented,error-boundary]
+Exports: FileBaseline, CorpusRepo, load_manifest, run_manifest
+Semantic: side-effecting adapter that propagates errors
+
+`src/exit.rs`
+Standardized process exit codes for `Neti`. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure] [QUALITY:undocumented]
+Exports: NetiExit, NetiExit.code, NetiExit.exit, NetiExit.from
 Semantic: pure computation
 
-`alacritty/src/main.rs`
-Alacritty - The GPU Enhanced Terminal. [ENTRY] [COUPLING:mixed] [BEHAVIOR:persists,panics-on-error,propagates-errors] [QUALITY:error-boundary]
-Exports: TemporaryFiles.drop
-Semantic: side-effecting adapter that panics on error
+`src/file_class.rs`
+File classification: distinguishes source code from config, assets, and data. [HOTSPOT] [COUPLING:pure]
+Exports: FileKind, FileKind.is_governed, FileKind.secrets_applicable, classify
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation
 
-`alacritty/src/migrate/mod.rs`
-Configuration file migration. [ENTRY] [COUPLING:mixed] [BEHAVIOR:persists,panics-on-error,propagates-errors] [QUALITY:complex-flow,error-boundary]
-Exports: migrate
+`src/graph/dead_code.rs`
+Workspace-level dead code detection via zero-indegree reference analysis. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:persists,panics-on-error,propagates-errors] [QUALITY:complex-flow,error-boundary]
+Exports: DeadCodeReport, DeadCodeReport.build, DeadDefinition, DeadKind
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: side-effecting adapter that panics on error
 
-`alacritty/src/polling/mod.rs`
-Unix I/O event polling. [ENTRY] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:error-boundary]
-Exports: IoListenerHandle, IoListener.drop, IoListener.spawn, IoListener
-Semantic: side-effecting stateful module that propagates errors
-
-`alacritty/src/renderer/mod.rs`
-Implements renderer.draw string. [UTIL] [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error,propagates-errors] [QUALITY:undocumented,error-boundary]
-Exports: GL_FUNS_LOADED, Renderer.was_context_reset, Renderer.set_viewport, Renderer.with_loader
-Semantic: side-effecting stateful module that panics on error
-
-`alacritty/src/renderer/text/mod.rs`
-Rendering passes, for both GLES2 and GLSL3 renderer. [UTIL] [COUPLING:pure] [QUALITY:undocumented]
-Exports: add_render_item, LoaderApi<'_>.load_glyph, TextRenderBatch, TextRenderApi
-Semantic: pure computation
-
-### alacritty_config
-
-`alacritty_config/Cargo.toml`
-Workspace configuration.
-
-`alacritty_config/src/lib.rs`
-Provides shared lib used across multiple domains. [ENTRY] [HOTSPOT] [GLOBAL-UTIL] [COUPLING:mixed] [BEHAVIOR:panics-on-error,propagates-errors] [QUALITY:undocumented,error-boundary]
-Exports: HashMap<String, T>.replace, SerdeReplace, Option<T>.replace, Vec<T>.replace
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: side-effecting that panics on error
-
-### alacritty_config_derive
-
-`alacritty_config_derive/Cargo.toml`
-Workspace configuration.
-
-`alacritty_config_derive/src/config_deserialize/de_enum.rs`
-Implements derive deserialize. [COUPLING:pure]
-Exports: derive_deserialize
-Semantic: pure computation
-
-`alacritty_config_derive/src/config_deserialize/de_struct.rs`
-Use this crate's name as log target. [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error] [QUALITY:complex-flow]
-Exports: derive_deserialize
-Semantic: side-effecting stateful module that panics on error
-
-`alacritty_config_derive/src/serde_replace.rs`
-Error if the derive was used on an unsupported type. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error,propagates-errors] [QUALITY:undocumented]
-Exports: derive_direct, derive_recursive, derive
-Semantic: side-effecting stateful module that panics on error
-
-`alacritty_config_derive/src/config_deserialize/mod.rs`
-Error if the derive was used on an unsupported type. [ENTRY] [COUPLING:mixed] [BEHAVIOR:owns-state]
-Exports: derive
-Semantic: side-effecting stateful module
-
-`alacritty_config_derive/src/lib.rs`
-Error message when attempting to flatten multiple fields. [ENTRY] [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:undocumented]
-Exports: derive_config_deserialize, derive_serde_replace, Attr.parse
-Semantic: side-effecting stateful module that propagates errors
-
-`alacritty_config_derive/tests/config.rs`
-Logger storing all messages for later validation. [COUPLING:mixed]
-Exports: TestEnum.default, Logger.enabled, Logger.flush, Logger.log
-Semantic: side-effecting
-
-### alacritty_terminal
-
-`alacritty_terminal/CHANGELOG.md`
-Release history and notable changes.
-
-`alacritty_terminal/Cargo.toml`
-Workspace configuration.
-
-`alacritty_terminal/src/event.rs`
-Implements event listener. [HOTSPOT] [COUPLING:pure] [QUALITY:undocumented]
-Exports: OnResize, WindowSize, VoidListener, send_event
-Semantic: pure computation
-
-`alacritty_terminal/src/event_loop.rs`
-The main event loop which performs I/O on the pseudoterminal. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,persists,sync-primitives,panics-on-error,propagates-errors] [QUALITY:undocumented,complex-flow,error-boundary]
-Exports: EventLoopSendError, EventLoopSendError.fmt, EventLoopSendError.source, Notifier.on_resize
-Semantic: synchronized side-effecting stateful adapter that panics on error
-
-`alacritty_terminal/src/grid/resize.rs`
-Grid resize and reflow. [HOTSPOT] [COUPLING:pure] [QUALITY:complex-flow]
-Exports: Grid<T>.resize
-Semantic: pure computation
-
-`alacritty_terminal/src/grid/row.rs`
-Defines the Row type which makes up lines in the grid. [HOTSPOT] [COUPLING:pure] [QUALITY:undocumented]
-Exports: Row<T>.front_split_off, Row<T>.from_vec, Row<T>.is_clear, &'a Row<T>.into_iter
-Semantic: pure computation
-
-`alacritty_terminal/src/grid/storage.rs`
-Implements storage<t>.index mut. [COUPLING:mixed] [BEHAVIOR:owns-state] [QUALITY:undocumented]
-Exports: Storage<T>.grow_visible_lines, Storage<T>.shrink_visible_lines, Storage<T>.replace_inner, Storage<T>.take_all
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: side-effecting stateful module
-
-`alacritty_terminal/src/index.rs`
-Line and Column newtypes for strongly typed tty/grid/terminal APIs. [HOTSPOT] [COUPLING:pure] [QUALITY:undocumented]
-Exports: Line.grid_clamp, Line.partial_cmp, Point.grid_clamp, Point<L, C>.partial_cmp
+`src/graph/defs/extract.rs`
+Implements def kind. [COUPLING:pure] [QUALITY:undocumented]
+Exports: DefKind, Definition
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: pure computation
 
-`alacritty_terminal/src/selection.rs`
-State management for a selection in the grid. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:panics-on-error] [QUALITY:undocumented,complex-flow,error-boundary]
-Exports: Selection.include_all, Selection.is_empty, SelectionRange.contains_cell, Selection.intersects_range
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: side-effecting that panics on error
+`src/graph/file_graph.rs`
+FileGraph` — graph provider backed by static import analysis. [HOTSPOT] [COUPLING:pure] [BEHAVIOR:propagates-errors] [QUALITY:undocumented]
+Exports: FileGraph.edge_count, FileGraph, FileGraph.build, FileGraph.edges
+Semantic: pure computation that propagates errors
 
-`alacritty_terminal/src/sync.rs`
-Synchronization types. [COUPLING:mixed] [BEHAVIOR:sync-primitives]
-Exports: FairMutex<T>.try_lock_unfair, FairMutex<T>.lock_unfair, FairMutex, FairMutex<T>.lease
+`src/graph/gravity.rs`
+model for gravity via file I/O. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,persists] [QUALITY:undocumented]
+Exports: GravityReport.is_accidental_hub, is_recognized_hub, compute_coupling_gravity, default_gravity_multiplier
+Semantic: side-effecting stateful adapter
+
+`src/graph/imports.rs`
+Implements extract functionality. [HOTSPOT] [COUPLING:pure]
+Exports: extract
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation
+
+`src/graph/locality/analysis/metrics.rs`
+Finds hub candidates. [COUPLING:pure] [QUALITY:undocumented]
+Exports: compute_module_coupling, GodModuleInfo, find_god_modules, find_hub_candidates
+Semantic: pure computation
+
+`src/graph/locality/analysis/violations.rs`
+Categories of locality violations. [HOTSPOT] [COUPLING:pure] [QUALITY:undocumented]
+Exports: CategorizedViolation, ViolationKind, ViolationKind.description, ViolationKind.label
+Semantic: pure computation
+
+`src/graph/locality/classifier.rs`
+Node classification based on coupling metrics. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure]
+Exports: ClassifierConfig, ClassifierConfig.default, classify
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation
+
+`src/graph/locality/coupling.rs`
+Afferent and Efferent coupling computation. [COUPLING:pure]
+Exports: compute_coupling
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation
+
+`src/graph/locality/cycles.rs`
+Cycle detection for the Law of Locality. [COUPLING:pure]
+Exports: detect_cycles_generic, detect_cycles
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation
+
+`src/graph/locality/distance.rs`
+Dependency Distance calculator via Lowest Common Ancestor (LCA). [COUPLING:pure]
+Exports: compute_distance, find_lca
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation
+
+`src/graph/locality/edges.rs`
+Edge collection for locality analysis. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:mixed] [BEHAVIOR:persists,propagates-errors]
+Exports: normalize_path, collect
+Semantic: side-effecting adapter that propagates errors
+
+`src/graph/locality/exemptions.rs`
+Smart structural exemptions for Rust module patterns. [COUPLING:pure] [BEHAVIOR:propagates-errors]
+Exports: is_structural_pattern
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation that propagates errors
+
+`src/graph/locality/layers.rs`
+Layer inference for the Law of Locality. [HOTSPOT] [COUPLING:pure]
+Exports: check_layer_violation, infer_layers
+Semantic: pure computation
+
+`src/graph/locality/report.rs`
+Rich output formatting for locality analysis. [COUPLING:pure]
+Exports: print_full_report
+Semantic: pure computation
+
+`src/graph/locality/types.rs`
+Core types for the Law of Locality enforcement system. [TYPE] [COUPLING:pure] [QUALITY:undocumented]
+Exports: LocalityEdge.routes_to_hub, NodeIdentity.allows_far_deps, LocalityEdge.is_local, PassReason
+Semantic: pure computation
+
+`src/graph/locality/validator.rs`
+The Universal Locality Algorithm - Judgment Pass. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure] [QUALITY:undocumented]
+Exports: validate_from_provider, ValidationReport.check_cohesion, ValidationReport.is_clean, ValidationReport.total_edges
+Semantic: pure computation
+
+`src/graph/provider.rs`
+GraphProvider` trait — pluggable graph topology for locality analysis. [COUPLING:pure]
+Exports: GraphProvider, edge_count
+Semantic: pure computation
+
+`src/graph/resolver.rs`
+Implements resolve functionality. [COUPLING:mixed] [BEHAVIOR:persists,propagates-errors] [QUALITY:error-boundary]
+Exports: resolve
+Semantic: side-effecting adapter that propagates errors
+
+`src/project.rs`
+Detects project type from current directory. [HOTSPOT] [COUPLING:pure] [QUALITY:undocumented]
+Exports: ProjectType.detect_in, ProjectType.is_typescript, generate_toml, npx_cmd
+Semantic: pure computation
+
+`src/reporting.rs`
+Console output formatting for scan results. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure] [BEHAVIOR:propagates-errors]
+Exports: build_rich_report, format_report_string, print_json, print_report
+Semantic: pure computation that propagates errors
+
+`src/reporting/console.rs`
+Prints a formatted scan report to stdout with severity tiers and deduplication. [COUPLING:mixed] [BEHAVIOR:persists] [QUALITY:complex-flow]
+Exports: print_report
+Semantic: side-effecting adapter
+
+`src/reporting/coverage.rs`
+Per-language reporting for the retained Neti core checks. [COUPLING:pure]
+Exports: append_coverage_report, print_coverage_scorecard, LangCoverageEntry, lang_name
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation
+
+`src/reporting/guidance.rs`
+Static educational guidance for retained rule codes. [COUPLING:pure]
+Semantic: pure computation
+
+`src/reporting/rich.rs`
+utility for rich via file I/O. [COUPLING:mixed] [BEHAVIOR:persists,propagates-errors] [QUALITY:error-boundary]
+Exports: build_rich_report, format_report_string
+Semantic: side-effecting adapter that propagates errors
+
+`src/reporting/shared.rs`
+Implements shared functionality. [COUPLING:pure]
+Semantic: pure computation
+
+`src/reporting/summary.rs`
+Punch-list report builder. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:persists,panics-on-error,propagates-errors] [QUALITY:complex-flow,error-boundary]
+Exports: build_console_punch_list, build_summary_report
+Semantic: side-effecting adapter that panics on error
+
+`src/spinner/client.rs`
+Client for sending updates to the spinner. [COUPLING:pure] [QUALITY:undocumented]
+Exports: SpinnerClient.set_macro_step, SpinnerClient.step_micro_progress, SpinnerClient.set_micro_status, SpinnerClient.push_log
+Semantic: pure computation
+
+`src/spinner/controller.rs`
+Lifecycle controller for the spinner thread. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure]
+Exports: SpinnerController, SpinnerController.new, SpinnerController.stop
+Semantic: pure computation
+
+`src/spinner/handle.rs`
+Thread management for the spinner. [COUPLING:pure]
+Exports: SpinnerHandle, SpinnerHandle.spawn, SpinnerHandle.stop
+Semantic: pure computation
+
+`src/spinner/safe_hud.rs`
+Thread-safe wrapper for HUD state. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:sync-primitives] [QUALITY:undocumented]
+Exports: SafeHud.completion_info, SafeHud, SafeHud.modify, SafeHud.new
 Semantic: synchronized side-effecting
 
-`alacritty_terminal/src/term/cell.rs`
-Counter for hyperlinks without explicit ID. [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:undocumented]
-Exports: Cell.set_underline_color, Cell.clear_wide, Cell.is_empty, Cell.push_zerowidth
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: side-effecting stateful module that propagates errors
-
-`alacritty_terminal/src/term/color.rs`
-Implements colors.index mut. [COUPLING:mixed] [BEHAVIOR:owns-state] [QUALITY:undocumented]
-Exports: Colors.index_mut, COUNT, Colors, Colors.default
+`src/spinner/state.rs`
+HUD state management. [COUPLING:mixed] [BEHAVIOR:owns-state] [QUALITY:undocumented]
+Exports: HudState.step_micro_progress, HudState.set_macro_step, HudState.set_micro_status, ATOMIC_LINES
 Semantic: side-effecting stateful module
 
-`alacritty_terminal/src/thread.rs`
-Like `thread::spawn`, but with a `name` argument. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:panics-on-error]
-Exports: spawn_named
-Semantic: side-effecting that panics on error
+`src/tokens.rs`
+Counts the approximate number of tokens in the given text. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure]
+Exports: Tokenizer.exceeds_limit, Tokenizer, Tokenizer.count
+Semantic: pure computation
 
-`alacritty_terminal/src/tty/unix.rs`
-TTY related functionality. [COUPLING:mixed] [BEHAVIOR:owns-state,persists,sync-primitives,panics-on-error,propagates-errors] [QUALITY:undocumented,error-boundary]
-Exports: Pty.next_child_event, Pty.on_resize, from_fd, ToWinsize
+`src/types/command.rs`
+Result of an external command execution. [TYPE] [HOTSPOT] [DOMAIN-CONTRACT] [COUPLING:pure]
+Exports: CommandResult.error_count, CommandResult.warning_count, CommandResult, CommandResult.new
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: pure computation
+
+`src/types/locality.rs`
+Types for locality (Law of Locality) reporting. [TYPE]
+Exports: LocalityReport, LocalityViolation
+
+`src/verification/runner.rs`
+Command execution and output capture. [COUPLING:mixed] [BEHAVIOR:persists,panics-on-error]
+Exports: run_commands
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: side-effecting adapter that panics on error
+
+## Layer 2 -- Adapters / Infra
+
+`src/discovery.rs`
+utility for discovery via file I/O. [UTIL] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,persists,sync-primitives,panics-on-error] [QUALITY:error-boundary]
+Exports: group_by_directory, discover
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: synchronized side-effecting stateful adapter that panics on error
 
-`alacritty_terminal/src/tty/windows/blocking.rs`
-Code for running a reader/writer on another thread while driving it through `polling`. [COUPLING:mixed] [BEHAVIOR:sync-primitives,panics-on-error] [QUALITY:undocumented,error-boundary]
-Exports: ThreadWaker.wake_by_ref, Registration.wake_by_ref, ThreadWaker.wake, UnblockedReader<R>.try_read
-Semantic: synchronized side-effecting that panics on error
-
-`alacritty_terminal/src/tty/windows/child.rs`
-WinAPI callback to run when child process exits. [COUPLING:mixed] [BEHAVIOR:sync-primitives,panics-on-error] [QUALITY:undocumented,error-boundary]
-Exports: event_is_emitted_when_child_exits, ChildExitWatcher.event_rx, ChildExitWatcher.raw_handle, ChildExitWatcher
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: synchronized side-effecting that panics on error
-
-`alacritty_terminal/src/vi_mode.rs`
-Possible vi mode motion movements. [HOTSPOT] [COUPLING:pure] [QUALITY:complex-flow]
-Exports: ViModeCursor, ViModeCursor.motion, ViModeCursor.new, ViModeCursor.scroll
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: pure computation
-
-`alacritty_terminal/src/term/search.rs`
-Implements regex iter<'a, t>.new. [UTIL] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error,propagates-errors] [QUALITY:complex-flow,error-boundary]
-Exports: Term<T>.inline_search_left, Term<T>.inline_search_right, Term<T>.line_search_left, Term<T>.line_search_right
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: side-effecting stateful module that panics on error
-
-`alacritty_terminal/src/tty/windows/conpty.rs`
-Implements conpty.on resize. [CORE] [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:undocumented,error-boundary]
-Exports: Conpty.on_resize, COORD.from, Conpty, Conpty.drop
+`src/spinner/render.rs`
+HUD rendering logic. [UTIL] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:owns-state,propagates-errors] [QUALITY:undocumented]
+Exports: run_hud_loop, str.blue, str.bold, str.cyan
 Semantic: side-effecting stateful module that propagates errors
 
-`alacritty_terminal/src/grid/mod.rs`
-A specialized 2D grid implementation optimized for use in a terminal. [ENTRY] [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure] [QUALITY:undocumented,complex-flow]
-Exports: Grid<T>.initialize_all, Grid<T>.iter_from, GridIterator<'_, T>.prev, GridIterator<'a, T>.size_hint
+## Layer 3 -- App / Entrypoints
+
+`src/analysis/mod.rs`
+Core analysis logic exposed to the CLI. [ENTRY] [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure] [QUALITY:undocumented]
+Exports: run_analysis_with_progress, AnalysisReport.into_scan_report, AnalysisReport.has_any_findings, AnalysisReport.has_blocking_errors
+Semantic: pure computation
+
+`src/analysis/patterns/mod.rs`
+Retained semantic and paranoia checks. [ENTRY] [COUPLING:pure]
+Exports: detect_all, semantic
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: pure computation
 
-`alacritty_terminal/src/lib.rs`
-Alacritty - The GPU Enhanced Terminal. [ENTRY] [HOTSPOT]
-Exports: vi_mode, event_loop, index, selection
-
-`alacritty_terminal/src/term/mod.rs`
-Exports the `Term` type which is a high-level API for the Grid. [CORE] [COUPLING:mixed] [BEHAVIOR:owns-state,panics-on-error,propagates-errors] [QUALITY:undocumented,complex-flow,error-boundary]
-Exports: Term<T>.text_area_size_pixels, Term<T>.text_area_size_chars, Term<T>.move_down_and_cr, Term<T>.move_up_and_cr
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: side-effecting stateful module that panics on error
-
-`alacritty_terminal/src/tty/mod.rs`
-TTY related functionality. [ENTRY] [COUPLING:pure]
-Exports: EventedReadWrite, ChildEvent, setup_env, EventedPty
+`src/bin/corpus-harness.rs`
+Implements corpus-harness functionality. [COUPLING:pure]
 Semantic: pure computation
 
-`alacritty_terminal/src/tty/windows/mod.rs`
-Implements pty child event token. [CORE] [COUPLING:mixed] [BEHAVIOR:owns-state] [QUALITY:undocumented]
-Exports: PTY_READ_WRITE_TOKEN, PTY_CHILD_EVENT_TOKEN, Pty.next_child_event, Pty.child_watcher
-Touch: Contains inline Rust tests alongside runtime code.
-Semantic: side-effecting stateful module
-
-`alacritty_terminal/src/grid/tests.rs`
-Tests for the Grid. [HOTSPOT] [COUPLING:pure] [QUALITY:undocumented]
-Exports: usize.is_empty, usize.flags_mut, usize.reset, usize.flags
+`src/bin/neti.rs`
+Implements neti functionality. [COUPLING:pure]
 Semantic: pure computation
 
-`alacritty_terminal/tests/ref.rs`
-config for ref via file I/O. [COUPLING:mixed]
-Exports: Mock.send_event
+`src/cli/args.rs`
+Implements Cli functionality. [COUPLING:mixed] [BEHAVIOR:panics-on-error] [QUALITY:error-boundary]
+Exports: Cli, Commands
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: side-effecting that panics on error
+
+`src/cli/handlers/mod.rs`
+Core analysis command handlers. [ENTRY] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:persists,panics-on-error,propagates-errors] [QUALITY:error-boundary]
+Exports: get_repo_root, scan_report, handle_baseline, handle_check
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: side-effecting adapter that panics on error
+
+`src/cli/mod.rs`
+CLI command handlers. [ENTRY] [HOTSPOT] [GLOBAL-UTIL]
+Exports: args, dispatch, handlers, locality
+
+`src/config/mod.rs`
+Provides shared mod used across multiple domains. [ENTRY] [HOTSPOT] [GLOBAL-UTIL] [COUPLING:mixed] [BEHAVIOR:persists] [QUALITY:undocumented]
+Exports: Config.process_ignore_line, save_to_file, Config.load_local_config, Config.parse_toml
+Semantic: side-effecting adapter
+
+`src/graph/defs/mod.rs`
+Extracts symbol definitions from source files via omni_ast primitives. [ENTRY]
+
+`src/graph/locality/analysis/mod.rs`
+Deep topology analysis: categorize violations, find patterns, suggest fixes. [ENTRY] [HOTSPOT] [COUPLING:pure]
+Exports: TopologyAnalysis, analyze, metrics, violations
+Semantic: pure computation
+
+`src/graph/locality/mod.rs`
+Law of Locality enforcement for topological integrity. [ENTRY] [HOTSPOT] [GLOBAL-UTIL]
+Exports: is_structural_pattern, normalize_path, collect_edges, compute_coupling
+Touch: Contains inline Rust tests alongside runtime code.
+
+`src/graph/mod.rs`
+Re-exports the public API surface. [ENTRY] [HOTSPOT] [GLOBAL-UTIL]
+Exports: DeadCodeReport, dead_code, FileGraph, GraphProvider
+
+`src/lib.rs`
+Re-exports the public API surface. [ENTRY]
+Exports: file_class, omni_ast, analysis, baseline
+
+`src/main.rs`
+Placeholder file. [ENTRY]
+
+`src/spinner/mod.rs`
+Triptych HUD (Head-Up Display) for process execution feedback. [ENTRY] [COUPLING:pure]
+Exports: safe_hud, SpinnerClient, SpinnerController, render
+Semantic: pure computation
+
+`src/types/mod.rs`
+Severity tier for a violation — determines gate behavior. [TYPE] [HOTSPOT] [GLOBAL-UTIL] [COUPLING:mixed] [BEHAVIOR:panics-on-error] [QUALITY:undocumented]
+Exports: ScanReport.has_blocking_errors, ScanReport.clean_file_count, CommandResult, FileReport.is_clean
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: side-effecting that panics on error
+
+`src/verification/mod.rs`
+External command verification pipeline. [ENTRY] [COUPLING:pure]
+Exports: CommandResult, VerificationReport, VerificationReport.failed_count, VerificationReport.new
+Semantic: pure computation
+
+## Layer 4 -- Tests
+
+`src/analysis/checks/syntax_test.rs`
+Tests for crate. [COUPLING:pure]
+Semantic: pure computation
+
+`src/analysis/checks/test_scope.rs`
+Utilities for detecting `#[cfg(test)]` module boundaries in Rust source. [COUPLING:pure]
+Exports: is_in_test_block, cfg_test_ranges
+Semantic: pure computation
+
+`src/cli/handlers/inspect_tests.rs`
+Tests for omni_ast. [COUPLING:mixed] [BEHAVIOR:persists,panics-on-error] [QUALITY:error-boundary]
+Semantic: side-effecting adapter that panics on error
+
+`src/graph/locality/tests.rs`
+Integration tests for locality analysis — part 1. [COUPLING:pure]
+Exports: MemGraph.edges, MemGraph.name
+Semantic: pure computation
+
+`src/graph/locality/tests/part2.rs`
+Integration tests for locality analysis — part 2. [COUPLING:pure]
+Semantic: pure computation
+
+`tests/check_cross_language_test.rs`
+Integration tests for the retained cross-language Neti surface. [COUPLING:mixed]
 Semantic: side-effecting
 
-`alacritty_terminal/tests/ref/alt_reset/config.json`
-Implements config functionality. data.
+`tests/check_json_test.rs`
+Integration test: `neti check --json` must emit valid JSON to stdout. [COUPLING:mixed]
+Semantic: side-effecting
 
-`alacritty_terminal/tests/ref/alt_reset/grid.json`
-Implements grid functionality. data.
+`tests/check_locality_test.rs`
+Integration test: locality integration in `neti check` pipeline. [COUPLING:mixed]
+Semantic: side-effecting
 
-`alacritty_terminal/tests/ref/alt_reset/size.json`
-Implements size functionality. data.
+`tests/command_parsing_test.rs`
+Integration test: command parsing with shell-words. [COUPLING:mixed]
+Semantic: side-effecting
 
-`alacritty_terminal/tests/ref/clear_underline/config.json`
-Implements config functionality. data.
+`tests/corpus/README.md`
+Project overview and usage guide.
 
-`alacritty_terminal/tests/ref/clear_underline/grid.json`
-Implements grid functionality. data.
+`tests/corpus/badge_expectations.toml`
+Support file for the corpus subsystem.
 
-`alacritty_terminal/tests/ref/clear_underline/size.json`
-Implements size functionality. data.
+`tests/corpus/baselines-summary.md`
+Support file for the corpus subsystem.
 
-`alacritty_terminal/tests/ref/colored_reset/config.json`
-Implements config functionality. data.
+`tests/corpus/repos.toml`
+Support file for the corpus subsystem.
 
-`alacritty_terminal/tests/ref/colored_reset/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/colored_reset/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/colored_underline/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/colored_underline/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/colored_underline/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/csi_rep/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/csi_rep/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/csi_rep/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/decaln_reset/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/decaln_reset/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/decaln_reset/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/deccolm_reset/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/deccolm_reset/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/deccolm_reset/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/delete_chars_reset/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/delete_chars_reset/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/delete_chars_reset/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/delete_lines/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/delete_lines/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/delete_lines/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/erase_chars_reset/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/erase_chars_reset/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/erase_chars_reset/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/erase_in_line/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/erase_in_line/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/erase_in_line/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/fish_cc/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/fish_cc/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/fish_cc/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/grid_reset/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/grid_reset/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/grid_reset/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/history/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/history/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/history/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/hyperlinks/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/hyperlinks/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/hyperlinks/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/indexed_256_colors/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/indexed_256_colors/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/indexed_256_colors/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/insert_blank_reset/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/insert_blank_reset/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/insert_blank_reset/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/issue_855/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/issue_855/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/issue_855/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/ll/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/ll/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/ll/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/newline_with_cursor_beyond_scroll_region/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/newline_with_cursor_beyond_scroll_region/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/newline_with_cursor_beyond_scroll_region/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/origin_goto/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/origin_goto/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/origin_goto/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/region_scroll_down/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/region_scroll_down/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/region_scroll_down/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/row_reset/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/row_reset/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/row_reset/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/saved_cursor/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/saved_cursor/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/saved_cursor/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/saved_cursor_alt/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/saved_cursor_alt/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/saved_cursor_alt/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/scroll_in_region_up_preserves_history/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/scroll_in_region_up_preserves_history/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/scroll_in_region_up_preserves_history/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/scroll_up_reset/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/scroll_up_reset/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/scroll_up_reset/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/selective_erasure/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/selective_erasure/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/selective_erasure/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/sgr/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/sgr/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/sgr/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/tab_rendering/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/tab_rendering/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/tab_rendering/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/tmux_git_log/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/tmux_git_log/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/tmux_git_log/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/tmux_htop/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/tmux_htop/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/tmux_htop/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/underline/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/underline/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/underline/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/vim_24bitcolors_bce/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/vim_24bitcolors_bce/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/vim_24bitcolors_bce/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/vim_large_window_scroll/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/vim_large_window_scroll/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/vim_large_window_scroll/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/vim_simple_edit/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/vim_simple_edit/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/vim_simple_edit/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_cursor_movement_1/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_cursor_movement_1/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_cursor_movement_1/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_insert/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_insert/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_insert/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_origin_mode_1/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_origin_mode_1/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_origin_mode_1/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_origin_mode_2/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_origin_mode_2/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_origin_mode_2/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_scroll/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_scroll/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_scroll/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_tab_clear_set/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_tab_clear_set/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/vttest_tab_clear_set/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/wrapline_alt_toggle/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/wrapline_alt_toggle/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/wrapline_alt_toggle/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/zerowidth/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/zerowidth/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/zerowidth/size.json`
-Implements size functionality. data.
-
-`alacritty_terminal/tests/ref/zsh_tab_completion/config.json`
-Implements config functionality. data.
-
-`alacritty_terminal/tests/ref/zsh_tab_completion/grid.json`
-Implements grid functionality. data.
-
-`alacritty_terminal/tests/ref/zsh_tab_completion/size.json`
-Implements size functionality. data.
+`tests/corpus_harness_test.rs`
+Tests for neti_core. [COUPLING:mixed]
+Semantic: side-effecting
 
 
 ## DependencyGraph
 
 ```yaml
 DependencyGraph:
-  # --- Layer 0 -- Config ---
-  CHANGELOG.md, CONTRIBUTING.md, Cargo.toml, INSTALL.md, README.md, SEMMAP.md, neti.toml, rustfmt.toml, scripts/README.md:
-    Imports: []
+  # --- Entrypoints ---
+  corpus-harness.rs:
+    Imports: [corpus.rs, exit.rs]
     ImportedBy: []
-  # --- Subproject -- alacritty ---
-  alacritty/CHANGELOG.md, alacritty/Cargo.toml, alacritty/README.md:
-    Imports: []
+  lib.rs:
+    Imports: [baseline.rs, cli/mod.rs, config/mod.rs, constants.rs, corpus.rs, discovery.rs, exit.rs, file_class.rs, graph/mod.rs, project.rs, reporting.rs, spinner/mod.rs, src/analysis/mod.rs, tokens.rs, types/mod.rs, verification/mod.rs]
     ImportedBy: []
-  alacritty/src/event.rs:
-    Imports: [alacritty_config/src/lib.rs, alacritty_terminal/src/event.rs, builtin_font.rs, cli.rs, clipboard.rs, config/bell.rs, content.rs, daemon.rs, damage.rs, display/bell.rs, display/mod.rs, font.rs, gles2.rs, grid/mod.rs, index.rs, input/mod.rs, keyboard.rs, message_bar.rs, monitor.rs, scheduler.rs, search.rs, src/selection.rs, terminal.rs, ui_config.rs, vi_mode.rs, window_context.rs]
-    ImportedBy: [input/mod.rs, keyboard.rs, main.rs]
-  atlas.rs:
-    Imports: [monitor.rs]
-    ImportedBy: [gles2.rs, glsl3.rs, glyph_cache.rs, text/mod.rs]
-  bindings.rs:
-    Imports: [config/bell.rs, event_loop.rs, message_bar.rs, monitor.rs, mouse.rs]
-    ImportedBy: [alacritty_config/src/lib.rs, config/color.rs, config/mod.rs, config/window.rs, display/color.rs, input/mod.rs, keyboard.rs, mouse.rs, scrolling.rs, terminal.rs, ui_config.rs]
-  build.rs:
-    Imports: [config/cursor.rs, monitor.rs]
-    ImportedBy: []
-  builtin_font.rs:
-    Imports: [config/bell.rs, config/cursor.rs, content.rs, monitor.rs]
-    ImportedBy: [alacritty/src/event.rs, glyph_cache.rs, hint.rs, index.rs, input/mod.rs, polling/mod.rs, search.rs, storage.rs, text/mod.rs, vi_mode.rs]
-  cli.rs:
-    Imports: [alacritty_config/src/lib.rs, alacritty_config_derive/src/lib.rs, config/bell.rs, config/cursor.rs, message_bar.rs, monitor.rs]
-    ImportedBy: [alacritty/src/event.rs, ipc.rs, main.rs, window_context.rs]
-  clipboard.rs:
-    Imports: [config/bell.rs, monitor.rs]
-    ImportedBy: [alacritty/src/event.rs, child.rs, input/mod.rs, main.rs]
-  config/bell.rs:
-    Imports: [monitor.rs]
-    ImportedBy: [alacritty/src/event.rs, alacritty_config_derive/src/lib.rs, bindings.rs, builtin_font.rs, cell.rs, cli.rs, clipboard.rs, config.rs, config/color.rs, config/cursor.rs, config/mod.rs, config/selection.rs, config/window.rs, content.rs, damage.rs, de_struct.rs, debug.rs, display/bell.rs, display/color.rs, display/cursor.rs, display/mod.rs, display/window.rs, event_loop.rs, font.rs, general.rs, glyph_cache.rs, grid/mod.rs, hint.rs, input/mod.rs, ipc.rs, message_bar.rs, monitor.rs, mouse.rs, rects.rs, ref.rs, renderer/mod.rs, resize.rs, row.rs, scrolling.rs, search.rs, serde_replace.rs, src/selection.rs, term/mod.rs, tests.rs, ui_config.rs, vi_mode.rs, window_context.rs, windows/mod.rs]
-  config/color.rs:
-    Imports: [bindings.rs, config/bell.rs, monitor.rs]
-    ImportedBy: [config/mod.rs, display/mod.rs]
-  config/cursor.rs:
-    Imports: [config/bell.rs, monitor.rs]
-    ImportedBy: [blocking.rs, build.rs, builtin_font.rs, child.rs, cli.rs, config.rs, config/mod.rs, config/window.rs, content.rs, daemon.rs, de_enum.rs, display/bell.rs, display/mod.rs, display/window.rs, glyph_cache.rs, hint.rs, input/mod.rs, ipc.rs, keyboard.rs, main.rs, message_bar.rs, meter.rs, platform.rs, proc.rs, renderer/mod.rs, serde_utils.rs, shader.rs, term/mod.rs, tty/mod.rs, ui_config.rs, unix.rs]
-  config/mod.rs:
-    Imports: [bindings.rs, config/bell.rs, config/color.rs, config/cursor.rs, config/selection.rs, config/window.rs, debug.rs, event_loop.rs, font.rs, general.rs, message_bar.rs, monitor.rs, mouse.rs, scrolling.rs, serde_utils.rs, terminal.rs, ui_config.rs]
-    ImportedBy: [main.rs, migrate/mod.rs, yaml.rs]
-  config/selection.rs, debug.rs, general.rs:
-    Imports: [config/bell.rs]
-    ImportedBy: [config/mod.rs]
-  config/window.rs:
-    Imports: [bindings.rs, config/bell.rs, config/cursor.rs, monitor.rs]
-    ImportedBy: [config/mod.rs, display/window.rs, keyboard.rs, window_context.rs]
-  content.rs:
-    Imports: [alacritty_config/src/lib.rs, config/bell.rs, config/cursor.rs, hint.rs, message_bar.rs, monitor.rs, src/selection.rs]
-    ImportedBy: [alacritty/src/event.rs, builtin_font.rs, damage.rs, display/mod.rs, hint.rs, keyboard.rs, platform.rs, search.rs, string.rs, tests.rs, unix.rs]
-  daemon.rs:
-    Imports: [config/cursor.rs, monitor.rs, polling/mod.rs]
-    ImportedBy: [alacritty/src/event.rs, input/mod.rs, main.rs]
-  damage.rs:
-    Imports: [config/bell.rs, content.rs, monitor.rs, resize.rs, row.rs, tests.rs]
-    ImportedBy: [alacritty/src/event.rs, display/mod.rs, term/mod.rs]
-  display/bell.rs:
-    Imports: [config/bell.rs, config/cursor.rs]
-    ImportedBy: [alacritty/src/event.rs, display/mod.rs, window_context.rs]
-  display/color.rs:
-    Imports: [alacritty_terminal/src/lib.rs, bindings.rs, config/bell.rs, monitor.rs]
-    ImportedBy: [display/mod.rs, rects.rs]
-  display/cursor.rs:
-    Imports: [config/bell.rs, monitor.rs]
-    ImportedBy: [display/mod.rs, rects.rs]
-  display/mod.rs:
-    Imports: [config/bell.rs, config/color.rs, config/cursor.rs, content.rs, damage.rs, display/bell.rs, display/color.rs, display/cursor.rs, display/window.rs, event_loop.rs, font.rs, gles2.rs, glyph_cache.rs, hint.rs, message_bar.rs, meter.rs, monitor.rs, platform.rs, renderer/mod.rs, resize.rs, row.rs]
-    ImportedBy: [alacritty/src/event.rs, main.rs, window_context.rs]
-  display/window.rs:
-    Imports: [config/bell.rs, config/cursor.rs, config/window.rs, event_loop.rs, gles2.rs, message_bar.rs, monitor.rs]
-    ImportedBy: [display/mod.rs, input/mod.rs, window_context.rs]
-  font.rs:
-    Imports: [config/bell.rs, monitor.rs]
-    ImportedBy: [alacritty/src/event.rs, config/mod.rs, display/mod.rs, window_context.rs]
-  gles2.rs:
-    Imports: [atlas.rs, glsl3.rs, message_bar.rs, monitor.rs, shader.rs]
-    ImportedBy: [alacritty/src/event.rs, cell.rs, display/mod.rs, display/window.rs, glsl3.rs, input/mod.rs, keyboard.rs, rects.rs, shader.rs, text/mod.rs, unix.rs, window_context.rs]
-  glsl3.rs:
-    Imports: [atlas.rs, gles2.rs, message_bar.rs, monitor.rs, shader.rs]
-    ImportedBy: [gles2.rs, text/mod.rs]
-  glyph_cache.rs:
-    Imports: [atlas.rs, builtin_font.rs, config/bell.rs, config/cursor.rs, monitor.rs]
-    ImportedBy: [display/mod.rs, text/mod.rs]
-  hint.rs:
-    Imports: [builtin_font.rs, config/bell.rs, config/cursor.rs, content.rs, grid/mod.rs, message_bar.rs, monitor.rs, resize.rs, search.rs]
-    ImportedBy: [content.rs, display/mod.rs, input/mod.rs, ui_config.rs]
-  input/mod.rs:
-    Imports: [alacritty/src/event.rs, alacritty_terminal/src/lib.rs, bindings.rs, builtin_font.rs, clipboard.rs, config/bell.rs, config/cursor.rs, daemon.rs, display/window.rs, gles2.rs, hint.rs, keyboard.rs, message_bar.rs, monitor.rs, src/selection.rs, vi_mode.rs]
-    ImportedBy: [alacritty/src/event.rs, keyboard.rs, main.rs]
-  ipc.rs:
-    Imports: [alacritty_terminal/src/event.rs, cli.rs, config/bell.rs, config/cursor.rs, logging.rs, monitor.rs]
-    ImportedBy: [main.rs, polling/mod.rs]
-  keyboard.rs:
-    Imports: [alacritty/src/event.rs, bindings.rs, config/cursor.rs, config/window.rs, content.rs, gles2.rs, input/mod.rs, message_bar.rs, monitor.rs]
-    ImportedBy: [alacritty/src/event.rs, input/mod.rs]
-  locale.rs:
-    Imports: [monitor.rs]
-    ImportedBy: [macos/mod.rs, main.rs]
-  logging.rs:
-    Imports: [alacritty_terminal/src/event.rs, config.rs, message_bar.rs, monitor.rs]
-    ImportedBy: [event_loop.rs, ipc.rs, main.rs, migrate/mod.rs, row.rs]
-  macos/mod.rs:
-    Imports: [locale.rs, proc.rs]
-    ImportedBy: [main.rs]
   main.rs:
-    Imports: [alacritty/src/event.rs, cli.rs, clipboard.rs, config/cursor.rs, config/mod.rs, daemon.rs, display/mod.rs, input/mod.rs, ipc.rs, locale.rs, logging.rs, macos/mod.rs, message_bar.rs, migrate/mod.rs, monitor.rs, panic.rs, polling/mod.rs, renderer/mod.rs, scheduler.rs, string.rs, tty/mod.rs, window_context.rs]
+    Imports: []
     ImportedBy: []
-  message_bar.rs:
-    Imports: [config/bell.rs, config/cursor.rs, monitor.rs]
-    ImportedBy: [alacritty/src/event.rs, bindings.rs, blocking.rs, cell.rs, cli.rs, config/mod.rs, conpty.rs, content.rs, de_struct.rs, display/mod.rs, display/window.rs, event_loop.rs, gles2.rs, glsl3.rs, grid/mod.rs, hint.rs, input/mod.rs, keyboard.rs, logging.rs, main.rs, migrate/mod.rs, monitor.rs, rects.rs, renderer/mod.rs, row.rs, scheduler.rs, serde_replace.rs, src/selection.rs, string.rs, term/mod.rs, text/mod.rs, window_context.rs, windows/mod.rs]
-  meter.rs:
-    Imports: [config/cursor.rs, monitor.rs]
-    ImportedBy: [display/mod.rs]
-  migrate/mod.rs:
-    Imports: [alacritty_config/src/lib.rs, config/mod.rs, logging.rs, message_bar.rs, row.rs, yaml.rs]
-    ImportedBy: [main.rs]
-  monitor.rs:
-    Imports: [alacritty_terminal/src/event.rs, config/bell.rs, message_bar.rs, row.rs, thread.rs]
-    ImportedBy: [alacritty/src/event.rs, atlas.rs, bindings.rs, blocking.rs, build.rs, builtin_font.rs, cell.rs, child.rs, cli.rs, clipboard.rs, config.rs, config/bell.rs, config/color.rs, config/cursor.rs, config/mod.rs, config/window.rs, config_deserialize/mod.rs, conpty.rs, content.rs, daemon.rs, damage.rs, de_enum.rs, de_struct.rs, display/color.rs, display/cursor.rs, display/mod.rs, display/window.rs, event_loop.rs, font.rs, gles2.rs, glsl3.rs, glyph_cache.rs, grid/mod.rs, hint.rs, index.rs, input/mod.rs, ipc.rs, keyboard.rs, locale.rs, logging.rs, main.rs, message_bar.rs, meter.rs, panic.rs, platform.rs, polling/mod.rs, rects.rs, ref.rs, renderer/mod.rs, resize.rs, scheduler.rs, search.rs, serde_replace.rs, serde_utils.rs, shader.rs, signal.rs, src/selection.rs, storage.rs, sync.rs, term/mod.rs, tests.rs, thread.rs, ui_config.rs, unix.rs, vi_mode.rs, window_context.rs, windows/mod.rs, yaml.rs]
-  mouse.rs:
-    Imports: [bindings.rs, config/bell.rs]
-    ImportedBy: [bindings.rs, config/mod.rs]
-  panic.rs:
-    Imports: [monitor.rs]
-    ImportedBy: [main.rs]
-  platform.rs:
-    Imports: [config/cursor.rs, content.rs, monitor.rs]
-    ImportedBy: [display/mod.rs, renderer/mod.rs, window_context.rs]
-  polling/mod.rs:
-    Imports: [builtin_font.rs, ipc.rs, monitor.rs, signal.rs, thread.rs]
-    ImportedBy: [child.rs, daemon.rs, main.rs, thread.rs, unix.rs, window_context.rs]
-  proc.rs:
-    Imports: [config/cursor.rs, event_loop.rs]
-    ImportedBy: [macos/mod.rs]
-  rects.rs:
-    Imports: [config/bell.rs, display/color.rs, display/cursor.rs, gles2.rs, message_bar.rs, monitor.rs, shader.rs]
-    ImportedBy: [renderer/mod.rs]
-  renderer/mod.rs:
-    Imports: [config/bell.rs, config/cursor.rs, event_loop.rs, message_bar.rs, monitor.rs, platform.rs, rects.rs, resize.rs, shader.rs, text/mod.rs]
-    ImportedBy: [display/mod.rs, main.rs]
-  scheduler.rs:
-    Imports: [alacritty_terminal/src/event.rs, message_bar.rs, monitor.rs]
-    ImportedBy: [alacritty/src/event.rs, main.rs]
-  scrolling.rs:
-    Imports: [bindings.rs, config/bell.rs]
+  neti.rs:
+    Imports: [cli/mod.rs, dispatch.rs, exit.rs]
+    ImportedBy: []
+  # --- High Fan-In Hotspots ---
+  classifier.rs:
+    Imports: [config/locality.rs, controller.rs, types/mod.rs]
+    ImportedBy: [file_class.rs, locality/mod.rs, validator.rs, worker.rs]
+  cli/mod.rs:
+    Imports: [args.rs, cli/locality.rs, dispatch.rs, handlers/mod.rs]
+    ImportedBy: [check_cross_language_test.rs, check_json_test.rs, check_locality_test.rs, command_parsing_test.rs, corpus.rs, corpus_harness_test.rs, lib.rs, neti.rs, runner.rs]
+  command.rs:
+    Imports: [controller.rs, tokens.rs]
+    ImportedBy: [console.rs, rich.rs, summary.rs, types/mod.rs]
+  config/locality.rs:
+    Imports: [controller.rs, graph/mod.rs]
+    ImportedBy: [classifier.rs, cli/locality.rs, config/mod.rs, config/types.rs, locality/analysis/mod.rs, part2.rs, safe_hud.rs, syntax_test.rs, tests.rs, types/mod.rs, validator.rs]
+  config/mod.rs:
+    Imports: [config/locality.rs, config/types.rs, constants.rs, controller.rs, io.rs, types/mod.rs]
+    ImportedBy: [ast.rs, checks.rs, cli/locality.rs, discovery.rs, engine.rs, handlers/mod.rs, imports.rs, io.rs, lib.rs, safety.rs, src/analysis/mod.rs, syntax_test.rs, verification/mod.rs, worker.rs]
+  controller.rs:
+    Imports: [safe_hud.rs]
+    ImportedBy: [ast.rs, banned.rs, baseline.rs, check_cross_language_test.rs, check_json_test.rs, check_locality_test.rs, check_report.rs, classifier.rs, cli/locality.rs, command.rs, command_parsing_test.rs, config/locality.rs, config/mod.rs, console.rs, corpus.rs, corpus_harness_test.rs, coupling.rs, coverage.rs, cycles.rs, dead.rs, dead_code.rs, dead_params.rs, discovery.rs, distance.rs, edges.rs, exemptions.rs, extract.rs, file_class.rs, gravity.rs, handle.rs, handlers/mod.rs, imports.rs, inspect.rs, inspect_tests.rs, io.rs, layers.rs, metrics.rs, paranoia_universal.rs, part2.rs, patterns/mod.rs, project.rs, report.rs, rich.rs, runner.rs, safe_hud.rs, safety.rs, scan_report.rs, semantic.rs, semantic_universal.rs, shared.rs, spinner/mod.rs, state.rs, summary.rs, suppress.rs, syntax.rs, syntax_test.rs, test_scope.rs, validator.rs, worker.rs]
+  corpus.rs:
+    Imports: [cli/mod.rs, controller.rs, edges.rs, exit.rs, tokens.rs]
+    ImportedBy: [corpus-harness.rs, corpus_harness_test.rs, lib.rs]
+  discovery.rs:
+    Imports: [config/mod.rs, constants.rs, controller.rs, edges.rs, locality/mod.rs]
+    ImportedBy: [cli/locality.rs, handlers/mod.rs, lib.rs]
+  edges.rs:
+    Imports: [controller.rs, graph/mod.rs, imports.rs, locality/mod.rs, resolver.rs]
+    ImportedBy: [banned.rs, baseline.rs, check_cross_language_test.rs, check_report.rs, cli/locality.rs, console.rs, corpus.rs, coupling.rs, coverage.rs, cycles.rs, dead_code.rs, dead_params.rs, discovery.rs, distance.rs, engine.rs, exemptions.rs, extract.rs, gravity.rs, inspect.rs, io.rs, layers.rs, locality/mod.rs, metrics.rs, paranoia_universal.rs, patterns/mod.rs, report.rs, resolver.rs, rich.rs, scan_report.rs, semantic.rs, semantic_universal.rs, src/analysis/mod.rs, summary.rs, suppress.rs, syntax_rust.rs, syntax_ts.rs, test_scope.rs, tests.rs, tsconfig.rs, validator.rs, violations.rs]
+  exit.rs:
+    Imports: []
+    ImportedBy: [baseline.rs, check_report.rs, cli/locality.rs, command_parsing_test.rs, corpus-harness.rs, corpus.rs, coverage.rs, cycles.rs, dispatch.rs, handlers/mod.rs, inspect.rs, inspect_tests.rs, lib.rs, neti.rs, part2.rs, runner.rs, tests.rs, tsconfig.rs]
+  file_graph.rs:
+    Imports: []
+    ImportedBy: [cli/locality.rs, cycles.rs, graph/mod.rs, provider.rs, validator.rs]
+  graph/mod.rs:
+    Imports: [dead_code.rs, defs/mod.rs, file_graph.rs, gravity.rs, imports.rs, locality/mod.rs, provider.rs, resolver.rs, tsconfig.rs]
+    ImportedBy: [cli/locality.rs, config/locality.rs, dead.rs, edges.rs, gravity.rs, lib.rs, locality/analysis/mod.rs, metrics.rs, resolver.rs, tests.rs, validator.rs, violations.rs]
+  gravity.rs:
+    Imports: [controller.rs, edges.rs, graph/mod.rs]
+    ImportedBy: [graph/mod.rs, locality/analysis/mod.rs, metrics.rs, tests.rs, validator.rs, violations.rs]
+  locality/mod.rs:
+    Imports: [classifier.rs, coupling.rs, cycles.rs, distance.rs, edges.rs, exemptions.rs, layers.rs, locality/analysis/mod.rs, locality/types.rs, report.rs, tests.rs, validator.rs]
+    ImportedBy: [cli/locality.rs, coupling.rs, discovery.rs, edges.rs, graph/mod.rs, summary.rs, tests.rs, validator.rs]
+  project.rs:
+    Imports: [controller.rs]
+    ImportedBy: [handlers/mod.rs, io.rs, lib.rs]
+  reporting.rs:
+    Imports: [console.rs, coverage.rs, guidance.rs, rich.rs, shared.rs, summary.rs]
+    ImportedBy: [check_report.rs, console.rs, dead.rs, handlers/mod.rs, inspect.rs, lib.rs, rich.rs, scan_report.rs]
+  safe_hud.rs:
+    Imports: [config/locality.rs, controller.rs]
+    ImportedBy: [client.rs, controller.rs, render.rs, spinner/mod.rs]
+  src/analysis/mod.rs:
+    Imports: [ast.rs, checks.rs, config/mod.rs, edges.rs, engine.rs, patterns/mod.rs, safety.rs, suppress.rs, types/mod.rs, worker.rs]
+    ImportedBy: [check_report.rs, handlers/mod.rs, layers.rs, lib.rs, report.rs]
+  tokens.rs:
+    Imports: []
+    ImportedBy: [command.rs, corpus.rs, lib.rs, resolver.rs, scan_report.rs, summary.rs, syntax_rust.rs, test_scope.rs, types/mod.rs, verification/mod.rs, violations.rs, worker.rs]
+  tsconfig.rs:
+    Imports: [edges.rs, exit.rs]
+    ImportedBy: [cli/locality.rs, graph/mod.rs, handlers/mod.rs, render.rs, resolver.rs, verification/mod.rs]
+  types/mod.rs:
+    Imports: [command.rs, config/locality.rs, tokens.rs, types/locality.rs, validator.rs]
+    ImportedBy: [ast.rs, banned.rs, baseline.rs, check_report.rs, classifier.rs, cli/locality.rs, config/mod.rs, console.rs, coupling.rs, coverage.rs, dead_params.rs, engine.rs, handlers/mod.rs, io.rs, layers.rs, lib.rs, paranoia_universal.rs, patterns/mod.rs, rich.rs, runner.rs, safety.rs, scan_report.rs, semantic.rs, semantic_universal.rs, shared.rs, src/analysis/mod.rs, summary.rs, suppress.rs, syntax.rs, validator.rs, verification/mod.rs, worker.rs]
+  validator.rs:
+    Imports: [classifier.rs, config/locality.rs, controller.rs, cycles.rs, distance.rs, edges.rs, file_graph.rs, graph/mod.rs, gravity.rs, layers.rs, locality/mod.rs, types/mod.rs]
+    ImportedBy: [cli/locality.rs, locality/mod.rs, report.rs, rich.rs, tests.rs, types/mod.rs]
+  # --- Layer 0 -- Config ---
+  Cargo.toml, README.md, SEMMAP.md, corpus/manifest.toml, corpus/results/run_1.md, neti.toml, refactor.md:
+    Imports: []
+    ImportedBy: []
+  config/types.rs:
+    Imports: [config/locality.rs]
+    ImportedBy: [config/mod.rs, io.rs]
+  io.rs:
+    Imports: [config/mod.rs, config/types.rs, controller.rs, edges.rs, project.rs, semantic.rs, types/mod.rs]
     ImportedBy: [config/mod.rs]
-  serde_utils.rs:
-    Imports: [config/cursor.rs, monitor.rs]
-    ImportedBy: [config/mod.rs]
-  shader.rs:
-    Imports: [config/cursor.rs, gles2.rs, monitor.rs]
-    ImportedBy: [gles2.rs, glsl3.rs, rects.rs, renderer/mod.rs]
-  signal.rs:
-    Imports: [alacritty_terminal/src/event.rs, monitor.rs]
-    ImportedBy: [polling/mod.rs]
-  string.rs:
-    Imports: [content.rs, message_bar.rs]
-    ImportedBy: [main.rs]
-  terminal.rs:
-    Imports: [bindings.rs]
-    ImportedBy: [alacritty/src/event.rs, config/mod.rs]
-  text/mod.rs:
-    Imports: [atlas.rs, builtin_font.rs, gles2.rs, glsl3.rs, glyph_cache.rs, message_bar.rs]
-    ImportedBy: [renderer/mod.rs]
-  ui_config.rs:
-    Imports: [bindings.rs, config/bell.rs, config/cursor.rs, hint.rs, monitor.rs]
-    ImportedBy: [alacritty/src/event.rs, config/mod.rs, grid/mod.rs, index.rs]
-  window_context.rs:
-    Imports: [alacritty_config/src/lib.rs, alacritty_terminal/src/event.rs, cli.rs, config/bell.rs, config/window.rs, display/bell.rs, display/mod.rs, display/window.rs, font.rs, gles2.rs, grid/mod.rs, message_bar.rs, monitor.rs, platform.rs, polling/mod.rs]
-    ImportedBy: [alacritty/src/event.rs, main.rs]
-  yaml.rs:
-    Imports: [config/mod.rs, monitor.rs]
-    ImportedBy: [migrate/mod.rs]
-  # --- Subproject -- alacritty_config ---
-  alacritty_config/Cargo.toml:
+  # --- Layer 1 -- Domain (Engine) ---
+  ast.rs:
+    Imports: [banned.rs, config/mod.rs, controller.rs, dead_params.rs, safety.rs, syntax.rs, types/mod.rs]
+    ImportedBy: [src/analysis/mod.rs]
+  banned.rs:
+    Imports: [controller.rs, edges.rs, test_scope.rs, types/mod.rs]
+    ImportedBy: [ast.rs, checks.rs]
+  baseline.rs:
+    Imports: [controller.rs, edges.rs, exit.rs, types/mod.rs]
+    ImportedBy: [handlers/mod.rs, lib.rs]
+  check_report.rs:
+    Imports: [controller.rs, edges.rs, exit.rs, reporting.rs, rich.rs, src/analysis/mod.rs, summary.rs, types/mod.rs, verification/mod.rs]
+    ImportedBy: [handlers/mod.rs]
+  checks.rs:
+    Imports: [banned.rs, config/mod.rs, dead_params.rs, syntax.rs, test_scope.rs]
+    ImportedBy: [src/analysis/mod.rs]
+  cli/locality.rs:
+    Imports: [config/locality.rs, config/mod.rs, controller.rs, dead_code.rs, discovery.rs, edges.rs, exit.rs, file_graph.rs, graph/mod.rs, locality/analysis/mod.rs, locality/mod.rs, report.rs, tsconfig.rs, types/mod.rs, validator.rs, violations.rs]
+    ImportedBy: [cli/mod.rs, handlers/mod.rs]
+  client.rs:
+    Imports: [safe_hud.rs]
+    ImportedBy: [handlers/mod.rs, spinner/mod.rs]
+  console.rs:
+    Imports: [command.rs, controller.rs, edges.rs, reporting.rs, types/mod.rs]
+    ImportedBy: [handlers/mod.rs, reporting.rs]
+  constants.rs:
+    Imports: []
+    ImportedBy: [config/mod.rs, discovery.rs, lib.rs]
+  coupling.rs:
+    Imports: [controller.rs, edges.rs, locality/mod.rs, types/mod.rs]
+    ImportedBy: [locality/mod.rs]
+  coverage.rs:
+    Imports: [controller.rs, edges.rs, exit.rs, types/mod.rs]
+    ImportedBy: [reporting.rs]
+  cycles.rs:
+    Imports: [controller.rs, edges.rs, exit.rs, file_graph.rs]
+    ImportedBy: [locality/mod.rs, validator.rs]
+  dead.rs:
+    Imports: [controller.rs, dead_code.rs, graph/mod.rs, reporting.rs]
+    ImportedBy: [dispatch.rs, handlers/mod.rs]
+  dead_code.rs:
+    Imports: [controller.rs, edges.rs]
+    ImportedBy: [cli/locality.rs, dead.rs, graph/mod.rs]
+  dead_params.rs:
+    Imports: [controller.rs, edges.rs, engine.rs, types/mod.rs]
+    ImportedBy: [ast.rs, checks.rs]
+  dispatch.rs:
+    Imports: [dead.rs, exit.rs, handlers/mod.rs, inspect.rs]
+    ImportedBy: [cli/mod.rs, neti.rs]
+  distance.rs:
+    Imports: [controller.rs, edges.rs]
+    ImportedBy: [locality/mod.rs, validator.rs]
+  engine.rs:
+    Imports: [config/mod.rs, edges.rs, types/mod.rs, worker.rs]
+    ImportedBy: [dead_params.rs, src/analysis/mod.rs]
+  exemptions.rs:
+    Imports: [controller.rs, edges.rs]
+    ImportedBy: [locality/mod.rs]
+  extract.rs:
+    Imports: [controller.rs, edges.rs, imports.rs]
+    ImportedBy: [defs/mod.rs]
+  file_class.rs:
+    Imports: [classifier.rs, controller.rs]
+    ImportedBy: [lib.rs, worker.rs]
+  guidance.rs:
+    Imports: []
+    ImportedBy: [reporting.rs]
+  handle.rs:
+    Imports: [controller.rs, render.rs]
+    ImportedBy: [spinner/mod.rs]
+  imports.rs:
+    Imports: [config/mod.rs, controller.rs]
+    ImportedBy: [edges.rs, extract.rs, graph/mod.rs]
+  inspect.rs:
+    Imports: [controller.rs, edges.rs, exit.rs, handlers/mod.rs, reporting.rs]
+    ImportedBy: [dispatch.rs, handlers/mod.rs]
+  layers.rs:
+    Imports: [controller.rs, edges.rs, src/analysis/mod.rs, types/mod.rs]
+    ImportedBy: [locality/mod.rs, tests.rs, validator.rs]
+  locality/types.rs:
+    Imports: []
+    ImportedBy: [locality/mod.rs]
+  metrics.rs:
+    Imports: [controller.rs, edges.rs, graph/mod.rs, gravity.rs]
+    ImportedBy: [locality/analysis/mod.rs]
+  paranoia_universal.rs:
+    Imports: [controller.rs, edges.rs, types/mod.rs]
+    ImportedBy: [patterns/mod.rs]
+  provider.rs:
+    Imports: [file_graph.rs]
+    ImportedBy: [graph/mod.rs]
+  report.rs:
+    Imports: [controller.rs, edges.rs, src/analysis/mod.rs, validator.rs]
+    ImportedBy: [cli/locality.rs, locality/mod.rs]
+  resolver.rs:
+    Imports: [edges.rs, graph/mod.rs, tokens.rs, tsconfig.rs]
+    ImportedBy: [edges.rs, graph/mod.rs]
+  rich.rs:
+    Imports: [command.rs, controller.rs, edges.rs, reporting.rs, types/mod.rs, validator.rs]
+    ImportedBy: [check_report.rs, reporting.rs]
+  runner.rs:
+    Imports: [cli/mod.rs, controller.rs, exit.rs, types/mod.rs]
+    ImportedBy: [verification/mod.rs]
+  safety.rs:
+    Imports: [config/mod.rs, controller.rs, types/mod.rs]
+    ImportedBy: [ast.rs, src/analysis/mod.rs]
+  scan_report.rs:
+    Imports: [controller.rs, edges.rs, render.rs, reporting.rs, summary.rs, tokens.rs, types/mod.rs]
+    ImportedBy: [handlers/mod.rs]
+  semantic.rs:
+    Imports: [controller.rs, edges.rs, semantic_universal.rs, types/mod.rs]
+    ImportedBy: [io.rs, patterns/mod.rs]
+  semantic_universal.rs:
+    Imports: [controller.rs, edges.rs, types/mod.rs]
+    ImportedBy: [semantic.rs]
+  shared.rs:
+    Imports: [controller.rs, types/mod.rs, violations.rs]
+    ImportedBy: [reporting.rs]
+  state.rs:
+    Imports: [controller.rs]
+    ImportedBy: [spinner/mod.rs]
+  summary.json:
     Imports: []
     ImportedBy: []
-  alacritty_config/src/lib.rs:
-    Imports: [bindings.rs]
-    ImportedBy: [alacritty/src/event.rs, cli.rs, config.rs, content.rs, migrate/mod.rs, resize.rs, search.rs, term/mod.rs, window_context.rs]
-  # --- Subproject -- alacritty_config_derive ---
-  alacritty_config_derive/Cargo.toml:
+  summary.rs:
+    Imports: [command.rs, controller.rs, edges.rs, locality/mod.rs, tokens.rs, types/mod.rs]
+    ImportedBy: [check_report.rs, reporting.rs, scan_report.rs]
+  suppress.rs:
+    Imports: [controller.rs, edges.rs, types/mod.rs]
+    ImportedBy: [src/analysis/mod.rs, worker.rs]
+  syntax.rs:
+    Imports: [controller.rs, types/mod.rs]
+    ImportedBy: [ast.rs, checks.rs, syntax_test.rs]
+  syntax_rust.rs:
+    Imports: [edges.rs, tokens.rs]
+    ImportedBy: []
+  syntax_ts.rs:
+    Imports: [edges.rs]
+    ImportedBy: []
+  types/locality.rs:
+    Imports: []
+    ImportedBy: [types/mod.rs]
+  violations.rs:
+    Imports: [edges.rs, graph/mod.rs, gravity.rs, tokens.rs]
+    ImportedBy: [cli/locality.rs, locality/analysis/mod.rs, shared.rs]
+  worker.rs:
+    Imports: [classifier.rs, config/mod.rs, controller.rs, file_class.rs, locality/analysis/mod.rs, patterns/mod.rs, suppress.rs, tokens.rs, types/mod.rs]
+    ImportedBy: [engine.rs, src/analysis/mod.rs]
+  # --- Layer 2 -- Adapters / Infra ---
+  render.rs:
+    Imports: [safe_hud.rs, tsconfig.rs]
+    ImportedBy: [handle.rs, scan_report.rs, spinner/mod.rs]
+  # --- Layer 3 -- App / Entrypoints ---
+  args.rs:
+    Imports: []
+    ImportedBy: [cli/mod.rs]
+  defs/mod.rs:
+    Imports: [extract.rs]
+    ImportedBy: [graph/mod.rs]
+  handlers/mod.rs:
+    Imports: [baseline.rs, check_report.rs, cli/locality.rs, client.rs, config/mod.rs, console.rs, controller.rs, dead.rs, discovery.rs, exit.rs, inspect.rs, project.rs, reporting.rs, scan_report.rs, spinner/mod.rs, src/analysis/mod.rs, tsconfig.rs, types/mod.rs, verification/mod.rs]
+    ImportedBy: [cli/mod.rs, dispatch.rs, inspect.rs]
+  locality/analysis/mod.rs:
+    Imports: [config/locality.rs, graph/mod.rs, gravity.rs, metrics.rs, violations.rs]
+    ImportedBy: [cli/locality.rs, locality/mod.rs, worker.rs]
+  patterns/mod.rs:
+    Imports: [controller.rs, edges.rs, paranoia_universal.rs, semantic.rs, types/mod.rs]
+    ImportedBy: [src/analysis/mod.rs, worker.rs]
+  spinner/mod.rs:
+    Imports: [client.rs, controller.rs, handle.rs, render.rs, safe_hud.rs, state.rs]
+    ImportedBy: [handlers/mod.rs, lib.rs]
+  verification/mod.rs:
+    Imports: [config/mod.rs, runner.rs, tokens.rs, tsconfig.rs, types/mod.rs]
+    ImportedBy: [check_report.rs, handlers/mod.rs, lib.rs]
+  # --- Tests ---
+  badge_expectations.toml, repos.toml, tests/corpus/README.md, tests/corpus/baselines-summary.md:
     Imports: []
     ImportedBy: []
-  alacritty_config_derive/src/lib.rs:
-    Imports: [config/bell.rs, config_deserialize/mod.rs, serde_replace.rs]
-    ImportedBy: [cli.rs]
-  config.rs:
-    Imports: [alacritty_config/src/lib.rs, config/bell.rs, config/cursor.rs, monitor.rs]
-    ImportedBy: [logging.rs]
-  config_deserialize/mod.rs:
-    Imports: [de_enum.rs, de_struct.rs, monitor.rs]
-    ImportedBy: [alacritty_config_derive/src/lib.rs]
-  de_enum.rs:
-    Imports: [config/cursor.rs, monitor.rs, serde_replace.rs]
-    ImportedBy: [config_deserialize/mod.rs]
-  de_struct.rs:
-    Imports: [config/bell.rs, message_bar.rs, monitor.rs, serde_replace.rs]
-    ImportedBy: [config_deserialize/mod.rs]
-  serde_replace.rs:
-    Imports: [config/bell.rs, message_bar.rs, monitor.rs]
-    ImportedBy: [alacritty_config_derive/src/lib.rs, de_enum.rs, de_struct.rs]
-  # --- Subproject -- alacritty_terminal ---
-  alacritty_terminal/CHANGELOG.md, alacritty_terminal/Cargo.toml, alt_reset/config.json, alt_reset/grid.json, alt_reset/size.json, clear_underline/config.json, clear_underline/grid.json, clear_underline/size.json, colored_reset/config.json, colored_reset/grid.json, colored_reset/size.json, colored_underline/config.json, colored_underline/grid.json, colored_underline/size.json, csi_rep/config.json, csi_rep/grid.json, csi_rep/size.json, decaln_reset/config.json, decaln_reset/grid.json, decaln_reset/size.json, deccolm_reset/config.json, deccolm_reset/grid.json, deccolm_reset/size.json, delete_chars_reset/config.json, delete_chars_reset/grid.json, delete_chars_reset/size.json, delete_lines/config.json, delete_lines/grid.json, delete_lines/size.json, erase_chars_reset/config.json, erase_chars_reset/grid.json, erase_chars_reset/size.json, erase_in_line/config.json, erase_in_line/grid.json, erase_in_line/size.json, fish_cc/config.json, fish_cc/grid.json, fish_cc/size.json, grid_reset/config.json, grid_reset/grid.json, grid_reset/size.json, history/config.json, history/grid.json, history/size.json, hyperlinks/config.json, hyperlinks/grid.json, hyperlinks/size.json, indexed_256_colors/config.json, indexed_256_colors/grid.json, indexed_256_colors/size.json, insert_blank_reset/config.json, insert_blank_reset/grid.json, insert_blank_reset/size.json, issue_855/config.json, issue_855/grid.json, issue_855/size.json, ll/config.json, ll/grid.json, ll/size.json, newline_with_cursor_beyond_scroll_region/config.json, newline_with_cursor_beyond_scroll_region/grid.json, newline_with_cursor_beyond_scroll_region/size.json, origin_goto/config.json, origin_goto/grid.json, origin_goto/size.json, region_scroll_down/config.json, region_scroll_down/grid.json, region_scroll_down/size.json, row_reset/config.json, row_reset/grid.json, row_reset/size.json, saved_cursor/config.json, saved_cursor/grid.json, saved_cursor/size.json, saved_cursor_alt/config.json, saved_cursor_alt/grid.json, saved_cursor_alt/size.json, scroll_in_region_up_preserves_history/config.json, scroll_in_region_up_preserves_history/grid.json, scroll_in_region_up_preserves_history/size.json, scroll_up_reset/config.json, scroll_up_reset/grid.json, scroll_up_reset/size.json, selective_erasure/config.json, selective_erasure/grid.json, selective_erasure/size.json, sgr/config.json, sgr/grid.json, sgr/size.json, tab_rendering/config.json, tab_rendering/grid.json, tab_rendering/size.json, tmux_git_log/config.json, tmux_git_log/grid.json, tmux_git_log/size.json, tmux_htop/config.json, tmux_htop/grid.json, tmux_htop/size.json, underline/config.json, underline/grid.json, underline/size.json, vim_24bitcolors_bce/config.json, vim_24bitcolors_bce/grid.json, vim_24bitcolors_bce/size.json, vim_large_window_scroll/config.json, vim_large_window_scroll/grid.json, vim_large_window_scroll/size.json, vim_simple_edit/config.json, vim_simple_edit/grid.json, vim_simple_edit/size.json, vttest_cursor_movement_1/config.json, vttest_cursor_movement_1/grid.json, vttest_cursor_movement_1/size.json, vttest_insert/config.json, vttest_insert/grid.json, vttest_insert/size.json, vttest_origin_mode_1/config.json, vttest_origin_mode_1/grid.json, vttest_origin_mode_1/size.json, vttest_origin_mode_2/config.json, vttest_origin_mode_2/grid.json, vttest_origin_mode_2/size.json, vttest_scroll/config.json, vttest_scroll/grid.json, vttest_scroll/size.json, vttest_tab_clear_set/config.json, vttest_tab_clear_set/grid.json, vttest_tab_clear_set/size.json, wrapline_alt_toggle/config.json, wrapline_alt_toggle/grid.json, wrapline_alt_toggle/size.json, zerowidth/config.json, zerowidth/grid.json, zerowidth/size.json, zsh_tab_completion/config.json, zsh_tab_completion/grid.json, zsh_tab_completion/size.json:
-    Imports: []
+  check_cross_language_test.rs:
+    Imports: [cli/mod.rs, controller.rs, edges.rs]
     ImportedBy: []
-  alacritty_terminal/src/event.rs:
-    Imports: []
-    ImportedBy: [alacritty/src/event.rs, alacritty_terminal/src/lib.rs, event_loop.rs, ipc.rs, logging.rs, monitor.rs, scheduler.rs, signal.rs, term/mod.rs, window_context.rs]
-  alacritty_terminal/src/lib.rs:
-    Imports: [alacritty_terminal/src/event.rs, event_loop.rs, grid/mod.rs, index.rs, src/selection.rs, sync.rs, term/mod.rs, thread.rs, tty/mod.rs, vi_mode.rs]
-    ImportedBy: [display/color.rs, input/mod.rs]
-  blocking.rs:
-    Imports: [config/cursor.rs, message_bar.rs, monitor.rs, thread.rs]
-    ImportedBy: [windows/mod.rs]
-  cell.rs:
-    Imports: [config/bell.rs, gles2.rs, message_bar.rs, monitor.rs]
-    ImportedBy: [term/mod.rs]
-  child.rs:
-    Imports: [clipboard.rs, config/cursor.rs, monitor.rs, polling/mod.rs]
-    ImportedBy: [windows/mod.rs]
-  conpty.rs:
-    Imports: [message_bar.rs, monitor.rs, resize.rs]
-    ImportedBy: [windows/mod.rs]
-  event_loop.rs:
-    Imports: [alacritty_terminal/src/event.rs, config/bell.rs, logging.rs, message_bar.rs, monitor.rs, sync.rs, thread.rs, unix.rs]
-    ImportedBy: [alacritty_terminal/src/lib.rs, bindings.rs, config/mod.rs, display/mod.rs, display/window.rs, proc.rs, renderer/mod.rs, windows/mod.rs]
-  grid/mod.rs:
-    Imports: [config/bell.rs, message_bar.rs, monitor.rs, resize.rs, row.rs, storage.rs, tests.rs, ui_config.rs]
-    ImportedBy: [alacritty/src/event.rs, alacritty_terminal/src/lib.rs, hint.rs, ref.rs, search.rs, tests.rs, window_context.rs]
-  index.rs:
-    Imports: [builtin_font.rs, monitor.rs, ui_config.rs]
-    ImportedBy: [alacritty/src/event.rs, alacritty_terminal/src/lib.rs, resize.rs, search.rs, src/selection.rs, term/mod.rs, vi_mode.rs]
-  ref.rs:
-    Imports: [config/bell.rs, grid/mod.rs, monitor.rs]
+  check_json_test.rs, check_locality_test.rs:
+    Imports: [cli/mod.rs, controller.rs]
     ImportedBy: []
-  resize.rs:
-    Imports: [alacritty_config/src/lib.rs, config/bell.rs, index.rs, monitor.rs, row.rs, storage.rs, tests.rs]
-    ImportedBy: [conpty.rs, damage.rs, display/mod.rs, grid/mod.rs, hint.rs, renderer/mod.rs, term/mod.rs, tests.rs]
-  row.rs:
-    Imports: [config/bell.rs, logging.rs, message_bar.rs, tests.rs]
-    ImportedBy: [damage.rs, display/mod.rs, grid/mod.rs, migrate/mod.rs, monitor.rs, resize.rs, term/mod.rs, tests.rs, vi_mode.rs]
-  search.rs:
-    Imports: [alacritty_config/src/lib.rs, builtin_font.rs, config/bell.rs, content.rs, grid/mod.rs, index.rs, monitor.rs]
-    ImportedBy: [alacritty/src/event.rs, hint.rs, src/selection.rs, term/mod.rs]
-  src/selection.rs:
-    Imports: [config/bell.rs, index.rs, message_bar.rs, monitor.rs, search.rs, tests.rs]
-    ImportedBy: [alacritty/src/event.rs, alacritty_terminal/src/lib.rs, content.rs, input/mod.rs, term/mod.rs]
-  storage.rs:
-    Imports: [builtin_font.rs, monitor.rs]
-    ImportedBy: [grid/mod.rs, resize.rs]
-  sync.rs:
-    Imports: [monitor.rs]
-    ImportedBy: [alacritty_terminal/src/lib.rs, event_loop.rs]
-  term/color.rs:
-    Imports: []
-    ImportedBy: [term/mod.rs]
-  term/mod.rs:
-    Imports: [alacritty_config/src/lib.rs, alacritty_terminal/src/event.rs, cell.rs, config/bell.rs, config/cursor.rs, damage.rs, index.rs, message_bar.rs, monitor.rs, resize.rs, row.rs, search.rs, src/selection.rs, term/color.rs, tests.rs, vi_mode.rs]
-    ImportedBy: [alacritty_terminal/src/lib.rs]
+  command_parsing_test.rs:
+    Imports: [cli/mod.rs, controller.rs, exit.rs]
+    ImportedBy: []
+  corpus_harness_test.rs:
+    Imports: [cli/mod.rs, controller.rs, corpus.rs]
+    ImportedBy: []
+  inspect_tests.rs:
+    Imports: [controller.rs, exit.rs]
+    ImportedBy: []
+  part2.rs:
+    Imports: [config/locality.rs, controller.rs, exit.rs]
+    ImportedBy: [tests.rs]
+  syntax_test.rs:
+    Imports: [config/locality.rs, config/mod.rs, controller.rs, syntax.rs]
+    ImportedBy: []
+  test_scope.rs:
+    Imports: [controller.rs, edges.rs, tokens.rs]
+    ImportedBy: [banned.rs, checks.rs]
   tests.rs:
-    Imports: [config/bell.rs, content.rs, grid/mod.rs, monitor.rs, resize.rs, row.rs]
-    ImportedBy: [damage.rs, grid/mod.rs, resize.rs, row.rs, src/selection.rs, term/mod.rs, vi_mode.rs]
-  thread.rs:
-    Imports: [monitor.rs, polling/mod.rs]
-    ImportedBy: [alacritty_terminal/src/lib.rs, blocking.rs, event_loop.rs, monitor.rs, polling/mod.rs]
-  tty/mod.rs:
-    Imports: [config/cursor.rs, unix.rs, windows/mod.rs]
-    ImportedBy: [alacritty_terminal/src/lib.rs, main.rs]
-  unix.rs:
-    Imports: [config/cursor.rs, content.rs, gles2.rs, monitor.rs, polling/mod.rs]
-    ImportedBy: [event_loop.rs, tty/mod.rs]
-  vi_mode.rs:
-    Imports: [builtin_font.rs, config/bell.rs, index.rs, monitor.rs, row.rs, tests.rs]
-    ImportedBy: [alacritty/src/event.rs, alacritty_terminal/src/lib.rs, input/mod.rs, term/mod.rs]
-  windows/mod.rs:
-    Imports: [blocking.rs, child.rs, config/bell.rs, conpty.rs, event_loop.rs, message_bar.rs, monitor.rs]
-    ImportedBy: [tty/mod.rs]
+    Imports: [config/locality.rs, edges.rs, exit.rs, graph/mod.rs, gravity.rs, layers.rs, locality/mod.rs, part2.rs, validator.rs]
+    ImportedBy: [locality/mod.rs]
 ```
