@@ -1,8 +1,8 @@
-use std::sync::Mutex;
 use crate::agent::AgentHost;
 use crate::denial::DenialResponse;
 use crate::interceptor::{strip_bracketed_paste, Disposition, LineBuffer, RoyInterceptor};
 use crate::policy::PolicyEngine;
+use std::sync::Mutex;
 
 /// Concrete ROY interceptor bound to a session.
 ///
@@ -50,6 +50,18 @@ impl RoySession {
     pub fn agent_host(&self) -> Option<&AgentHost> {
         self.agent_host.as_ref()
     }
+
+    fn queue_and_deny(&self, resp: DenialResponse) -> Disposition {
+        log::warn!(
+            "[ROY] BLOCKED: {} — {} (alt: {:?})",
+            resp.blocked,
+            resp.reason,
+            resp.alternative,
+        );
+        let mut q = self.pending_denials.lock().unwrap_or_else(|e| e.into_inner());
+        q.push(resp.clone());
+        Disposition::Denied(resp)
+    }
 }
 
 impl RoyInterceptor for RoySession {
@@ -64,6 +76,10 @@ impl RoyInterceptor for RoySession {
             Some(line) => {
                 let raw = String::from_utf8_lossy(&line);
                 let line_str = strip_bracketed_paste(raw.as_ref());
+
+                if let Some(host) = &self.agent_host {
+                    host.observe(line_str.as_ref());
+                }
 
                 // Agent-mode extra rules are evaluated first (higher priority).
                 // They activate only when the AgentHost has detected a running agent.
@@ -99,7 +115,10 @@ pub fn session_from_env() -> RoySession {
     match crate::config::load_default() {
         Ok(cfg) if cfg.enabled => {
             let rules = cfg.policy.rules.into_iter().map(|r| r.into_rule()).collect();
-            RoySession::new(crate::policy::PolicyEngine::new(rules))
+            RoySession::with_agent_host(
+                crate::policy::PolicyEngine::new(rules),
+                crate::agent::AgentHost::default_adapters(),
+            )
         },
         Ok(_) => {
             log::info!("[ROY] disabled via config");
@@ -115,6 +134,7 @@ pub fn session_from_env() -> RoySession {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::agent::{AgentHost, ClaudeCodeAdapter, CodexAdapter};
     use crate::policy::{Rule, RuleAction, RulePattern};
 
     fn deny_session(pattern: &str) -> RoySession {
@@ -215,6 +235,33 @@ mod tests {
         let session = deny_session("blocked_cmd");
         let pasted = bracketed_paste(b"ls -la");
         let result = session.intercept(&pasted, false);
+        assert!(matches!(result, Disposition::Passthrough));
+    }
+
+    #[test]
+    fn agent_rules_apply_after_agent_launch_is_observed() {
+        let session = RoySession::with_agent_host(
+            PolicyEngine::empty(),
+            AgentHost::new(vec![Box::new(ClaudeCodeAdapter)]),
+        );
+
+        assert!(matches!(session.intercept(b"claude --continue\n", false), Disposition::Passthrough));
+
+        let result = session.intercept(b"rm -rf target\n", false);
+        match result {
+            Disposition::Denied(d) => assert_eq!(d.rule_id.as_deref(), Some("A002")),
+            _ => panic!("expected agent-mode denial"),
+        }
+    }
+
+    #[test]
+    fn risky_command_passes_before_agent_activation() {
+        let session = RoySession::with_agent_host(
+            PolicyEngine::empty(),
+            AgentHost::new(vec![Box::new(CodexAdapter)]),
+        );
+
+        let result = session.intercept(b"rm -rf target\n", false);
         assert!(matches!(result, Disposition::Passthrough));
     }
 }

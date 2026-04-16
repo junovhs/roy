@@ -563,15 +563,25 @@ mod tests {
             let generated = String::from_utf8_lossy(&generated);
 
             let mut completion = String::new();
-            let mut file = match File::open(format!("../extra/completions/{file}")) {
+            let fixture_path =
+                PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("extra/completions").join(file);
+            let mut file = match File::open(&fixture_path) {
                 Ok(file) => file,
-                Err(err) => panic!("failed to open completion fixture {file}: {err}"),
+                Err(err) => {
+                    panic!(
+                        "failed to open completion fixture {}: {err}",
+                        fixture_path.display()
+                    )
+                },
             };
             if let Err(err) = file.read_to_string(&mut completion) {
-                panic!("failed to read completion fixture {file}: {err}");
+                panic!(
+                    "failed to read completion fixture {}: {err}",
+                    fixture_path.display()
+                );
             }
 
-            assert_eq!(generated, completion);
+            assert_eq!(normalize_newlines(&generated), normalize_newlines(&completion));
         }
 
         // NOTE: Use this to generate new completions.
@@ -582,5 +592,9 @@ mod tests {
         // clap_complete::generate(Shell::Fish, &mut clap, "alacritty", &mut file);
         // let mut file = File::create("../extra/completions/_alacritty");
         // clap_complete::generate(Shell::Zsh, &mut clap, "alacritty", &mut file);
+    }
+
+    fn normalize_newlines(s: &str) -> String {
+        s.replace("\r\n", "\n")
     }
 }

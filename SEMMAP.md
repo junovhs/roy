@@ -156,7 +156,7 @@ Exports: Cursor.vi_mode_style, ConfigCursorStyle.default, VteCursorShape.from, V
 Semantic: side-effecting stateful module
 
 `alacritty/src/config/debug.rs`
-Implements renderer preference. [COUPLING:pure]
+Implements Debug functionality. [COUPLING:pure]
 Exports: RendererPreference, Debug, Debug.default
 Semantic: pure computation
 
@@ -506,7 +506,7 @@ Exports: Row<T>.front_split_off, Row<T>.from_vec, Row<T>.is_clear, &'a Row<T>.in
 Semantic: pure computation
 
 `alacritty_terminal/src/grid/storage.rs`
-Implements storage<t>.shrink visible lines. [COUPLING:mixed] [BEHAVIOR:owns-state] [QUALITY:undocumented]
+Implements storage<t>.index mut. [COUPLING:mixed] [BEHAVIOR:owns-state] [QUALITY:undocumented]
 Exports: Storage<T>.grow_visible_lines, Storage<T>.shrink_visible_lines, Storage<T>.replace_inner, Storage<T>.take_all
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: side-effecting stateful module
@@ -606,7 +606,7 @@ Touch: Contains inline Rust tests alongside runtime code.
 Semantic: side-effecting stateful module
 
 `alacritty_terminal/src/grid/tests.rs`
-Tests for the Grid. [HOTSPOT] [COUPLING:pure] [QUALITY:undocumented]
+Tests for the Grid. [HOTSPOT] [GLOBAL-UTIL] [COUPLING:pure] [QUALITY:undocumented]
 Exports: usize.is_empty, usize.flags_mut, usize.reset, usize.flags
 Semantic: pure computation
 
@@ -1031,6 +1031,12 @@ Exports: RoyConfig.default, RuleConfig.into_rule, load_default, ActionConfig
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: side-effecting stateful adapter that panics on error
 
+`roy/src/agent.rs`
+Interface for an agent adapter. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:sync-primitives] [QUALITY:undocumented]
+Exports: AgentHost.active_extra_rules, ClaudeCodeAdapter, ClaudeCodeAdapter.name, AgentHost.is_agent_active
+Touch: Contains inline Rust tests alongside runtime code.
+Semantic: synchronized side-effecting
+
 `roy/src/denial.rs`
 Structured denial event — printed inline to the terminal, written to session log. [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:panics-on-error] [SURFACE:template] [QUALITY:undocumented]
 Exports: DenialResponse.with_rule_id, DenialResponse.with_alternative, DenialResponse, DenialResponse.new
@@ -1056,8 +1062,8 @@ Touch: Contains inline Rust tests alongside runtime code.
 Semantic: side-effecting adapter that panics on error
 
 `roy/src/session.rs`
-Concrete ROY interceptor bound to a session. [CORE] [HOTSPOT] [COUPLING:mixed] [BEHAVIOR:sync-primitives,panics-on-error] [QUALITY:undocumented]
-Exports: RoySession.take_pending_denials, session_from_env, RoySession.intercept, RoySession.new
+Concrete ROY interceptor bound to a session. [CORE] [COUPLING:mixed] [BEHAVIOR:sync-primitives,panics-on-error] [QUALITY:undocumented]
+Exports: RoySession.take_pending_denials, RoySession.with_agent_host, session_from_env, RoySession.agent_host
 Touch: Contains inline Rust tests alongside runtime code.
 Semantic: synchronized side-effecting that panics on error
 
@@ -1079,7 +1085,7 @@ DependencyGraph:
     Imports: []
     ImportedBy: []
   alacritty/src/event.rs:
-    Imports: [alacritty_config/src/lib.rs, alacritty_terminal/src/event.rs, builtin_font.rs, cli.rs, clipboard.rs, config/bell.rs, content.rs, daemon.rs, damage.rs, display/bell.rs, display/mod.rs, font.rs, gles2.rs, grid/mod.rs, index.rs, input/mod.rs, interceptor.rs, keyboard.rs, message_bar.rs, monitor.rs, scheduler.rs, search.rs, session.rs, session_log.rs, src/selection.rs, terminal.rs, ui_config.rs, vi_mode.rs, window_context.rs]
+    Imports: [alacritty_config/src/lib.rs, alacritty_terminal/src/event.rs, builtin_font.rs, cli.rs, clipboard.rs, config/bell.rs, content.rs, daemon.rs, damage.rs, display/bell.rs, display/mod.rs, font.rs, gles2.rs, grid/mod.rs, index.rs, input/mod.rs, interceptor.rs, keyboard.rs, message_bar.rs, monitor.rs, scheduler.rs, search.rs, session_log.rs, src/selection.rs, terminal.rs, ui_config.rs, vi_mode.rs, window_context.rs]
     ImportedBy: [input/mod.rs, keyboard.rs, main.rs]
   atlas.rs:
     Imports: [interceptor.rs, monitor.rs]
@@ -1179,7 +1185,7 @@ DependencyGraph:
     ImportedBy: []
   message_bar.rs:
     Imports: [config/bell.rs, config/cursor.rs, monitor.rs]
-    ImportedBy: [alacritty/src/event.rs, bindings.rs, blocking.rs, cell.rs, cli.rs, config/mod.rs, conpty.rs, content.rs, de_struct.rs, display/mod.rs, display/window.rs, event_loop.rs, gles2.rs, glsl3.rs, grid/mod.rs, hint.rs, input/mod.rs, keyboard.rs, logging.rs, main.rs, migrate/mod.rs, monitor.rs, rects.rs, renderer/mod.rs, row.rs, scheduler.rs, serde_replace.rs, src/selection.rs, string.rs, term/mod.rs, text/mod.rs, unix.rs, window_context.rs, windows/mod.rs]
+    ImportedBy: [alacritty/src/event.rs, bindings.rs, blocking.rs, cell.rs, cli.rs, config/mod.rs, conpty.rs, content.rs, de_struct.rs, display/mod.rs, display/window.rs, event_loop.rs, gles2.rs, glsl3.rs, grid/mod.rs, hint.rs, input/mod.rs, keyboard.rs, logging.rs, main.rs, migrate/mod.rs, monitor.rs, rects.rs, renderer/mod.rs, row.rs, scheduler.rs, serde_replace.rs, session.rs, src/selection.rs, string.rs, term/mod.rs, text/mod.rs, unix.rs, window_context.rs, windows/mod.rs]
   meter.rs:
     Imports: [config/cursor.rs, monitor.rs]
     ImportedBy: [display/mod.rs]
@@ -1188,7 +1194,7 @@ DependencyGraph:
     ImportedBy: [main.rs]
   monitor.rs:
     Imports: [alacritty_terminal/src/event.rs, config/bell.rs, message_bar.rs, row.rs, thread.rs]
-    ImportedBy: [alacritty/src/event.rs, atlas.rs, bindings.rs, blocking.rs, build.rs, builtin_font.rs, cell.rs, child.rs, cli.rs, clipboard.rs, config/bell.rs, config/color.rs, config/cursor.rs, config/mod.rs, config/window.rs, config_deserialize/mod.rs, conpty.rs, content.rs, daemon.rs, damage.rs, de_enum.rs, de_struct.rs, denial.rs, display/color.rs, display/cursor.rs, display/mod.rs, display/window.rs, event_loop.rs, font.rs, gles2.rs, glsl3.rs, glyph_cache.rs, grid/mod.rs, hint.rs, index.rs, input/mod.rs, interceptor.rs, ipc.rs, keyboard.rs, locale.rs, logging.rs, main.rs, message_bar.rs, meter.rs, panic.rs, platform.rs, policy.rs, polling/mod.rs, rects.rs, ref.rs, renderer/mod.rs, resize.rs, scheduler.rs, search.rs, serde_replace.rs, serde_utils.rs, session.rs, session_log.rs, shader.rs, signal.rs, src/config.rs, src/selection.rs, storage.rs, sync.rs, term/mod.rs, tests.rs, tests/config.rs, thread.rs, ui_config.rs, unix.rs, vi_mode.rs, window_context.rs, windows/mod.rs, yaml.rs]
+    ImportedBy: [agent.rs, alacritty/src/event.rs, atlas.rs, bindings.rs, blocking.rs, build.rs, builtin_font.rs, cell.rs, child.rs, cli.rs, clipboard.rs, config/bell.rs, config/color.rs, config/cursor.rs, config/mod.rs, config/window.rs, config_deserialize/mod.rs, conpty.rs, content.rs, daemon.rs, damage.rs, de_enum.rs, de_struct.rs, denial.rs, display/color.rs, display/cursor.rs, display/mod.rs, display/window.rs, event_loop.rs, font.rs, gles2.rs, glsl3.rs, glyph_cache.rs, grid/mod.rs, hint.rs, index.rs, input/mod.rs, interceptor.rs, ipc.rs, keyboard.rs, locale.rs, logging.rs, main.rs, message_bar.rs, meter.rs, panic.rs, platform.rs, policy.rs, polling/mod.rs, rects.rs, ref.rs, renderer/mod.rs, resize.rs, scheduler.rs, search.rs, serde_replace.rs, serde_utils.rs, session.rs, session_log.rs, shader.rs, signal.rs, src/config.rs, src/selection.rs, storage.rs, sync.rs, term/mod.rs, tests.rs, tests/config.rs, thread.rs, ui_config.rs, unix.rs, vi_mode.rs, window_context.rs, windows/mod.rs, yaml.rs]
   mouse.rs:
     Imports: [bindings.rs, config/bell.rs]
     ImportedBy: [bindings.rs, config/mod.rs]
@@ -1332,9 +1338,9 @@ DependencyGraph:
     ImportedBy: [alacritty_terminal/src/lib.rs]
   tests.rs:
     Imports: [config/bell.rs, content.rs, grid/mod.rs, monitor.rs, resize.rs, row.rs]
-    ImportedBy: [damage.rs, grid/mod.rs, resize.rs, row.rs, src/selection.rs, term/mod.rs, vi_mode.rs]
+    ImportedBy: [agent.rs, damage.rs, grid/mod.rs, resize.rs, row.rs, src/selection.rs, term/mod.rs, vi_mode.rs]
   thread.rs:
-    Imports: [monitor.rs, polling/mod.rs]
+    Imports: [agent.rs, monitor.rs, polling/mod.rs]
     ImportedBy: [alacritty_terminal/src/lib.rs, blocking.rs, event_loop.rs, monitor.rs, polling/mod.rs]
   tty/mod.rs:
     Imports: [config/cursor.rs, unix.rs, windows/mod.rs]
@@ -1349,6 +1355,9 @@ DependencyGraph:
     Imports: [blocking.rs, child.rs, config/bell.rs, conpty.rs, event_loop.rs, message_bar.rs, monitor.rs]
     ImportedBy: [tty/mod.rs]
   # --- Subproject -- roy ---
+  agent.rs:
+    Imports: [monitor.rs, tests.rs]
+    ImportedBy: [session.rs, thread.rs]
   denial.rs:
     Imports: [monitor.rs]
     ImportedBy: [policy.rs, roy/src/lib.rs, session_log.rs]
@@ -1365,8 +1374,8 @@ DependencyGraph:
     Imports: [denial.rs, interceptor.rs, policy.rs, session.rs, session_log.rs, src/config.rs]
     ImportedBy: []
   session.rs:
-    Imports: [interceptor.rs, monitor.rs, policy.rs, row.rs, src/config.rs]
-    ImportedBy: [alacritty/src/event.rs, roy/src/lib.rs, window_context.rs]
+    Imports: [agent.rs, interceptor.rs, message_bar.rs, monitor.rs, policy.rs, row.rs, src/config.rs]
+    ImportedBy: [roy/src/lib.rs, window_context.rs]
   session_log.rs:
     Imports: [denial.rs, monitor.rs]
     ImportedBy: [alacritty/src/event.rs, cli.rs, input/mod.rs, logging.rs, ref.rs, resize.rs, row.rs, roy/src/lib.rs, serde_utils.rs, storage.rs, window_context.rs]

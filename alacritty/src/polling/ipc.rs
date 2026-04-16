@@ -223,7 +223,7 @@ fn find_socket(socket_path: Option<PathBuf>) -> IoResult<UnixStream> {
 pub fn socket_prefix() -> String {
     let display = env::var("WAYLAND_DISPLAY")
         .or_else(|_| env::var("DISPLAY"))
-        .map_or_else(|_| String::new(), |value| value);
+        .unwrap_or_else(|_| String::new());
     format!("Alacritty-{}", display.replace('/', "-"))
 }
 

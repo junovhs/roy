@@ -1,54 +1,6 @@
 COMMANDS
-  cargo clippy --all-targets --no-deps -- -D warnings ... FAIL (3828ms)
-    Checking alacritty v0.18.0-dev (/home/juno/roy/alacritty)
-    error[E0277]: `std::fs::File` doesn't implement `std::fmt::Display`
-       --> alacritty/src/cli.rs:571:59
-        |
-    571 |                 panic!("failed to read completion fixture {file}: {err}");
-        |                                                           ^^^^^^ `std::fs::File` cannot be formatted with the default formatter
-        |
-        = help: the trait `std::fmt::Display` is not implemented for `std::fs::File`
-        = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
-    
-    For more information about this error, try `rustc --explain E0277`.
-    error: could not compile `alacritty` (bin "alacritty" test) due to 1 previous error
-    warning: build failed, waiting for other jobs to finish...
-    error: unused "map closure" when calling `Result::map_or_else` value
-       --> alacritty/src/polling/ipc.rs:224:19
-        |
-    224 |       let display = env::var("WAYLAND_DISPLAY")
-        |  ___________________^
-    225 | |         .or_else(|_| env::var("DISPLAY"))
-    226 | |         .map_or_else(|_| String::new(), |value| value);
-        | |______________________________________________________^
-        |
-        = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#unnecessary_result_map_or_else
-    note: the lint level is defined here
-       --> alacritty/src/main.rs:4:9
-        |
-      4 | #![deny(clippy::all, clippy::if_not_else, clippy::enum_glob_use)]
-        |         ^^^^^^^^^^^
-        = note: `#[deny(clippy::unnecessary_result_map_or_else)]` implied by `#[deny(clippy::all)]`
-    help: consider using `unwrap_or_else`
-        |
-    224 ~     let display = env::var("WAYLAND_DISPLAY")
-    225 ~         .or_else(|_| env::var("DISPLAY")).unwrap_or_else(|_| String::new());
-        |
-    
-    error: could not compile `alacritty` (bin "alacritty") due to 1 previous error
-  cargo test ... FAIL (2815ms)
-    Compiling alacritty v0.18.0-dev (/home/juno/roy/alacritty)
-    error[E0277]: `std::fs::File` doesn't implement `std::fmt::Display`
-       --> alacritty/src/cli.rs:571:59
-        |
-    571 |                 panic!("failed to read completion fixture {file}: {err}");
-        |                                                           ^^^^^^ `std::fs::File` cannot be formatted with the default formatter
-        |
-        = help: the trait `std::fmt::Display` is not implemented for `std::fs::File`
-        = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
-    
-    For more information about this error, try `rustc --explain E0277`.
-    error: could not compile `alacritty` (bin "alacritty" test) due to 1 previous error
+  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (277ms)
+  cargo test ... PASS (5270ms)
 
 LOCALITY: PASS | 0 edges | 0 violations | 7 cycles
   cycle 1: alacritty/src/cli.rs -> alacritty/src/logging.rs -> alacritty/src/cli.rs
@@ -670,4 +622,4 @@ error: [118 of 118] Unsafe block missing justification. Add '// SAFETY:' comment
   --> alacritty/src/macos/mod.rs:8
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
-X Neti found 128 errors, 7 warnings (233ms).
+X Neti found 128 errors, 7 warnings (252ms).

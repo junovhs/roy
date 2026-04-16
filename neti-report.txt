@@ -1,28 +1,8 @@
 NETI REPORT — FAIL | 128 blocking | 7 advisory
 
 COMMANDS
-  cargo clippy --all-targets --no-deps -- -D warnings ... FAIL (3828ms)
-    Checking alacritty v0.18.0-dev (/home/juno/roy/alacritty)
-    error[E0277]: `std::fs::File` doesn't implement `std::fmt::Display`
-       --> alacritty/src/cli.rs:571:59
-        |
-    571 |                 panic!("failed to read completion fixture {file}: {err}");
-        |                                                           ^^^^^^ `std::fs::File` cannot be formatted with the default formatter
-        |
-        = help: the trait `std::fmt::Display` is not implemented for `std::fs::File`
-        = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
-    
-  cargo test ... FAIL (2815ms)
-    Compiling alacritty v0.18.0-dev (/home/juno/roy/alacritty)
-    error[E0277]: `std::fs::File` doesn't implement `std::fmt::Display`
-       --> alacritty/src/cli.rs:571:59
-        |
-    571 |                 panic!("failed to read completion fixture {file}: {err}");
-        |                                                           ^^^^^^ `std::fs::File` cannot be formatted with the default formatter
-        |
-        = help: the trait `std::fmt::Display` is not implemented for `std::fs::File`
-        = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
-    
+  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (277ms)
+  cargo test ... PASS (5270ms)
 LOCALITY: PASS | 0 edges | 0 violations | 7 cycles
   [X] cycle 1: alacritty/src/cli.rs -> alacritty/src/logging.rs -> alacritty/src/cli.rs
   [X] cycle 2: alacritty/src/cli.rs -> alacritty/src/logging.rs -> alacritty/src/event.rs -> alacritty/src/cli.rs
