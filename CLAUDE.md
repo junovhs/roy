@@ -119,3 +119,14 @@ Examples:
 
 - ultra: `Inline obj prop → new ref → re-render. useMemo.`
 - wenyan-ultra: `新參照→重繪。useMemo。`
+
+
+note; TODAY ONLY WHILE THIS NOTE EXISTS - i actually prefer that you consider the errors as of now the baseline -  i believe its 128 violations atm.
+  just dont make it any WORSE than it is now. because honestly i already spent 6
+  hours today getting it down to 128 of these violations (it was like 400 earlier
+  today - this is an existing codebase, its passing, its already much better, so
+  im good with it for now. the way forward will be - if you have to work on a
+  file that has been flagged as problematic, THEN you can like address the issues
+  of THAT file WHILE you do the main thing you intended to do - but do not go
+  out of your way to reduce the issues neti is flagging. just dont make any new
+  ones.

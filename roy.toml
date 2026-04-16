@@ -1,0 +1,24 @@
+  # /home/juno/roy/roy.toml
+  enabled = true
+  session_dir = "/tmp/roy-sessions"
+
+  [[policy.rules]]
+  id = "D001"
+  description = "use neti check, not bare cargo commands"
+  starts_with = "cargo clippy"
+  action = "deny"
+  alternative = "neti check"
+
+  [[policy.rules]]
+  id = "D002"
+  description = "use semmap cat, not grep -r"
+  contains = "grep -r"
+  action = "deny"
+  alternative = "semmap cat <file>"
+
+  [[policy.rules]]
+  id = "D003"
+  description = "destructive rm blocked"
+  starts_with = "rm -rf"
+  action = "deny"
+  alternative = "trash / safe delete"

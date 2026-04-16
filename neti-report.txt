@@ -1,49 +1,69 @@
 NETI REPORT — FAIL | 128 blocking | 7 advisory
 
 COMMANDS
-  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (558ms)
-  cargo test ... PASS (3884ms)
+  cargo clippy --all-targets --no-deps -- -D warnings ... FAIL (3828ms)
+    Checking alacritty v0.18.0-dev (/home/juno/roy/alacritty)
+    error[E0277]: `std::fs::File` doesn't implement `std::fmt::Display`
+       --> alacritty/src/cli.rs:571:59
+        |
+    571 |                 panic!("failed to read completion fixture {file}: {err}");
+        |                                                           ^^^^^^ `std::fs::File` cannot be formatted with the default formatter
+        |
+        = help: the trait `std::fmt::Display` is not implemented for `std::fs::File`
+        = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
+    
+  cargo test ... FAIL (2815ms)
+    Compiling alacritty v0.18.0-dev (/home/juno/roy/alacritty)
+    error[E0277]: `std::fs::File` doesn't implement `std::fmt::Display`
+       --> alacritty/src/cli.rs:571:59
+        |
+    571 |                 panic!("failed to read completion fixture {file}: {err}");
+        |                                                           ^^^^^^ `std::fs::File` cannot be formatted with the default formatter
+        |
+        = help: the trait `std::fmt::Display` is not implemented for `std::fs::File`
+        = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
+    
 LOCALITY: PASS | 0 edges | 0 violations | 7 cycles
-  [X] cycle 1: alacritty\src\cli.rs -> alacritty\src\logging.rs -> alacritty\src\cli.rs
-  [X] cycle 2: alacritty\src\cli.rs -> alacritty\src\logging.rs -> alacritty\src\event.rs -> alacritty\src\cli.rs
-  [X] cycle 3: alacritty\src\logging.rs -> alacritty\src\event.rs -> alacritty\src\logging.rs
-  [X] cycle 4: alacritty\src\event.rs -> alacritty\src\scheduler.rs -> alacritty\src\event.rs
-  [X] cycle 5: alacritty\src\cli.rs -> alacritty\src\logging.rs -> alacritty\src\event.rs -> alacritty\src\window_context.rs -> alacritty\src\cli.rs
-  [X] cycle 6: alacritty\src\event.rs -> alacritty\src\window_context.rs -> alacritty\src\event.rs
-  [X] cycle 7: alacritty\src\logging.rs -> alacritty\src\event.rs -> alacritty\src\window_context.rs -> alacritty\src\logging.rs
+  [X] cycle 1: alacritty/src/cli.rs -> alacritty/src/logging.rs -> alacritty/src/cli.rs
+  [X] cycle 2: alacritty/src/cli.rs -> alacritty/src/logging.rs -> alacritty/src/event.rs -> alacritty/src/cli.rs
+  [X] cycle 3: alacritty/src/logging.rs -> alacritty/src/event.rs -> alacritty/src/logging.rs
+  [X] cycle 4: alacritty/src/event.rs -> alacritty/src/scheduler.rs -> alacritty/src/event.rs
+  [X] cycle 5: alacritty/src/cli.rs -> alacritty/src/logging.rs -> alacritty/src/event.rs -> alacritty/src/window_context.rs -> alacritty/src/cli.rs
+  [X] cycle 6: alacritty/src/event.rs -> alacritty/src/window_context.rs -> alacritty/src/event.rs
+  [X] cycle 7: alacritty/src/logging.rs -> alacritty/src/event.rs -> alacritty/src/window_context.rs -> alacritty/src/logging.rs
 
 ISSUES
-  alacritty_terminal\src\tty\unix.rs: .unwrap() x13
-  alacritty\src\renderer\mod.rs: .unwrap() x11
-  alacritty\src\renderer\shader.rs: .unwrap() x11
-  alacritty_terminal\src\tty\windows\conpty.rs: .unwrap() x10
-  alacritty\src\renderer\text\glsl3.rs: .unwrap() x9
-  alacritty\src\renderer\text\gles2.rs: .unwrap() x8
-  alacritty\src\macos\locale.rs: .unwrap() x6
-  alacritty\src\event.rs: 19583 tokens (limit 10000) | complexity 63–67 (limit 35) x2 | .unwrap() x2
-  alacritty\src\renderer\rects.rs: .unwrap() x5
-  alacritty\src\daemon.rs: .unwrap() x5
-  alacritty_terminal\src\tty\windows\child.rs: .unwrap() x5
-  alacritty_terminal\src\term\mod.rs: 28180 tokens (limit 10000) | .unwrap() x3
-  alacritty\src\renderer\platform.rs: .unwrap() x4
-  alacritty\src\display\mod.rs: 14544 tokens (limit 10000) | complexity 37 (limit 35) | .unwrap() x2 | Calculator `compute_timeout` mutates state
-  alacritty\src\config\bindings.rs: 15390 tokens (limit 10000) | complexity 51–52 (limit 35) x2
-  alacritty\src\renderer\text\atlas.rs: .unwrap() x3
-  alacritty\src\main.rs: .unwrap() x3
-  alacritty\src\renderer\text\mod.rs: .unwrap() x3
-  alacritty\src\display\window.rs: .unwrap() x2
-  alacritty_terminal\src\event_loop.rs: complexity 67 (limit 35) | .unwrap()
-  alacritty_terminal\src\tty\mod.rs: .unwrap() x2
-  alacritty_terminal\src\grid\row.rs: .unwrap() | Getter `is_clear` mutates state
-  alacritty\src\input\mod.rs: 15365 tokens (limit 10000)
-  alacritty_terminal\src\grid\storage.rs: .unwrap()
-  alacritty_terminal\src\grid\resize.rs: complexity 58 (limit 35)
-  alacritty\src\logging.rs: .unwrap()
-  alacritty\src\polling\ipc.rs: .unwrap()
-  alacritty\src\clipboard.rs: .unwrap()
-  alacritty\src\macos\proc.rs: .unwrap()
-  alacritty\src\polling\mod.rs: .unwrap()
-  alacritty\src\panic.rs: .unwrap()
-  alacritty\src\macos\mod.rs: .unwrap()
-  alacritty_terminal\src\term\search.rs: 11384 tokens (limit 10000) | complexity 39 (limit 35) | .unwrap()
-  alacritty\src\renderer\text\glyph_cache.rs: Getter `get` mutates state
+  alacritty_terminal/src/tty/unix.rs: .unwrap() x13
+  alacritty/src/renderer/mod.rs: .unwrap() x11
+  alacritty/src/renderer/shader.rs: .unwrap() x11
+  alacritty_terminal/src/tty/windows/conpty.rs: .unwrap() x10
+  alacritty/src/renderer/text/glsl3.rs: .unwrap() x9
+  alacritty/src/renderer/text/gles2.rs: .unwrap() x8
+  alacritty/src/macos/locale.rs: .unwrap() x6
+  alacritty/src/event.rs: 20384 tokens (limit 10000) | complexity 63–67 (limit 35) x2 | .unwrap() x2
+  alacritty/src/renderer/rects.rs: .unwrap() x5
+  alacritty/src/daemon.rs: .unwrap() x5
+  alacritty_terminal/src/tty/windows/child.rs: .unwrap() x5
+  alacritty_terminal/src/term/mod.rs: 29005 tokens (limit 10000) | .unwrap() x3
+  alacritty/src/renderer/platform.rs: .unwrap() x4
+  alacritty/src/display/mod.rs: 14962 tokens (limit 10000) | complexity 37 (limit 35) | .unwrap() x2 | Calculator `compute_timeout` mutates state
+  alacritty/src/config/bindings.rs: 15753 tokens (limit 10000) | complexity 51–52 (limit 35) x2
+  alacritty/src/renderer/text/atlas.rs: .unwrap() x3
+  alacritty/src/main.rs: .unwrap() x3
+  alacritty/src/renderer/text/mod.rs: .unwrap() x3
+  alacritty/src/display/window.rs: .unwrap() x2
+  alacritty_terminal/src/event_loop.rs: complexity 67 (limit 35) | .unwrap()
+  alacritty_terminal/src/tty/mod.rs: .unwrap() x2
+  alacritty_terminal/src/grid/row.rs: .unwrap() | Getter `is_clear` mutates state
+  alacritty/src/input/mod.rs: 15755 tokens (limit 10000)
+  alacritty_terminal/src/grid/storage.rs: .unwrap()
+  alacritty_terminal/src/grid/resize.rs: complexity 58 (limit 35)
+  alacritty/src/logging.rs: .unwrap()
+  alacritty/src/polling/ipc.rs: .unwrap()
+  alacritty/src/clipboard.rs: .unwrap()
+  alacritty/src/macos/proc.rs: .unwrap()
+  alacritty/src/polling/mod.rs: .unwrap()
+  alacritty/src/panic.rs: .unwrap()
+  alacritty/src/macos/mod.rs: .unwrap()
+  alacritty_terminal/src/term/search.rs: 11697 tokens (limit 10000) | complexity 39 (limit 35) | .unwrap()
+  alacritty/src/renderer/text/glyph_cache.rs: Getter `get` mutates state

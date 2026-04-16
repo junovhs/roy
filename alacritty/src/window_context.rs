@@ -23,6 +23,8 @@ use winit::window::WindowId;
 
 use alacritty_terminal::event::Event as TerminalEvent;
 use alacritty_terminal::event_loop::{EventLoop as PtyEventLoop, Msg, Notifier};
+
+use roy::{DenialLog, RoyInterceptor, load_config, session_from_env};
 use alacritty_terminal::grid::{Dimensions, Scroll};
 use alacritty_terminal::index::Direction;
 use alacritty_terminal::sync::FairMutex;
@@ -40,7 +42,7 @@ use crate::event::{
 };
 #[cfg(unix)]
 use crate::logging::LOG_TARGET_IPC_CONFIG;
-use crate::message_bar::MessageBuffer;
+use crate::message_bar::{Message, MessageBuffer, MessageType};
 use crate::scheduler::Scheduler;
 use crate::{input, renderer};
 
@@ -67,6 +69,10 @@ pub struct WindowContext {
     shell_pid: u32,
     window_config: ParsedOptions,
     config: Rc<UiConfig>,
+    /// ROY command interception layer. None when ROY is not enabled.
+    roy_interceptor: Option<Arc<dyn RoyInterceptor>>,
+    /// ROY denial event log. None when ROY is not enabled or session dir not configured.
+    roy_denial_log: Option<DenialLog>,
 }
 
 impl WindowContext {
@@ -254,6 +260,10 @@ impl WindowContext {
             mouse: Default::default(),
             touch: Default::default(),
             dirty: Default::default(),
+            roy_interceptor: Some(Arc::new(session_from_env())),
+            roy_denial_log: load_config().ok().and_then(|cfg| {
+                cfg.session_dir.as_ref().and_then(|dir| DenialLog::open(dir).ok())
+            }),
         })
     }
 
@@ -451,11 +461,23 @@ impl WindowContext {
             event_loop,
             clipboard,
             scheduler,
+            roy_interceptor: self.roy_interceptor.as_ref(),
         };
         let mut processor = input::Processor::new(context);
 
         for event in self.event_queue.drain(..) {
             processor.handle_event(event);
+        }
+
+        // Drain any denial events queued by the interceptor during write_to_pty.
+        // Display them in the terminal message bar and write to the session log.
+        if let Some(interceptor) = &self.roy_interceptor {
+            for denial in interceptor.take_pending_denials() {
+                if let Some(log) = &self.roy_denial_log {
+                    log.append(&denial);
+                }
+                self.message_buffer.push(Message::new(denial.render(), MessageType::Warning));
+            }
         }
 
         // Process DisplayUpdate events.

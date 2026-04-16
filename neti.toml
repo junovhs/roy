@@ -74,6 +74,8 @@ error_paths = [
   "alacritty_terminal/src/event_loop.rs",
   # Key binding config — evaluated on every keystroke in the runtime path
   "alacritty/src/config/bindings.rs",
+  # ROY control-plane — interception, policy, denial, session. New code; zero tolerance.
+  "roy/src/",
 ]
 
 # complexity_error_threshold: cognitive complexity above this → Red blocking.

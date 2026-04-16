@@ -36,6 +36,8 @@ use winit::raw_window_handle::HasDisplayHandle;
 use winit::window::WindowId;
 
 use alacritty_terminal::event::{Event as TerminalEvent, EventListener, Notify};
+
+use roy::{Disposition, RoyInterceptor};
 use alacritty_terminal::event_loop::Notifier;
 use alacritty_terminal::grid::{BidirectionalIterator, Dimensions, Scroll};
 use alacritty_terminal::index::{Boundary, Column, Direction, Line, Point, Side};
@@ -695,12 +697,33 @@ pub struct ActionContext<'a, N, T> {
     pub master_fd: RawFd,
     #[cfg(not(windows))]
     pub shell_pid: u32,
+    /// ROY command interception layer. None when ROY is not enabled.
+    pub roy_interceptor: Option<&'a Arc<dyn RoyInterceptor>>,
 }
 
 impl<'a, N: Notify + 'a, T: EventListener> input::ActionContext<T> for ActionContext<'a, N, T> {
-    #[inline]
     fn write_to_pty<B: Into<Cow<'static, [u8]>>>(&self, val: B) {
-        self.notifier.notify(val);
+        let bytes = val.into();
+        if let Some(interceptor) = self.roy_interceptor {
+            let in_raw_mode = self.terminal.mode().intersects(
+                TermMode::ALT_SCREEN | TermMode::APP_CURSOR | TermMode::MOUSE_MODE,
+            );
+            match interceptor.intercept(&bytes, in_raw_mode) {
+                Disposition::Passthrough => self.notifier.notify(bytes),
+                Disposition::Denied(resp) => {
+                    // Command blocked. Log the denial; DENY-01 adds inline terminal display.
+                    log::warn!(
+                        "[ROY] BLOCKED: {} — {} (alt: {:?})",
+                        resp.blocked,
+                        resp.reason,
+                        resp.alternative,
+                    );
+                },
+                Disposition::Redirect(new_bytes) => self.notifier.notify(new_bytes),
+            }
+        } else {
+            self.notifier.notify(bytes);
+        }
     }
 
     /// Request a redraw.

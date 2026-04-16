@@ -1,37 +1,69 @@
 COMMANDS
-  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (558ms)
-  cargo test ... PASS (3884ms)
+  cargo clippy --all-targets --no-deps -- -D warnings ... FAIL (3828ms)
+    Checking alacritty v0.18.0-dev (/home/juno/roy/alacritty)
+    error[E0277]: `std::fs::File` doesn't implement `std::fmt::Display`
+       --> alacritty/src/cli.rs:571:59
+        |
+    571 |                 panic!("failed to read completion fixture {file}: {err}");
+        |                                                           ^^^^^^ `std::fs::File` cannot be formatted with the default formatter
+        |
+        = help: the trait `std::fmt::Display` is not implemented for `std::fs::File`
+        = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
+    
+    For more information about this error, try `rustc --explain E0277`.
+    error: could not compile `alacritty` (bin "alacritty" test) due to 1 previous error
+    warning: build failed, waiting for other jobs to finish...
+    error: unused "map closure" when calling `Result::map_or_else` value
+       --> alacritty/src/polling/ipc.rs:224:19
+        |
+    224 |       let display = env::var("WAYLAND_DISPLAY")
+        |  ___________________^
+    225 | |         .or_else(|_| env::var("DISPLAY"))
+    226 | |         .map_or_else(|_| String::new(), |value| value);
+        | |______________________________________________________^
+        |
+        = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#unnecessary_result_map_or_else
+    note: the lint level is defined here
+       --> alacritty/src/main.rs:4:9
+        |
+      4 | #![deny(clippy::all, clippy::if_not_else, clippy::enum_glob_use)]
+        |         ^^^^^^^^^^^
+        = note: `#[deny(clippy::unnecessary_result_map_or_else)]` implied by `#[deny(clippy::all)]`
+    help: consider using `unwrap_or_else`
+        |
+    224 ~     let display = env::var("WAYLAND_DISPLAY")
+    225 ~         .or_else(|_| env::var("DISPLAY")).unwrap_or_else(|_| String::new());
+        |
+    
+    error: could not compile `alacritty` (bin "alacritty") due to 1 previous error
+  cargo test ... FAIL (2815ms)
+    Compiling alacritty v0.18.0-dev (/home/juno/roy/alacritty)
+    error[E0277]: `std::fs::File` doesn't implement `std::fmt::Display`
+       --> alacritty/src/cli.rs:571:59
+        |
+    571 |                 panic!("failed to read completion fixture {file}: {err}");
+        |                                                           ^^^^^^ `std::fs::File` cannot be formatted with the default formatter
+        |
+        = help: the trait `std::fmt::Display` is not implemented for `std::fs::File`
+        = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
+    
+    For more information about this error, try `rustc --explain E0277`.
+    error: could not compile `alacritty` (bin "alacritty" test) due to 1 previous error
 
 LOCALITY: PASS | 0 edges | 0 violations | 7 cycles
-  cycle 1: alacritty\src\cli.rs -> alacritty\src\logging.rs -> alacritty\src\cli.rs
-  cycle 2: alacritty\src\cli.rs -> alacritty\src\logging.rs -> alacritty\src\event.rs -> alacritty\src\cli.rs
-  cycle 3: alacritty\src\logging.rs -> alacritty\src\event.rs -> alacritty\src\logging.rs
-  cycle 4: alacritty\src\event.rs -> alacritty\src\scheduler.rs -> alacritty\src\event.rs
-  cycle 5: alacritty\src\cli.rs -> alacritty\src\logging.rs -> alacritty\src\event.rs -> alacritty\src\window_context.rs -> alacritty\src\cli.rs
-  cycle 6: alacritty\src\event.rs -> alacritty\src\window_context.rs -> alacritty\src\event.rs
-  cycle 7: alacritty\src\logging.rs -> alacritty\src\event.rs -> alacritty\src\window_context.rs -> alacritty\src\logging.rs
+  cycle 1: alacritty/src/cli.rs -> alacritty/src/logging.rs -> alacritty/src/cli.rs
+  cycle 2: alacritty/src/cli.rs -> alacritty/src/logging.rs -> alacritty/src/event.rs -> alacritty/src/cli.rs
+  cycle 3: alacritty/src/logging.rs -> alacritty/src/event.rs -> alacritty/src/logging.rs
+  cycle 4: alacritty/src/event.rs -> alacritty/src/scheduler.rs -> alacritty/src/event.rs
+  cycle 5: alacritty/src/cli.rs -> alacritty/src/logging.rs -> alacritty/src/event.rs -> alacritty/src/window_context.rs -> alacritty/src/cli.rs
+  cycle 6: alacritty/src/event.rs -> alacritty/src/window_context.rs -> alacritty/src/event.rs
+  cycle 7: alacritty/src/logging.rs -> alacritty/src/event.rs -> alacritty/src/window_context.rs -> alacritty/src/logging.rs
 
-error: [1 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\clipboard.rs:37
+error: [1 of 6] File size is 29005 tokens (Limit: 10000)
+  --> alacritty_terminal/src/term/mod.rs:1
    |
-    36 |                 // remains valid for clipboard provider construction during this call.
-    37 |                 let (selection, clipboard) = unsafe {
-   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    38 |                     wayland_clipboard::create_clipboards_from_external(display.display.as_ptr())
-   = LAW OF PARANOIA: Fix required
-   |
-   = WHY: Crash-prone shortcuts and unsafe operations hide failure paths and make AI-generated code more brittle over time.
-   |
-   = FIX: Prefer explicit error handling, safe access patterns, and documented invariants over forceful shortcuts.
-   |
-   = SUPPRESS: // neti:allow(LAW OF PARANOIA) on the line, or LAW OF PARANOIA = "warn" in neti.toml [rules]
-   = PROVENANCE: language-native
-
-error: [1 of 6] File size is 15390 tokens (Limit: 10000)
-  --> alacritty\src\config\bindings.rs:1
-   |
-     1 | #![allow(clippy::enum_glob_use)]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     1 | //! Exports the `Term` type which is a high-level API for the Grid.
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
      2 | 
    = LAW OF ATOMICITY: Fix required
    |
@@ -42,17 +74,48 @@ error: [1 of 6] File size is 15390 tokens (Limit: 10000)
    = SUPPRESS: // neti:allow(LAW OF ATOMICITY) on the line, or LAW OF ATOMICITY = "warn" in neti.toml [rules]
    = PROVENANCE: language-native
 
-error: [1 of 8] Function 'deserialize' has cognitive complexity 52 (Max: 35)
-  --> alacritty\src\config\bindings.rs:945
+error: [1 of 118] Banned: '.unwrap()' found. Use ? or proper error handling.
+  --> alacritty_terminal/src/term/mod.rs:2473
    |
-   944 | impl<'a> Deserialize<'a> for RawBinding {
-   945 |     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   946 |     where
+   2472 |             .iter()
+   2473 |             .map(|line| line.chars().filter(|c| *c != '\r').map(|c| c.width().unwrap()).sum())
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   2474 |             .max()
+   = LAW OF PARANOIA: Fix required
+   |
+   = ANALYSIS:
+   |   Found `.unwrap()` call
+   |
+   = WHY: Crash-prone shortcuts and unsafe operations hide failure paths and make AI-generated code more brittle over time.
+   |
+   = FIX: Prefer explicit error handling, safe access patterns, and documented invariants over forceful shortcuts.
+   |
+   = SUPPRESS: // neti:allow(LAW OF PARANOIA) on the line, or LAW OF PARANOIA = "warn" in neti.toml [rules]
+   = PROVENANCE: language-native
+
+error: [2 of 118] Banned: '.unwrap()' found. Use ? or proper error handling.
+  --> alacritty_terminal/src/term/mod.rs:2493
+   = LAW OF PARANOIA: Found `.unwrap()` call — see first LAW OF PARANOIA above
+
+error: [3 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/term/mod.rs:2332
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [2 of 6] File size is 11697 tokens (Limit: 10000)
+  --> alacritty_terminal/src/term/search.rs:1
+   = LAW OF ATOMICITY: see first LAW OF ATOMICITY above
+
+error: [1 of 8] Function 'regex_search_internal' has cognitive complexity 39 (Max: 35)
+  --> alacritty_terminal/src/term/search.rs:274
+   |
+   273 |     /// To automatically log regex complexity errors, use [`Self::regex_search`] instead.
+   274 |     fn regex_search_internal(
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+   275 |         &self,
    = LAW OF COMPLEXITY: Fix required
    |
    = ANALYSIS:
-   |   Cognitive score: 52
+   |   Cognitive score: 39
    |
    = WHY: Functions that exceed the complexity or arity budget are harder for humans and AI agents to reason about safely.
    |
@@ -61,36 +124,447 @@ error: [1 of 8] Function 'deserialize' has cognitive complexity 52 (Max: 35)
    = SUPPRESS: // neti:allow(LAW OF COMPLEXITY) on the line, or LAW OF COMPLEXITY = "warn" in neti.toml [rules]
    = PROVENANCE: language-native
 
-error: [2 of 8] Function 'visit_map' has cognitive complexity 51 (Max: 35)
-  --> alacritty\src\config\bindings.rs:1004
-   = LAW OF COMPLEXITY: Cognitive score: 51 — see first LAW OF COMPLEXITY above
-
-error: [2 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\daemon.rs:76
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [3 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\daemon.rs:125
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [4 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\daemon.rs:151
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+error: [4 of 118] Banned: '.unwrap()' found. Use ? or proper error handling.
+  --> alacritty_terminal/src/term/search.rs:293
+   = LAW OF PARANOIA: Found `.unwrap()` call — see first LAW OF PARANOIA above
 
 error: [5 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\daemon.rs:164
+  --> alacritty_terminal/src/tty/mod.rs:105
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
 error: [6 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\daemon.rs:179
+  --> alacritty_terminal/src/tty/mod.rs:108
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
-error: [2 of 6] File size is 14544 tokens (Limit: 10000)
-  --> alacritty\src\display\mod.rs:1
+error: [7 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/windows/child.rs:38
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [8 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/windows/child.rs:42
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [9 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/windows/child.rs:73
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [10 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/windows/child.rs:87
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [11 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/windows/child.rs:134
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [12 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/windows/conpty.rs:73
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [13 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/windows/conpty.rs:103
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [14 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/windows/conpty.rs:122
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [15 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/windows/conpty.rs:144
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [16 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/windows/conpty.rs:155
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [17 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/windows/conpty.rs:178
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [18 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/windows/conpty.rs:192
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [19 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/windows/conpty.rs:221
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [20 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/windows/conpty.rs:222
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [21 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/windows/conpty.rs:309
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [22 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/unix.rs:39
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [23 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/unix.rs:70
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [24 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/unix.rs:71
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [25 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/unix.rs:74
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [26 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/unix.rs:88
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [27 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/unix.rs:91
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [28 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/unix.rs:94
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [29 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/unix.rs:251
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [30 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/unix.rs:313
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [31 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/unix.rs:336
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [32 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/unix.rs:340
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [33 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/unix.rs:415
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [34 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/tty/unix.rs:441
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [1 of 2] Getter `is_clear` mutates state
+  --> alacritty_terminal/src/grid/row.rs:155
+   |
+   154 |     #[inline]
+   155 |     pub fn is_clear(&self) -> bool
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   156 |     where
+   = M03: Fix required
+   |
+   = ANALYSIS:
+   |   Getter-style functions should not mutate state.
+   |
+   = WHY: Function name implies a contract (getter or pure calculator) that the implementation violates.
+   |
+   = FIX: Rename the function to match its behavior, or refactor the implementation to match its name.
+   |
+   = SUPPRESS: // neti:allow(M03) on the line, or M03 = "warn" in neti.toml [rules]
+   = PROVENANCE: language-native
+
+error: [35 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/grid/row.rs:43
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [36 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/grid/storage.rs:159
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [2 of 8] Function 'shrink_columns' has cognitive complexity 58 (Max: 35)
+  --> alacritty_terminal/src/grid/resize.rs:245
+   = LAW OF COMPLEXITY: Cognitive score: 58 — see first LAW OF COMPLEXITY above
+
+error: [3 of 8] Function 'spawn' has cognitive complexity 67 (Max: 35)
+  --> alacritty_terminal/src/event_loop.rs:208
+   = LAW OF COMPLEXITY: Cognitive score: 67 — see first LAW OF COMPLEXITY above
+
+error: [37 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty_terminal/src/event_loop.rs:217
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [38 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/clipboard.rs:37
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [39 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/panic.rs:16
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [40 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/mod.rs:100
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [41 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/mod.rs:169
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [42 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/mod.rs:251
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [43 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/mod.rs:260
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [44 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/mod.rs:271
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [45 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/mod.rs:289
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [46 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/mod.rs:309
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [47 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/mod.rs:326
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [48 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/mod.rs:334
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [49 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/mod.rs:368
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [50 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/mod.rs:402
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [51 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/platform.rs:53
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [52 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/platform.rs:84
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [53 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/platform.rs:146
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [54 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/platform.rs:183
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [55 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/shader.rs:42
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [56 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/shader.rs:45
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [57 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/shader.rs:62
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [58 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/shader.rs:77
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [59 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/shader.rs:106
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [60 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/shader.rs:109
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [61 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/shader.rs:134
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [62 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/shader.rs:141
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [63 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/shader.rs:148
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [64 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/shader.rs:159
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [65 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/shader.rs:166
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [66 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/mod.rs:79
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [67 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/mod.rs:89
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [68 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/mod.rs:218
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [69 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/glsl3.rs:50
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [70 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/glsl3.rs:157
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [71 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/glsl3.rs:175
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [72 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/glsl3.rs:201
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [73 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/glsl3.rs:224
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [74 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/glsl3.rs:235
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [75 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/glsl3.rs:241
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [76 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/glsl3.rs:437
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [77 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/glsl3.rs:448
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [78 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/atlas.rs:75
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [79 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/atlas.rs:154
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [80 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/atlas.rs:300
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [2 of 2] Getter `get` mutates state
+  --> alacritty/src/renderer/text/glyph_cache.rs:200
+   = M03: Getter-style functions should not mutate state. — see first M03 above
+
+error: [81 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/gles2.rs:72
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [82 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/gles2.rs:163
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [83 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/gles2.rs:184
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [84 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/gles2.rs:201
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [85 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/gles2.rs:373
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [86 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/gles2.rs:383
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [87 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/gles2.rs:389
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [88 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/text/gles2.rs:492
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [89 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/rects.rs:276
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [90 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/rects.rs:321
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [91 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/rects.rs:338
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [92 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/rects.rs:402
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [93 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/renderer/rects.rs:472
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [94 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/logging.rs:204
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [95 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/main.rs:79
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [96 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/main.rs:181
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [97 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/main.rs:245
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [3 of 6] File size is 20384 tokens (Limit: 10000)
+  --> alacritty/src/event.rs:1
+   = LAW OF ATOMICITY: see first LAW OF ATOMICITY above
+
+error: [4 of 8] Function 'user_event' has cognitive complexity 67 (Max: 35)
+  --> alacritty/src/event.rs:297
+   = LAW OF COMPLEXITY: Cognitive score: 67 — see first LAW OF COMPLEXITY above
+
+error: [5 of 8] Function 'handle_event' has cognitive complexity 63 (Max: 35)
+  --> alacritty/src/event.rs:1878
+   = LAW OF COMPLEXITY: Cognitive score: 63 — see first LAW OF COMPLEXITY above
+
+error: [98 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/event.rs:123
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [99 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/event.rs:518
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [100 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/display/window.rs:505
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [101 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
+  --> alacritty/src/display/window.rs:563
+   = LAW OF PARANOIA: see first LAW OF PARANOIA above
+
+error: [4 of 6] File size is 14962 tokens (Limit: 10000)
+  --> alacritty/src/display/mod.rs:1
    = LAW OF ATOMICITY: see first LAW OF ATOMICITY above
 
 error: Calculator `compute_timeout` mutates state
-  --> alacritty\src\display\mod.rs:1613
+  --> alacritty/src/display/mod.rs:1613
    |
    1612 |     /// rate.
    1613 |     pub fn compute_timeout(&mut self, refresh_interval: Duration) -> Duration {
@@ -108,515 +582,92 @@ error: Calculator `compute_timeout` mutates state
    = SUPPRESS: // neti:allow(M05) on the line, or M05 = "warn" in neti.toml [rules]
    = PROVENANCE: language-native
 
-error: [3 of 8] Function 'draw' has cognitive complexity 37 (Max: 35)
-  --> alacritty\src\display\mod.rs:801
+error: [6 of 8] Function 'draw' has cognitive complexity 37 (Max: 35)
+  --> alacritty/src/display/mod.rs:801
    = LAW OF COMPLEXITY: Cognitive score: 37 — see first LAW OF COMPLEXITY above
 
-error: [7 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\display\mod.rs:598
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [8 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\display\mod.rs:1501
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [9 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\display\window.rs:505
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [10 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\display\window.rs:563
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [3 of 6] File size is 19583 tokens (Limit: 10000)
-  --> alacritty\src\event.rs:1
-   = LAW OF ATOMICITY: see first LAW OF ATOMICITY above
-
-error: [4 of 8] Function 'user_event' has cognitive complexity 67 (Max: 35)
-  --> alacritty\src\event.rs:295
-   = LAW OF COMPLEXITY: Cognitive score: 67 — see first LAW OF COMPLEXITY above
-
-error: [5 of 8] Function 'handle_event' has cognitive complexity 63 (Max: 35)
-  --> alacritty\src\event.rs:1855
-   = LAW OF COMPLEXITY: Cognitive score: 63 — see first LAW OF COMPLEXITY above
-
-error: [11 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\event.rs:121
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [12 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\event.rs:516
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [4 of 6] File size is 15365 tokens (Limit: 10000)
-  --> alacritty\src\input\mod.rs:1
-   = LAW OF ATOMICITY: see first LAW OF ATOMICITY above
-
-error: [13 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\logging.rs:204
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [14 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\macos\locale.rs:17
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [15 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\macos\locale.rs:19
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [16 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\macos\locale.rs:38
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [17 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\macos\locale.rs:46
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [18 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\macos\locale.rs:49
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [19 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\macos\locale.rs:54
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [20 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\macos\mod.rs:8
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [21 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\macos\proc.rs:59
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [22 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\main.rs:79
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [23 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\main.rs:181
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [24 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\main.rs:245
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [25 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\panic.rs:16
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [26 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\polling\ipc.rs:42
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [27 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\polling\mod.rs:69
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [28 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\mod.rs:100
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [29 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\mod.rs:169
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [30 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\mod.rs:251
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [31 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\mod.rs:260
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [32 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\mod.rs:271
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [33 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\mod.rs:289
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [34 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\mod.rs:309
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [35 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\mod.rs:326
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [36 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\mod.rs:334
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [37 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\mod.rs:368
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [38 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\mod.rs:402
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [39 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\platform.rs:53
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [40 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\platform.rs:84
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [41 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\platform.rs:146
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [42 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\platform.rs:183
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [43 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\rects.rs:276
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [44 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\rects.rs:321
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [45 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\rects.rs:338
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [46 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\rects.rs:402
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [47 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\rects.rs:472
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [48 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\shader.rs:42
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [49 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\shader.rs:45
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [50 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\shader.rs:62
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [51 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\shader.rs:77
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [52 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\shader.rs:106
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [53 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\shader.rs:109
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [54 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\shader.rs:134
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [55 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\shader.rs:141
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [56 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\shader.rs:148
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [57 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\shader.rs:159
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [58 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\shader.rs:166
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [59 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\atlas.rs:75
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [60 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\atlas.rs:154
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [61 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\atlas.rs:300
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [62 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\gles2.rs:72
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [63 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\gles2.rs:163
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [64 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\gles2.rs:184
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [65 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\gles2.rs:201
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [66 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\gles2.rs:373
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [67 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\gles2.rs:383
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [68 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\gles2.rs:389
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [69 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\gles2.rs:492
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [70 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\glsl3.rs:50
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [71 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\glsl3.rs:157
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [72 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\glsl3.rs:175
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [73 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\glsl3.rs:201
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [74 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\glsl3.rs:224
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [75 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\glsl3.rs:235
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [76 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\glsl3.rs:241
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [77 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\glsl3.rs:437
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [78 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\glsl3.rs:448
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [1 of 2] Getter `get` mutates state
-  --> alacritty\src\renderer\text\glyph_cache.rs:200
-   |
-   199 |     /// not being present in any font.
-   200 |     pub fn get<L>(&mut self, glyph_key: GlyphKey, loader: &mut L, show_missing: bool) -> Glyph
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   201 |     where
-   = M03: Fix required
-   |
-   = ANALYSIS:
-   |   Getter-style functions should not mutate state.
-   |
-   = WHY: Function name implies a contract (getter or pure calculator) that the implementation violates.
-   |
-   = FIX: Rename the function to match its behavior, or refactor the implementation to match its name.
-   |
-   = SUPPRESS: // neti:allow(M03) on the line, or M03 = "warn" in neti.toml [rules]
-   = PROVENANCE: language-native
-
-error: [79 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\mod.rs:79
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [80 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\mod.rs:89
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [81 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty\src\renderer\text\mod.rs:218
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [6 of 8] Function 'spawn' has cognitive complexity 67 (Max: 35)
-  --> alacritty_terminal\src\event_loop.rs:208
-   = LAW OF COMPLEXITY: Cognitive score: 67 — see first LAW OF COMPLEXITY above
-
-error: [82 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\event_loop.rs:217
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [7 of 8] Function 'shrink_columns' has cognitive complexity 58 (Max: 35)
-  --> alacritty_terminal\src\grid\resize.rs:245
-   = LAW OF COMPLEXITY: Cognitive score: 58 — see first LAW OF COMPLEXITY above
-
-error: [2 of 2] Getter `is_clear` mutates state
-  --> alacritty_terminal\src\grid\row.rs:155
-   = M03: Getter-style functions should not mutate state. — see first M03 above
-
-error: [83 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\grid\row.rs:43
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [84 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\grid\storage.rs:159
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [5 of 6] File size is 28180 tokens (Limit: 10000)
-  --> alacritty_terminal\src\term\mod.rs:1
-   = LAW OF ATOMICITY: see first LAW OF ATOMICITY above
-
-error: [85 of 118] Banned: '.unwrap()' found. Use ? or proper error handling.
-  --> alacritty_terminal\src\term\mod.rs:2473
-   = LAW OF PARANOIA: Found `.unwrap()` call — see first LAW OF PARANOIA above
-
-error: [86 of 118] Banned: '.unwrap()' found. Use ? or proper error handling.
-  --> alacritty_terminal\src\term\mod.rs:2493
-   = LAW OF PARANOIA: Found `.unwrap()` call — see first LAW OF PARANOIA above
-
-error: [87 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\term\mod.rs:2332
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [6 of 6] File size is 11384 tokens (Limit: 10000)
-  --> alacritty_terminal\src\term\search.rs:1
-   = LAW OF ATOMICITY: see first LAW OF ATOMICITY above
-
-error: [8 of 8] Function 'regex_search_internal' has cognitive complexity 39 (Max: 35)
-  --> alacritty_terminal\src\term\search.rs:274
-   = LAW OF COMPLEXITY: Cognitive score: 39 — see first LAW OF COMPLEXITY above
-
-error: [88 of 118] Banned: '.unwrap()' found. Use ? or proper error handling.
-  --> alacritty_terminal\src\term\search.rs:293
-   = LAW OF PARANOIA: Found `.unwrap()` call — see first LAW OF PARANOIA above
-
-error: [89 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\mod.rs:105
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [90 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\mod.rs:108
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [91 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\unix.rs:39
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [92 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\unix.rs:70
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [93 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\unix.rs:71
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [94 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\unix.rs:74
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [95 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\unix.rs:88
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [96 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\unix.rs:91
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [97 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\unix.rs:94
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [98 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\unix.rs:251
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [99 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\unix.rs:313
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [100 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\unix.rs:336
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
-error: [101 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\unix.rs:340
-   = LAW OF PARANOIA: see first LAW OF PARANOIA above
-
 error: [102 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\unix.rs:415
+  --> alacritty/src/display/mod.rs:598
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
 error: [103 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\unix.rs:441
+  --> alacritty/src/display/mod.rs:1501
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
+error: [5 of 6] File size is 15753 tokens (Limit: 10000)
+  --> alacritty/src/config/bindings.rs:1
+   = LAW OF ATOMICITY: see first LAW OF ATOMICITY above
+
+error: [7 of 8] Function 'deserialize' has cognitive complexity 52 (Max: 35)
+  --> alacritty/src/config/bindings.rs:945
+   = LAW OF COMPLEXITY: Cognitive score: 52 — see first LAW OF COMPLEXITY above
+
+error: [8 of 8] Function 'visit_map' has cognitive complexity 51 (Max: 35)
+  --> alacritty/src/config/bindings.rs:1004
+   = LAW OF COMPLEXITY: Cognitive score: 51 — see first LAW OF COMPLEXITY above
+
 error: [104 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\windows\child.rs:38
+  --> alacritty/src/daemon.rs:76
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
 error: [105 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\windows\child.rs:42
+  --> alacritty/src/daemon.rs:125
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
 error: [106 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\windows\child.rs:73
+  --> alacritty/src/daemon.rs:151
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
 error: [107 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\windows\child.rs:87
+  --> alacritty/src/daemon.rs:164
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
 error: [108 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\windows\child.rs:134
+  --> alacritty/src/daemon.rs:179
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
+error: [6 of 6] File size is 15755 tokens (Limit: 10000)
+  --> alacritty/src/input/mod.rs:1
+   = LAW OF ATOMICITY: see first LAW OF ATOMICITY above
+
 error: [109 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\windows\conpty.rs:73
+  --> alacritty/src/polling/mod.rs:69
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
 error: [110 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\windows\conpty.rs:103
+  --> alacritty/src/polling/ipc.rs:42
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
 error: [111 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\windows\conpty.rs:122
+  --> alacritty/src/macos/locale.rs:17
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
 error: [112 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\windows\conpty.rs:144
+  --> alacritty/src/macos/locale.rs:19
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
 error: [113 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\windows\conpty.rs:155
+  --> alacritty/src/macos/locale.rs:38
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
 error: [114 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\windows\conpty.rs:178
+  --> alacritty/src/macos/locale.rs:46
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
 error: [115 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\windows\conpty.rs:192
+  --> alacritty/src/macos/locale.rs:49
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
 error: [116 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\windows\conpty.rs:221
+  --> alacritty/src/macos/locale.rs:54
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
 error: [117 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\windows\conpty.rs:222
+  --> alacritty/src/macos/proc.rs:59
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
 error: [118 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal\src\tty\windows\conpty.rs:309
+  --> alacritty/src/macos/mod.rs:8
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
-X Neti found 128 errors, 7 warnings (371ms).
+X Neti found 128 errors, 7 warnings (233ms).
