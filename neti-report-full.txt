@@ -1,6 +1,6 @@
 COMMANDS
-  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (277ms)
-  cargo test ... PASS (5270ms)
+  cargo clippy --all-targets --no-deps -- -D warnings ... PASS (3639ms)
+  cargo test ... PASS (8096ms)
 
 LOCALITY: PASS | 0 edges | 0 violations | 7 cycles
   cycle 1: alacritty/src/cli.rs -> alacritty/src/logging.rs -> alacritty/src/cli.rs
@@ -232,11 +232,11 @@ error: [2 of 8] Function 'shrink_columns' has cognitive complexity 58 (Max: 35)
    = LAW OF COMPLEXITY: Cognitive score: 58 — see first LAW OF COMPLEXITY above
 
 error: [3 of 8] Function 'spawn' has cognitive complexity 67 (Max: 35)
-  --> alacritty_terminal/src/event_loop.rs:208
+  --> alacritty_terminal/src/event_loop.rs:216
    = LAW OF COMPLEXITY: Cognitive score: 67 — see first LAW OF COMPLEXITY above
 
 error: [37 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
-  --> alacritty_terminal/src/event_loop.rs:217
+  --> alacritty_terminal/src/event_loop.rs:225
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
 error: [38 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
@@ -483,7 +483,7 @@ error: [97 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
   --> alacritty/src/main.rs:245
    = LAW OF PARANOIA: see first LAW OF PARANOIA above
 
-error: [3 of 6] File size is 20384 tokens (Limit: 10000)
+error: [3 of 6] File size is 20447 tokens (Limit: 10000)
   --> alacritty/src/event.rs:1
    = LAW OF ATOMICITY: see first LAW OF ATOMICITY above
 
@@ -491,9 +491,9 @@ error: [4 of 8] Function 'user_event' has cognitive complexity 67 (Max: 35)
   --> alacritty/src/event.rs:297
    = LAW OF COMPLEXITY: Cognitive score: 67 — see first LAW OF COMPLEXITY above
 
-error: [5 of 8] Function 'handle_event' has cognitive complexity 63 (Max: 35)
+error: [5 of 8] Function 'handle_event' has cognitive complexity 67 (Max: 35)
   --> alacritty/src/event.rs:1878
-   = LAW OF COMPLEXITY: Cognitive score: 63 — see first LAW OF COMPLEXITY above
+   = LAW OF COMPLEXITY: Cognitive score: 67 — see first LAW OF COMPLEXITY above
 
 error: [98 of 118] Unsafe block missing justification. Add '// SAFETY:' comment.
   --> alacritty/src/event.rs:123

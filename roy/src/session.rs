@@ -108,6 +108,17 @@ impl RoyInterceptor for RoySession {
         let mut q = self.pending_denials.lock().unwrap_or_else(|e| e.into_inner());
         std::mem::take(&mut *q)
     }
+
+    fn observe_output(&self, bytes: &[u8]) {
+        if let Some(host) = &self.agent_host {
+            let text = String::from_utf8_lossy(bytes);
+            host.observe(text.as_ref());
+        }
+    }
+
+    fn wants_output_observation(&self) -> bool {
+        self.agent_host.is_some()
+    }
 }
 
 /// Build a RoySession from the default roy.toml location.
@@ -263,5 +274,31 @@ mod tests {
 
         let result = session.intercept(b"rm -rf target\n", false);
         assert!(matches!(result, Disposition::Passthrough));
+    }
+
+    #[test]
+    fn agent_rules_apply_after_agent_output_is_observed() {
+        let session = RoySession::with_agent_host(
+            PolicyEngine::empty(),
+            AgentHost::new(vec![Box::new(ClaudeCodeAdapter)]),
+        );
+
+        session.observe_output(b"Tool: bash");
+
+        let result = session.intercept(b"rm -rf target\n", false);
+        match result {
+            Disposition::Denied(d) => assert_eq!(d.rule_id.as_deref(), Some("A002")),
+            _ => panic!("expected agent-mode denial after output detection"),
+        }
+    }
+
+    #[test]
+    fn session_requests_output_observation_only_with_agent_host() {
+        assert!(!RoySession::passthrough().wants_output_observation());
+        assert!(RoySession::with_agent_host(
+            PolicyEngine::empty(),
+            AgentHost::new(vec![Box::new(CodexAdapter)]),
+        )
+        .wants_output_observation());
     }
 }

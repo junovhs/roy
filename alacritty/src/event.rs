@@ -1961,6 +1961,11 @@ impl input::Processor<EventProxy, ActionContext<'_, Notifier, EventProxy>> {
                         self.ctx.write_to_pty(text.into_bytes());
                     },
                     TerminalEvent::PtyWrite(text) => self.ctx.write_to_pty(text.into_bytes()),
+                    TerminalEvent::PtyOutput(text) => {
+                        if let Some(interceptor) = self.ctx.roy_interceptor {
+                            interceptor.observe_output(text.as_bytes());
+                        }
+                    },
                     TerminalEvent::MouseCursorDirty => self.reset_mouse_cursor(),
                     TerminalEvent::CursorBlinkingChange => self.ctx.update_cursor_blinking(),
                     TerminalEvent::Exit | TerminalEvent::ChildExit(_) | TerminalEvent::Wakeup => (),

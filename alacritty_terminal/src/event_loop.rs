@@ -52,6 +52,7 @@ pub struct EventLoop<T: tty::EventedPty, U: EventListener> {
     event_proxy: U,
     drain_on_exit: bool,
     ref_test: bool,
+    observe_pty_output: bool,
 }
 
 impl<T, U> EventLoop<T, U>
@@ -66,6 +67,7 @@ where
         pty: T,
         drain_on_exit: bool,
         ref_test: bool,
+        observe_pty_output: bool,
     ) -> io::Result<EventLoop<T, U>> {
         let (tx, rx) = mpsc::channel();
         let poll = Poller::new()?.into();
@@ -78,6 +80,7 @@ where
             event_proxy,
             drain_on_exit,
             ref_test,
+            observe_pty_output,
         })
     }
 
@@ -151,6 +154,11 @@ where
                     error!("Failed to write PTY recording bytes: {err}");
                     writer = None;
                 }
+            }
+
+            if self.observe_pty_output {
+                let text = String::from_utf8_lossy(&buf[..unprocessed]).into_owned();
+                self.event_proxy.send_event(Event::PtyOutput(text));
             }
 
             // Parse the incoming bytes.

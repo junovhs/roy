@@ -39,6 +39,9 @@ pub enum Event {
     /// Write some text to the PTY.
     PtyWrite(String),
 
+    /// Bytes were read from the PTY and decoded lossily for observers.
+    PtyOutput(String),
+
     /// Request to write the text area size.
     TextAreaSizeRequest(Arc<dyn Fn(WindowSize) -> String + Sync + Send + 'static>),
 
@@ -66,6 +69,7 @@ impl Debug for Event {
             Event::TextAreaSizeRequest(_) => write!(f, "TextAreaSizeRequest"),
             Event::ColorRequest(index, _) => write!(f, "ColorRequest({index})"),
             Event::PtyWrite(text) => write!(f, "PtyWrite({text})"),
+            Event::PtyOutput(text) => write!(f, "PtyOutput({text})"),
             Event::Title(title) => write!(f, "Title({title})"),
             Event::CursorBlinkingChange => write!(f, "CursorBlinkingChange"),
             Event::MouseCursorDirty => write!(f, "MouseCursorDirty"),

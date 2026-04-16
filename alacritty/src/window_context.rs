@@ -211,6 +211,8 @@ impl WindowContext {
         #[cfg(not(windows))]
         let shell_pid = pty.child().id();
 
+        let roy_interceptor: Arc<dyn RoyInterceptor> = Arc::new(session_from_env());
+
         // Create the pseudoterminal I/O loop.
         //
         // PTY I/O is ran on another thread as to not occupy cycles used by the
@@ -223,6 +225,7 @@ impl WindowContext {
             pty,
             pty_config.drain_on_exit,
             config.debug.ref_test,
+            roy_interceptor.wants_output_observation(),
         )?;
 
         // The event loop channel allows write requests from the event processor
@@ -260,7 +263,7 @@ impl WindowContext {
             mouse: Default::default(),
             touch: Default::default(),
             dirty: Default::default(),
-            roy_interceptor: Some(Arc::new(session_from_env())),
+            roy_interceptor: Some(roy_interceptor),
             roy_denial_log: load_config().ok().and_then(|cfg| {
                 cfg.session_dir.as_ref().and_then(|dir| DenialLog::open(dir).ok())
             }),

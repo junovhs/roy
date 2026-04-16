@@ -26,6 +26,18 @@ pub enum Disposition {
 pub trait RoyInterceptor: Send + Sync {
     fn intercept(&self, bytes: &[u8], in_raw_mode: bool) -> Disposition;
 
+    /// Observe bytes read from the PTY output stream.
+    ///
+    /// This is used for agent supervision heuristics which need to detect
+    /// agent prompts or tool banners emitted by the hosted agent itself.
+    fn observe_output(&self, _bytes: &[u8]) {}
+
+    /// Return true when the interceptor wants PTY output forwarded through
+    /// the event loop for supervision.
+    fn wants_output_observation(&self) -> bool {
+        false
+    }
+
     /// Drain any denial responses accumulated since the last call.
     ///
     /// Called by `WindowContext::handle_event()` after each event batch to
